@@ -40,7 +40,7 @@ function CubanRibbon({ height = 8, style = {} }) {
   );
 }
 
-function LuxuryGauge({ value = 69, size = 120, label = "% RH", subtitle = "", color }) {
+function LuxuryGauge({ value = 69, size = 120, label = "% RH", subtitle = "", color = "#fff" }) {
   const cx = size / 2, cy = size / 2;
   const outerR = size * 0.46;
   const min = 20, max = 100;
