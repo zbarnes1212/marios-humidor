@@ -359,7 +359,7 @@ function CommunityTab({ apiKey }) {
   const [expandedPost, setExpandedPost] = useState(null);
   const [newComment, setNewComment] = useState("");
   const [postComments, setPostComments] = useState({});
-  const fileRef = useRef();
+  const fileRef = useRef(null)();
   const filtered = activeCategory === "All" ? posts : posts.filter(p => p.category === activeCategory);
   const catColors = { "Reviews":T.cubanRed, "Pairings":"#1a5c35", "Aging Tips":T.goldMid, "Lounge Talk":T.cubanBlueMid, "For Sale":T.muted };
   const fi = { width:"100%", background:"rgba(0,0,0,0.4)", border:`1px solid ${T.goldDark}`, borderRadius:8, color:T.cream, padding:"10px 12px", fontFamily:"Georgia,serif", fontSize:13, outline:"none", boxSizing:"border-box", marginBottom:10 };
