@@ -1,0 +1,1022 @@
+"use client";
+import { useState, useEffect, useRef, useId, useCallback } from "react";
+
+// ── THEME ──────────────────────────────────────────────────────────────────
+const T = {
+  cedar1:"#2c0e04", cedar2:"#3d1404", cedar3:"#5a2208", cedar4:"#7a3410",
+  cedar5:"#a04820", cedar6:"#c86030", cedarLight:"#e8956a",
+  goldDark:"#8B6914", goldMid:"#C49A28", goldLight:"#e8c84a", goldBright:"#f5d060",
+  cream:"#f5ede0", creamDark:"#e8d8c0", parchment:"#d4b896", parchmentDark:"#b8956a",
+  inkDark:"#1a0a02", inkSoft:"#3d2010",
+  success:"#4a9e6a", warning:"#c8a020", danger:"#c84040",
+  cedar44:"rgba(90,34,8,0.44)", goldDark44:"rgba(139,105,20,0.44)",
+  goldMid22:"rgba(196,154,40,0.22)",
+};
+
+// ── HELPERS ────────────────────────────────────────────────────────────────
+const r2 = (n: number) => Math.round(n * 100) / 100;
+const polar = (cx:number,cy:number,r:number,deg:number) => {
+  const a = (deg-90)*Math.PI/180;
+  return {x: r2(cx+r*Math.cos(a)), y: r2(cy+r*Math.sin(a))};
+};
+
+// ── LUXURY GAUGE (hydration-safe) ──────────────────────────────────────────
+function LuxuryGauge({value,size,label,subtitle,color,min=20,max=100}:{
+  value:number;size:number;label:string;subtitle:string;color:string;min?:number;max?:number;
+}) {
+  const uid = useId().replace(/:/g,"");
+  const [mounted, setMounted] = useState(false);
+  useEffect(()=>{ setMounted(true); },[]);
+
+  const cx=size/2, cy=size/2;
+  const r = size*0.46;
+
+  // Needle angle: -130deg to +130deg over the full range
+  const pct = Math.max(0,Math.min(1,(value-min)/(max-min)));
+  const needleAngle = -130 + pct*260;
+
+  // Tick positions
+  const majorTicks = [0,20,40,60,80,100];
+  const midTicks   = [10,30,50,70,90];
+  const minorTicks = [5,15,25,35,45,55,65,75,85,95];
+
+  const tickPoint = (pct:number, radiusFrac:number) => {
+    const ang = (-130 + pct*260) * Math.PI/180;
+    return {
+      x: Math.round((cx + (r*radiusFrac)*Math.sin(ang))*100)/100,
+      y: Math.round((cy - (r*radiusFrac)*Math.cos(ang))*100)/100,
+    };
+  };
+  const labelPoint = (pct:number) => tickPoint(pct, 0.72);
+  const outerTick  = (pct:number) => tickPoint(pct, 0.98);
+  const majorInner = (pct:number) => tickPoint(pct, 0.82);
+  const midInner   = (pct:number) => tickPoint(pct, 0.87);
+  const minorInner = (pct:number) => tickPoint(pct, 0.91);
+
+  const needleRad = needleAngle * Math.PI/180;
+  const needleTip = {
+    x: Math.round((cx + r*0.78*Math.sin(needleRad))*100)/100,
+    y: Math.round((cy - r*0.78*Math.cos(needleRad))*100)/100,
+  };
+  const needleTail = {
+    x: Math.round((cx + r*0.15*Math.sin(needleRad+Math.PI))*100)/100,
+    y: Math.round((cy - r*0.15*Math.cos(needleRad+Math.PI))*100)/100,
+  };
+
+  if(!mounted) return (
+    <div style={{width:size,height:size+30,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+      <div style={{width:size,height:size,borderRadius:"50%",background:"#2c0e04",border:`3px solid #C49A28`,display:"flex",alignItems:"center",justifyContent:"center"}}>
+        <span style={{color:"#C49A28",fontSize:size*0.2,fontFamily:"Georgia,serif",fontWeight:"bold"}}>{value}</span>
+      </div>
+      <div style={{fontSize:size*0.1,color:"#C49A28",fontFamily:"Georgia,serif",marginTop:4,letterSpacing:2}}>{label}</div>
+    </div>
+  );
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center"}}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{filter:`drop-shadow(0 4px 14px rgba(0,0,0,0.7))`}}>
+        <defs>
+          <radialGradient id={`${uid}bezel`} cx="40%" cy="35%" r="65%">
+            <stop offset="0%" stopColor="#f5e090"/>
+            <stop offset="28%" stopColor="#d4a832"/>
+            <stop offset="60%" stopColor="#8B6914"/>
+            <stop offset="85%" stopColor="#6a4f10"/>
+            <stop offset="100%" stopColor="#c49a28"/>
+          </radialGradient>
+          <radialGradient id={`${uid}bezelInner`} cx="50%" cy="40%" r="60%">
+            <stop offset="0%" stopColor="#e8d4a0"/>
+            <stop offset="50%" stopColor="#c49a28"/>
+            <stop offset="100%" stopColor="#5a3d08"/>
+          </radialGradient>
+          <radialGradient id={`${uid}dial`} cx="38%" cy="32%" r="68%">
+            <stop offset="0%" stopColor="#fdfaf3"/>
+            <stop offset="55%" stopColor="#f5ede0"/>
+            <stop offset="100%" stopColor="#e8d8c0"/>
+          </radialGradient>
+          <radialGradient id={`${uid}glass`} cx="32%" cy="26%" r="68%">
+            <stop offset="0%" stopColor="rgba(255,255,255,0.38)"/>
+            <stop offset="45%" stopColor="rgba(255,255,255,0.05)"/>
+            <stop offset="100%" stopColor="rgba(0,0,0,0.07)"/>
+          </radialGradient>
+          <radialGradient id={`${uid}cap`} cx="38%" cy="32%" r="65%">
+            <stop offset="0%" stopColor="#f5e080"/>
+            <stop offset="50%" stopColor="#C49A28"/>
+            <stop offset="100%" stopColor="#5a3d08"/>
+          </radialGradient>
+          <linearGradient id={`${uid}needle`} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#b03020"/>
+            <stop offset="50%" stopColor="#e84030"/>
+            <stop offset="100%" stopColor="#b03020"/>
+          </linearGradient>
+        </defs>
+
+        {/* Outer bezel */}
+        <circle cx={cx} cy={cy} r={r*1.08} fill={`url(#${uid}bezel)`}/>
+        {/* Inner bezel ring */}
+        <circle cx={cx} cy={cy} r={r*1.01} fill={`url(#${uid}bezelInner)`}/>
+        {/* Inset shadow */}
+        <circle cx={cx} cy={cy} r={r*0.97} fill="#1a0a02" opacity={0.2}/>
+        {/* Cream dial face */}
+        <circle cx={cx} cy={cy} r={r*0.95} fill={`url(#${uid}dial)`}/>
+        {/* Dial inner border */}
+        <circle cx={cx} cy={cy} r={r*0.94} fill="none" stroke="#c8b890" strokeWidth={0.6} opacity={0.6}/>
+
+        {/* Major ticks + labels */}
+        {majorTicks.map(v => {
+          const pct = v/100;
+          const o = outerTick(pct);
+          const i = majorInner(pct);
+          const l = labelPoint(pct);
+          return (
+            <g key={v}>
+              <line x1={o.x} y1={o.y} x2={i.x} y2={i.y} stroke="#1a0a02" strokeWidth={Math.round(size*0.025*100)/100} strokeLinecap="round"/>
+              <text x={l.x} y={l.y} textAnchor="middle" dominantBaseline="middle"
+                fontSize={Math.round(size*0.085)} fontFamily="Arial" fontWeight="bold" fill="#1a0a02">{v}</text>
+            </g>
+          );
+        })}
+
+        {/* Mid ticks */}
+        {midTicks.map(v => {
+          const pct = v/100;
+          const o = outerTick(pct);
+          const i = midInner(pct);
+          return <line key={v} x1={o.x} y1={o.y} x2={i.x} y2={i.y} stroke="#8B6914" strokeWidth={Math.round(size*0.016*100)/100} strokeLinecap="round"/>;
+        })}
+
+        {/* Minor ticks */}
+        {minorTicks.map(v => {
+          const pct = v/100;
+          const o = outerTick(pct);
+          const i = minorInner(pct);
+          return <line key={v} x1={o.x} y1={o.y} x2={i.x} y2={i.y} stroke="#c8a878" strokeWidth={Math.round(size*0.01*100)/100} strokeLinecap="round"/>;
+        })}
+
+        {/* Unit label */}
+        <text x={cx} y={cy*1.28} textAnchor="middle" fontSize={Math.round(size*0.1)} fontFamily="Georgia,serif" fontStyle="italic" fill="#8B6914">{label}</text>
+
+        {/* Needle shadow */}
+        <line x1={needleTail.x+1} y1={needleTail.y+1} x2={needleTip.x+1} y2={needleTip.y+1}
+          stroke="rgba(0,0,0,0.2)" strokeWidth={Math.round(size*0.04*100)/100} strokeLinecap="round"/>
+        {/* Needle */}
+        <line x1={needleTail.x} y1={needleTail.y} x2={needleTip.x} y2={needleTip.y}
+          stroke={`url(#${uid}needle)`} strokeWidth={Math.round(size*0.028*100)/100} strokeLinecap="round"/>
+
+        {/* Center cap */}
+        <circle cx={cx} cy={cy} r={r*0.1} fill="#5a3d08"/>
+        <circle cx={cx} cy={cy} r={r*0.076} fill={`url(#${uid}cap)`}/>
+        <circle cx={cx} cy={cy} r={r*0.04} fill="#8B6914"/>
+        <circle cx={cx} cy={cy} r={r*0.02} fill="#f5e080"/>
+
+        {/* Glass reflection */}
+        <circle cx={cx} cy={cy} r={r*0.95} fill={`url(#${uid}glass)`}/>
+      </svg>
+      {/* Value + subtitle below gauge */}
+      <div style={{textAlign:"center",marginTop:4}}>
+        <div style={{fontSize:size*0.22,fontWeight:"bold",color:"#C49A28",fontFamily:"Georgia,serif",lineHeight:1}}>{value}</div>
+        <div style={{fontSize:size*0.09,color:"#8B6914",letterSpacing:2,textTransform:"uppercase",marginTop:2}}>{subtitle}</div>
+      </div>
+    </div>
+  );
+}
+// ── CUBAN RIBBON ───────────────────────────────────────────────────────────
+function CubanRibbon({height=6}:{height?:number}) {
+  return (
+    <div style={{height,background:`repeating-linear-gradient(90deg,
+      ${T.goldDark} 0px,${T.goldDark} 2px,${T.goldMid} 2px,${T.goldMid} 4px,
+      ${T.goldLight} 4px,${T.goldLight} 6px,${T.goldMid} 6px,${T.goldMid} 8px,
+      ${T.cedar3} 8px,${T.cedar3} 12px,${T.goldMid} 12px,${T.goldMid} 14px,
+      ${T.goldLight} 14px,${T.goldLight} 16px,${T.goldMid} 16px,${T.goldMid} 18px,
+      ${T.goldDark} 18px,${T.goldDark} 20px)`,opacity:0.85}}/>
+  );
+}
+
+// ── SECTION TITLE ──────────────────────────────────────────────────────────
+function SectionTitle({children}:{children:React.ReactNode}) {
+  return (
+    <div style={{textAlign:"center",marginBottom:16}}>
+      <div style={{fontSize:11,color:T.goldMid,letterSpacing:3,textTransform:"uppercase",
+        fontFamily:"Georgia,serif",marginBottom:4}}>{children}</div>
+      <CubanRibbon height={4}/>
+    </div>
+  );
+}
+
+// ── CEDAR STRIPES BG ───────────────────────────────────────────────────────
+function CedarBg() {
+  return (
+    <div style={{position:"fixed",inset:0,zIndex:0,
+      background:`linear-gradient(160deg,${T.cedar1} 0%,${T.cedar2} 40%,${T.cedar1} 100%)`,
+      backgroundImage:`repeating-linear-gradient(92deg,
+        transparent 0px,transparent 18px,rgba(255,255,255,0.012) 18px,rgba(255,255,255,0.012) 19px),
+      repeating-linear-gradient(2deg,
+        transparent 0px,transparent 60px,rgba(0,0,0,0.08) 60px,rgba(0,0,0,0.08) 61px)`}}/>
+  );
+}
+
+// ── DIAL ICON (hydration-safe) ─────────────────────────────────────────────
+function DialIcon({active}:{active:boolean}) {
+  const c = active ? T.goldLight : T.cedar5;
+  const [mounted, setMounted] = useState(false);
+  useEffect(()=>{ setMounted(true); },[]);
+  if(!mounted) return <svg width="28" height="28" viewBox="0 0 28 28" fill="none"><circle cx="14" cy="14" r="11" fill="rgba(0,0,0,0.4)" stroke={c} strokeWidth="1"/></svg>;
+  const ticks = Array.from({length:13},(_,i)=>{
+    const ang=(-220+i*20)*Math.PI/180;
+    const isMaj=i%4===0;
+    const r1=isMaj?7.5:8.5, r2v=10;
+    return {x1:r2(14+r1*Math.cos(ang)),y1:r2(14+r1*Math.sin(ang)),x2:r2(14+r2v*Math.cos(ang)),y2:r2(14+r2v*Math.sin(ang)),isMaj};
+  });
+  return (
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+      <circle cx="14" cy="14" r="11.5" fill="rgba(0,0,0,0.6)" stroke={c} strokeWidth="1.2"/>
+      <circle cx="14" cy="14" r="7" fill="none" stroke={c} strokeWidth="0.5" opacity="0.3"/>
+      {ticks.map((t,i)=>(
+        <line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
+          stroke={c} strokeWidth={t.isMaj?"1.2":"0.7"} opacity={t.isMaj?1:0.5}/>
+      ))}
+      <line x1="14" y1="14" x2="14" y2="6.5" stroke={active?"#e04040":"#8a3030"} strokeWidth="1.5" strokeLinecap="round"/>
+      <circle cx="14" cy="14" r="2" fill={c}/>
+      <circle cx="14" cy="14" r="0.8" fill="#111"/>
+      <text x="14" y="20.5" textAnchor="middle" fontSize="3" fill={c} fontFamily="Georgia">RH · °F</text>
+    </svg>
+  );
+}
+
+// ── NAV ICONS ──────────────────────────────────────────────────────────────
+function NavIcon({tab,active}:{tab:string,active:boolean}) {
+  const c = active ? T.goldLight : T.cedar5;
+  const icons: Record<string,React.ReactNode> = {
+    humidors: <DialIcon active={active}/>,
+    collection: (
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <rect x="6" y="8" width="16" height="14" rx="2" stroke={c} strokeWidth="1.2" fill="rgba(0,0,0,0.4)"/>
+        <line x1="6" y1="12" x2="22" y2="12" stroke={c} strokeWidth="0.8" opacity="0.6"/>
+        <circle cx="9" cy="10" r="1" fill={c} opacity="0.8"/>
+        <rect x="9" y="15" width="10" height="1.5" rx="0.75" fill={c} opacity="0.7"/>
+        <rect x="9" y="18" width="7" height="1.5" rx="0.75" fill={c} opacity="0.5"/>
+      </svg>
+    ),
+    mario: (
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <circle cx="14" cy="11" r="5" stroke={c} strokeWidth="1.2" fill="rgba(0,0,0,0.4)"/>
+        <path d="M7 22c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke={c} strokeWidth="1.2" strokeLinecap="round"/>
+        <circle cx="14" cy="11" r="2" fill={c} opacity="0.6"/>
+      </svg>
+    ),
+    news: (
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <rect x="5" y="6" width="18" height="16" rx="2" stroke={c} strokeWidth="1.2" fill="rgba(0,0,0,0.4)"/>
+        <rect x="8" y="9" width="12" height="2" rx="1" fill={c} opacity="0.8"/>
+        <rect x="8" y="13" width="8" height="1.5" rx="0.75" fill={c} opacity="0.5"/>
+        <rect x="8" y="16" width="10" height="1.5" rx="0.75" fill={c} opacity="0.5"/>
+      </svg>
+    ),
+    community: (
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <circle cx="10" cy="12" r="3.5" stroke={c} strokeWidth="1.2" fill="rgba(0,0,0,0.4)"/>
+        <circle cx="18" cy="12" r="3.5" stroke={c} strokeWidth="1.2" fill="rgba(0,0,0,0.4)"/>
+        <path d="M4 22c0-3 2.686-5 6-5s6 2 6 5" stroke={c} strokeWidth="1.2" strokeLinecap="round"/>
+        <path d="M16 22c0-3 2.686-5 6-5" stroke={c} strokeWidth="1.2" strokeLinecap="round"/>
+      </svg>
+    ),
+    notes: (
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <path d="M8 6h12l2 4v12H6V6h2z" stroke={c} strokeWidth="1.2" fill="rgba(0,0,0,0.4)"/>
+        <line x1="10" y1="13" x2="18" y2="13" stroke={c} strokeWidth="1" opacity="0.7"/>
+        <line x1="10" y1="16" x2="16" y2="16" stroke={c} strokeWidth="1" opacity="0.5"/>
+        <path d="M16 6v4h4" stroke={c} strokeWidth="1" opacity="0.6"/>
+      </svg>
+    ),
+    settings: (
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <circle cx="14" cy="14" r="3" stroke={c} strokeWidth="1.2" fill="rgba(0,0,0,0.4)"/>
+        <path d="M14 5v2M14 21v2M5 14H3M25 14h-2M7.05 7.05l1.42 1.42M19.54 19.54l1.41 1.41M7.05 20.95l1.42-1.42M19.54 8.46l1.41-1.41"
+          stroke={c} strokeWidth="1.2" strokeLinecap="round"/>
+      </svg>
+    ),
+  };
+  return <>{icons[tab] || null}</>;
+}
+
+// ── BOTTOM NAV ─────────────────────────────────────────────────────────────
+const NAV_TABS = [
+  {id:"humidors",label:"Humidors"},
+  {id:"collection",label:"Collection"},
+  {id:"mario",label:"Ask Mario"},
+  {id:"news",label:"News"},
+  {id:"community",label:"Community"},
+  {id:"notes",label:"Notes"},
+  {id:"settings",label:"Settings"},
+];
+
+function BottomNav({tab,setTab}:{tab:string,setTab:(t:string)=>void}) {
+  return (
+    <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:100,
+      background:`linear-gradient(to top,${T.cedar1},${T.cedar2})`,
+      borderTop:`1px solid ${T.goldDark44}`}}>
+      <CubanRibbon height={4}/>
+      <div style={{display:"flex",overflowX:"auto",paddingBottom:"env(safe-area-inset-bottom,8px)"}}>
+        {NAV_TABS.map(n=>(
+          <button key={n.id} onClick={()=>setTab(n.id)}
+            style={{flex:"0 0 auto",display:"flex",flexDirection:"column",alignItems:"center",
+              justifyContent:"center",padding:"6px 12px",background:"none",border:"none",cursor:"pointer",
+              minWidth:60,opacity:tab===n.id?1:0.55,transition:"opacity 0.2s"}}>
+            <div style={{filter:tab===n.id?`drop-shadow(0 0 6px ${T.goldLight})`:"none"}}>
+              <NavIcon tab={n.id} active={tab===n.id}/>
+            </div>
+            <div style={{fontSize:9,color:tab===n.id?T.goldLight:T.cedar5,
+              fontFamily:"Georgia,serif",marginTop:2,letterSpacing:0.5,whiteSpace:"nowrap"}}>
+              {n.label}
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── APP HEADER ─────────────────────────────────────────────────────────────
+function AppHeader() {
+  return (
+    <div style={{position:"sticky",top:0,zIndex:50,
+      background:`linear-gradient(to bottom,${T.cedar1},${T.cedar2})`,
+      borderBottom:`1px solid ${T.goldDark44}`}}>
+      <CubanRibbon/>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+        padding:"10px 16px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{width:36,height:36,borderRadius:"50%",
+            background:`radial-gradient(circle at 35% 35%,${T.cedar4},${T.cedar1})`,
+            border:`2px solid ${T.goldMid}`,display:"flex",alignItems:"center",
+            justifyContent:"center",fontSize:18}}>🍁</div>
+          <div>
+            <div style={{fontSize:16,fontWeight:"bold",color:T.cream,
+              fontFamily:"Georgia,serif",letterSpacing:1}}>Mario's Humidor</div>
+            <div style={{fontSize:10,color:T.goldMid,letterSpacing:2,
+              textTransform:"uppercase"}}>The Cigar Lifestyle Platform</div>
+          </div>
+        </div>
+        <div style={{textAlign:"right"}}>
+          <div style={{fontSize:18,fontWeight:"bold",color:T.goldLight,
+            fontFamily:"Georgia,serif"}}>75</div>
+          <div style={{fontSize:9,color:T.parchment,letterSpacing:1}}>CIGARS EST.</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── HUMIDORS TAB ───────────────────────────────────────────────────────────
+const HUMIDORS = [
+  {id:1,name:"Main Cabinet",wood:"Spanish Cedar",temp:68,humidity:69,capacity:150,count:87,status:"optimal"},
+  {id:2,name:"Travel Case",wood:"Mahogany",temp:70,humidity:67,capacity:20,count:12,status:"good"},
+  {id:3,name:"Rack Display",wood:"Walnut",temp:67,humidity:70,capacity:50,count:31,status:"optimal"},
+];
+
+function HumidorCard({h}:{h:typeof HUMIDORS[0]}) {
+  const statusColor = h.status==="optimal"?T.success:h.status==="good"?T.goldMid:T.danger;
+  return (
+    <div style={{background:`linear-gradient(135deg,${T.cedar2},${T.cedar1})`,
+      borderRadius:12,border:`1px solid ${T.goldDark44}`,marginBottom:16,overflow:"hidden"}}>
+      <CubanRibbon/>
+      <div style={{padding:"14px 16px"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+          <div>
+            <div style={{fontSize:16,fontWeight:"bold",color:T.cream,fontFamily:"Georgia,serif"}}>{h.name}</div>
+            <div style={{fontSize:11,color:T.parchment,marginTop:2}}>{h.wood} · {h.count}/{h.capacity} cigars</div>
+          </div>
+          <div style={{background:statusColor,borderRadius:20,padding:"3px 10px",
+            fontSize:10,color:"#fff",fontWeight:"bold",letterSpacing:1,textTransform:"uppercase"}}>
+            {h.status}
+          </div>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-around",gap:8}}>
+          <LuxuryGauge value={h.humidity} size={110} label="% RH" subtitle="Humidity" color={T.goldLight}/>
+          <LuxuryGauge value={h.temp} size={110} label="°F" subtitle="Temperature" color={T.goldLight}/>
+        </div>
+        <div style={{marginTop:12,background:"rgba(0,0,0,0.3)",borderRadius:8,
+          padding:"8px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div style={{fontSize:11,color:T.parchment}}>Fill Level</div>
+          <div style={{flex:1,margin:"0 12px",height:6,background:T.cedar3,borderRadius:3,overflow:"hidden"}}>
+            <div style={{height:"100%",width:`${(h.count/h.capacity)*100}%`,
+              background:`linear-gradient(90deg,${T.goldDark},${T.goldLight})`,borderRadius:3}}/>
+          </div>
+          <div style={{fontSize:11,color:T.goldMid,fontWeight:"bold"}}>{Math.round((h.count/h.capacity)*100)}%</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HumidorsTab() {
+  return (
+    <div style={{padding:"16px 16px 0"}}>
+      <SectionTitle>My Humidors</SectionTitle>
+      {HUMIDORS.map(h=><HumidorCard key={h.id} h={h}/>)}
+      <button style={{width:"100%",padding:"14px",background:`linear-gradient(135deg,${T.cedar3},${T.cedar2})`,
+        border:`1px dashed ${T.goldDark44}`,borderRadius:12,color:T.goldMid,
+        fontSize:14,fontFamily:"Georgia,serif",cursor:"pointer",marginBottom:16}}>
+        + Add New Humidor
+      </button>
+    </div>
+  );
+}
+
+// ── COLLECTION TAB ─────────────────────────────────────────────────────────
+const CIGARS = [
+  {id:1,brand:"Arturo Fuente",line:"Opus X",vitola:"Robusto",rating:96,count:8,origin:"Dominican Republic",wrapper:"Cameroon"},
+  {id:2,brand:"Padron",line:"1926 Serie",vitola:"No. 6",rating:98,count:3,origin:"Nicaragua",wrapper:"Natural"},
+  {id:3,brand:"Cohiba",line:"Behike",vitola:"BHK 52",rating:95,count:5,origin:"Cuba",wrapper:"Cuban"},
+  {id:4,brand:"My Father",line:"Le Bijou 1922",vitola:"Torpedo",rating:94,count:12,origin:"Nicaragua",wrapper:"Oscuro"},
+  {id:5,brand:"Rocky Patel",line:"Vintage 1990",vitola:"Toro",rating:92,count:6,origin:"Honduras",wrapper:"Connecticut"},
+];
+
+function CollectionTab() {
+  const [sel, setSel] = useState<number|null>(null);
+  return (
+    <div style={{padding:"16px 16px 0"}}>
+      <SectionTitle>My Collection</SectionTitle>
+      <div style={{background:`linear-gradient(135deg,${T.cedar2},${T.cedar1})`,borderRadius:12,
+        border:`1px dashed ${T.goldDark44}`,padding:14,marginBottom:16,textAlign:"center",cursor:"pointer"}}>
+        <div style={{fontSize:24,marginBottom:4}}>📷</div>
+        <div style={{fontSize:13,color:T.goldMid,fontFamily:"Georgia,serif"}}>Scan Band to Add Cigar</div>
+        <div style={{fontSize:11,color:T.parchment,marginTop:2}}>Point camera at cigar band</div>
+      </div>
+      {CIGARS.map(c=>(
+        <div key={c.id} onClick={()=>setSel(sel===c.id?null:c.id)}
+          style={{background:`linear-gradient(135deg,${T.cedar2},${T.cedar1})`,borderRadius:12,
+            border:`1px solid ${sel===c.id?T.goldMid:T.goldDark44}`,marginBottom:10,
+            overflow:"hidden",cursor:"pointer",transition:"border-color 0.2s"}}>
+          <div style={{padding:"12px 14px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div>
+                <div style={{fontSize:14,fontWeight:"bold",color:T.cream,fontFamily:"Georgia,serif"}}>{c.brand}</div>
+                <div style={{fontSize:12,color:T.goldMid,fontStyle:"italic"}}>{c.line} · {c.vitola}</div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:20,fontWeight:"bold",color:T.goldLight,fontFamily:"Georgia,serif"}}>{c.rating}</div>
+                <div style={{fontSize:9,color:T.parchment}}>RATING</div>
+              </div>
+            </div>
+            {sel===c.id && (
+              <div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${T.goldDark44}`}}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+                  {[["Origin",c.origin],["Wrapper",c.wrapper],["In Stock",`${c.count} cigars`],["Vitola",c.vitola]].map(([k,v])=>(
+                    <div key={k} style={{background:"rgba(0,0,0,0.3)",borderRadius:6,padding:"6px 10px"}}>
+                      <div style={{fontSize:9,color:T.parchment,textTransform:"uppercase",letterSpacing:1}}>{k}</div>
+                      <div style={{fontSize:12,color:T.cream,marginTop:2}}>{v}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── ASK MARIO TAB ──────────────────────────────────────────────────────────
+const MARIO_PINNED = {
+  body:"Bourbon and cigars — a sacred marriage. For your Padron 1964 Anniversary Natural, I'd reach for Blanton's Single Barrel or Woodford Reserve Double Oaked. The sweet caramel and vanilla notes dance beautifully with that Nicaraguan cocoa richness.",
+  date:"Today"
+};
+const QUICK_PROMPTS = [
+  "What's ready to smoke tonight?","Perfect bourbon pairing?",
+  "Which has aged the most?","Recommend a mild smoke",
+];
+
+function AskMarioTab({apiKey}:{apiKey:string}) {
+  const [messages, setMessages] = useState([
+    {role:"assistant",content:MARIO_PINNED.body}
+  ]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(()=>{ bottomRef.current?.scrollIntoView({behavior:"smooth"}); },[messages]);
+
+  const send = useCallback(async(text:string)=>{
+    if(!text.trim()||loading) return;
+    const userMsg = {role:"user",content:text};
+    setMessages(m=>[...m,userMsg]);
+    setInput("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/chat",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({messages:[...messages,userMsg].map(m=>({role:m.role,content:m.content}))})
+      });
+      const data = await res.json();
+      const reply = data?.content?.[0]?.text || data?.reply || "Let me think on that...";
+      setMessages(m=>[...m,{role:"assistant",content:reply}]);
+    } catch {
+      setMessages(m=>[...m,{role:"assistant",content:"My apologies — I seem to have stepped away momentarily. Please try again."}]);
+    }
+    setLoading(false);
+  },[messages,loading]);
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 140px)"}}>
+      <div style={{padding:"12px 16px 0"}}>
+        <div style={{background:`linear-gradient(135deg,${T.cedar2},${T.cedar1})`,borderRadius:12,
+          border:`1px solid ${T.goldDark44}`,padding:"12px 14px",marginBottom:12}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+            <div style={{width:8,height:8,borderRadius:"50%",background:T.success}}/>
+            <span style={{fontSize:12,color:T.goldMid,fontFamily:"Georgia,serif",fontWeight:"bold"}}>Mario</span>
+            <span style={{fontSize:10,color:T.parchment}}>Your Personal Sommelier · Online</span>
+          </div>
+        </div>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"0 16px",display:"flex",flexDirection:"column",gap:10}}>
+        {messages.map((m,i)=>(
+          <div key={i} style={{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start"}}>
+            <div style={{maxWidth:"85%",background:m.role==="user"
+              ?`linear-gradient(135deg,${T.cedar4},${T.cedar3})`
+              :`linear-gradient(135deg,${T.cedar2},${T.cedar1})`,
+              borderRadius:12,padding:"10px 14px",
+              border:`1px solid ${m.role==="user"?T.cedar44:T.goldDark44}`}}>
+              <div style={{fontSize:13,color:T.cream,lineHeight:1.6,fontFamily:"Georgia,serif",fontStyle:"italic"}}>
+                {m.content}
+              </div>
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div style={{display:"flex",justifyContent:"flex-start"}}>
+            <div style={{background:`linear-gradient(135deg,${T.cedar2},${T.cedar1})`,
+              borderRadius:12,padding:"10px 14px",border:`1px solid ${T.goldDark44}`}}>
+              <div style={{display:"flex",gap:4}}>
+                {[0,1,2].map(i=>(
+                  <div key={i} style={{width:6,height:6,borderRadius:"50%",background:T.goldMid,
+                    animation:`pulse 1s ease-in-out ${i*0.2}s infinite`}}/>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef}/>
+      </div>
+      <div style={{padding:"8px 16px",flexWrap:"wrap" as const,display:"flex",gap:6,marginBottom:4}}>
+        {QUICK_PROMPTS.map(q=>(
+          <button key={q} onClick={()=>send(q)}
+            style={{background:`linear-gradient(135deg,${T.cedar3},${T.cedar2})`,
+              border:`1px solid ${T.goldDark44}`,borderRadius:20,padding:"5px 12px",
+              color:T.parchment,fontSize:11,cursor:"pointer",fontFamily:"Georgia,serif"}}>
+            {q}
+          </button>
+        ))}
+      </div>
+      <div style={{padding:"8px 16px 12px",display:"flex",gap:8}}>
+        <input value={input} onChange={e=>setInput(e.target.value)}
+          onKeyDown={e=>{ if(e.key==="Enter") send(input); }}
+          placeholder="Ask Mario anything..."
+          style={{flex:1,background:`rgba(0,0,0,0.4)`,border:`1px solid ${T.goldDark44}`,
+            borderRadius:24,padding:"10px 16px",color:T.cream,fontSize:13,
+            fontFamily:"Georgia,serif",outline:"none"}}/>
+        <button onClick={()=>send(input)}
+          style={{width:44,height:44,borderRadius:"50%",
+            background:`linear-gradient(135deg,${T.goldMid},${T.goldDark})`,
+            border:"none",cursor:"pointer",fontSize:18,display:"flex",
+            alignItems:"center",justifyContent:"center"}}>→</button>
+      </div>
+    </div>
+  );
+}
+
+// ── NEWS TAB ───────────────────────────────────────────────────────────────
+const NEWS = [
+  {id:1,title:"Padron Celebrates 60 Years of Excellence",source:"Cigar Aficionado",time:"2h ago",tag:"Brand News",body:"The Padron family marks six decades of Nicaraguan tobacco mastery with a limited anniversary release."},
+  {id:2,title:"Top 25 Cigars of the Year Announced",source:"Cigar Insider",time:"1d ago",tag:"Rankings",body:"Opus X leads the annual rankings as cigar aficionados crown the finest smokes of the season."},
+  {id:3,title:"Cuban Embargo: What It Means for Collectors",source:"Tobacco Business",time:"3d ago",tag:"Industry",body:"Experts weigh in on the evolving regulatory landscape for Cuban tobacco imports."},
+  {id:4,title:"The Art of Aging: When to Smoke vs. Store",source:"Cigar Journal",time:"5d ago",tag:"Education",body:"Master blenders share their wisdom on optimal aging conditions for premium cigars."},
+];
+
+function NewsTab() {
+  const [sel, setSel] = useState<number|null>(null);
+  return (
+    <div style={{padding:"16px 16px 0"}}>
+      <SectionTitle>Cigar News</SectionTitle>
+      {NEWS.map(n=>(
+        <div key={n.id} onClick={()=>setSel(sel===n.id?null:n.id)}
+          style={{background:`linear-gradient(135deg,${T.cedar2},${T.cedar1})`,borderRadius:12,
+            border:`1px solid ${sel===n.id?T.goldMid:T.goldDark44}`,marginBottom:12,
+            overflow:"hidden",cursor:"pointer"}}>
+          <div style={{padding:"12px 14px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+              <div style={{fontSize:10,color:T.goldMid,letterSpacing:1,textTransform:"uppercase",
+                background:`rgba(139,105,20,0.2)`,borderRadius:20,padding:"2px 8px"}}>{n.tag}</div>
+              <div style={{fontSize:10,color:T.parchment}}>{n.time}</div>
+            </div>
+            <div style={{fontSize:14,fontWeight:"bold",color:T.cream,fontFamily:"Georgia,serif",
+              lineHeight:1.4,marginBottom:4}}>{n.title}</div>
+            <div style={{fontSize:11,color:T.parchment}}>{n.source}</div>
+            {sel===n.id && (
+              <div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${T.goldDark44}`,
+                fontSize:13,color:T.creamDark,fontFamily:"Georgia,serif",fontStyle:"italic",lineHeight:1.6}}>
+                {n.body}
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── COMMUNITY TAB ──────────────────────────────────────────────────────────
+const POSTS_INIT = [
+  {id:1,user:"CigarDon_85",avatar:"🧔",time:"12m ago",category:"Review",
+    title:"Opus X Double Corona — worth the wait",
+    body:"Finally cracked one I've been aging for 3 years. The complexity is unreal. Notes of espresso, dark chocolate, and a hint of leather. 10/10.",
+    likes:24,comments:8,photo:null},
+  {id:2,user:"HumidorQueen",avatar:"👸",time:"1h ago",category:"Pairing",
+    title:"Padron 1926 + Glenfarclas 25yr = perfection",
+    body:"Tried this combo last night on the back porch. The sherry cask whisky and natural wrapper tobacco are a match made in heaven.",
+    likes:41,comments:15,photo:null},
+  {id:3,user:"SlowBurn_Mike",avatar:"🧑",time:"3h ago",category:"Question",
+    title:"Humidity dropped to 62% — how to recover?",
+    body:"Came home to find my main humidor at 62%. Already added a recharged boveda pack. How long does it typically take to stabilize back to 70%?",
+    likes:7,comments:22,photo:null},
+];
+const CATEGORIES = ["All","Review","Pairing","Question","Storage","Event"];
+
+function CommunityTab() {
+  const [posts, setPosts] = useState(POSTS_INIT);
+  const [activeCategory, setActiveCategory] = useState("All");
+  const [showNew, setShowNew] = useState(false);
+  const [newPost, setNewPost] = useState({title:"",body:"",category:"Review"});
+  const [likedPosts, setLikedPosts] = useState<Set<number>>(new Set());
+
+  const filtered = activeCategory==="All" ? posts : posts.filter(p=>p.category===activeCategory);
+
+  const submitPost = () => {
+    if(!newPost.title.trim()||!newPost.body.trim()) return;
+    const id = Date.now();
+    setPosts(p=>[{id,user:"You",avatar:"😎",time:"Just now",
+      category:newPost.category,title:newPost.title,body:newPost.body,
+      likes:0,comments:0,photo:null},...p]);
+    setNewPost({title:"",body:"",category:"Review"});
+    setShowNew(false);
+  };
+
+  const toggleLike = (id:number) => {
+    setLikedPosts(s=>{
+      const n = new Set(s);
+      if(n.has(id)) { n.delete(id); setPosts(p=>p.map(post=>post.id===id?{...post,likes:post.likes-1}:post)); }
+      else { n.add(id); setPosts(p=>p.map(post=>post.id===id?{...post,likes:post.likes+1}:post)); }
+      return n;
+    });
+  };
+
+  return (
+    <div style={{padding:"16px 16px 0"}}>
+      <SectionTitle>Community</SectionTitle>
+      <button onClick={()=>setShowNew(!showNew)}
+        style={{width:"100%",padding:"12px",marginBottom:12,
+          background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
+          border:"none",borderRadius:12,color:T.cedar1,fontSize:14,
+          fontFamily:"Georgia,serif",fontWeight:"bold",cursor:"pointer"}}>
+        + Share with the Community
+      </button>
+      {showNew && (
+        <div style={{background:`linear-gradient(135deg,${T.cedar2},${T.cedar1})`,
+          borderRadius:12,border:`1px solid ${T.goldMid}`,padding:14,marginBottom:12}}>
+          <select value={newPost.category} onChange={e=>setNewPost(p=>({...p,category:e.target.value}))}
+            style={{width:"100%",background:T.cedar1,border:`1px solid ${T.goldDark44}`,
+              borderRadius:8,padding:"8px 12px",color:T.cream,fontSize:13,marginBottom:8,outline:"none"}}>
+            {["Review","Pairing","Question","Storage","Event"].map(c=>(
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <input value={newPost.title} onChange={e=>setNewPost(p=>({...p,title:e.target.value}))}
+            placeholder="Title..."
+            style={{width:"100%",boxSizing:"border-box" as const,background:"rgba(0,0,0,0.3)",
+              border:`1px solid ${T.goldDark44}`,borderRadius:8,padding:"8px 12px",
+              color:T.cream,fontSize:13,marginBottom:8,outline:"none"}}/>
+          <textarea value={newPost.body} onChange={e=>setNewPost(p=>({...p,body:e.target.value}))}
+            placeholder="Share your experience..."
+            rows={3}
+            style={{width:"100%",boxSizing:"border-box" as const,background:"rgba(0,0,0,0.3)",
+              border:`1px solid ${T.goldDark44}`,borderRadius:8,padding:"8px 12px",
+              color:T.cream,fontSize:13,resize:"none",outline:"none"}}/>
+          <div style={{display:"flex",gap:8,marginTop:8}}>
+            <button onClick={submitPost}
+              style={{flex:1,padding:"10px",background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
+                border:"none",borderRadius:8,color:T.cedar1,fontSize:13,
+                fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>
+              Post
+            </button>
+            <button onClick={()=>setShowNew(false)}
+              style={{padding:"10px 16px",background:"transparent",
+                border:`1px solid ${T.goldDark44}`,borderRadius:8,
+                color:T.parchment,fontSize:13,cursor:"pointer"}}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:12,paddingBottom:4}}>
+        {CATEGORIES.map(cat=>(
+          <button key={cat} onClick={()=>setActiveCategory(cat)}
+            style={{flex:"0 0 auto",background:activeCategory===cat
+              ?`linear-gradient(135deg,${T.goldDark},${T.goldMid})`
+              :`linear-gradient(135deg,${T.cedar3},${T.cedar2})`,
+              border:`1px solid ${activeCategory===cat?T.goldMid:T.goldDark44}`,
+              borderRadius:20,padding:"5px 14px",color:activeCategory===cat?T.cedar1:T.parchment,
+              fontSize:12,cursor:"pointer",fontFamily:"Georgia,serif",whiteSpace:"nowrap" as const}}>
+            {cat}
+          </button>
+        ))}
+      </div>
+      {filtered.map(post=>(
+        <div key={post.id}
+          style={{background:`linear-gradient(135deg,${T.cedar2},${T.cedar1})`,borderRadius:12,
+            border:`1px solid ${T.goldDark44}`,marginBottom:12,overflow:"hidden"}}>
+          <div style={{padding:"12px 14px"}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+              <div style={{fontSize:22}}>{post.avatar}</div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:"bold",color:T.cream}}>{post.user}</div>
+                <div style={{fontSize:10,color:T.parchment}}>{post.time}</div>
+              </div>
+              <div style={{fontSize:10,color:T.goldMid,letterSpacing:1,
+                background:`rgba(139,105,20,0.2)`,borderRadius:20,padding:"2px 8px"}}>
+                {post.category}
+              </div>
+            </div>
+            <div style={{fontSize:14,fontWeight:"bold",color:T.cream,
+              fontFamily:"Georgia,serif",marginBottom:6}}>{post.title}</div>
+            <div style={{fontSize:13,color:T.creamDark,fontFamily:"Georgia,serif",
+              fontStyle:"italic",lineHeight:1.6}}>{post.body}</div>
+            <div style={{display:"flex",gap:16,marginTop:10,paddingTop:10,
+              borderTop:`1px solid ${T.goldDark44}`}}>
+              <button onClick={()=>toggleLike(post.id)}
+                style={{display:"flex",alignItems:"center",gap:4,background:"none",
+                  border:"none",cursor:"pointer",color:likedPosts.has(post.id)?T.goldLight:T.parchment,
+                  fontSize:12,fontFamily:"Georgia,serif"}}>
+                {likedPosts.has(post.id)?"♥":"♡"} {post.likes}
+              </button>
+              <span style={{display:"flex",alignItems:"center",gap:4,
+                color:T.parchment,fontSize:12,fontFamily:"Georgia,serif"}}>
+                💬 {post.comments}
+              </span>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── TASTING NOTES TAB ──────────────────────────────────────────────────────
+const NOTES_INIT = [
+  {id:1,brand:"Arturo Fuente",line:"Opus X",vitola:"Robusto",date:"May 28, 2026",
+    rating:96,notes:"Complex and full-bodied. Espresso, dark chocolate, cedar, leather. Perfect draw, flawless burn. One of the best I've had.",
+    pairing:"Blanton's Single Barrel"},
+  {id:2,brand:"Padron",line:"1926 Serie",vitola:"No. 6",date:"May 15, 2026",
+    rating:98,notes:"Transcendent. Box-pressed perfection. Dark fruit, cocoa nibs, espresso. The retrohale is extraordinary. A benchmark cigar.",
+    pairing:"Glenfarclas 25yr"},
+];
+
+function TastingNotesTab() {
+  const [notes, setNotes] = useState(NOTES_INIT);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({brand:"",line:"",vitola:"",rating:"90",notes:"",pairing:""});
+  const [sel, setSel] = useState<number|null>(null);
+
+  const save = () => {
+    if(!form.brand.trim()) return;
+    const id = Date.now();
+    setNotes(n=>[{id,brand:form.brand,line:form.line,vitola:form.vitola,
+      date:new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}),
+      rating:parseInt(form.rating)||90,notes:form.notes,pairing:form.pairing},...n]);
+    setForm({brand:"",line:"",vitola:"",rating:"90",notes:"",pairing:""});
+    setShowForm(false);
+  };
+
+  return (
+    <div style={{padding:"16px 16px 0"}}>
+      <SectionTitle>Tasting Notes</SectionTitle>
+      <button onClick={()=>setShowForm(!showForm)}
+        style={{width:"100%",padding:"12px",marginBottom:12,
+          background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
+          border:"none",borderRadius:12,color:T.cedar1,fontSize:14,
+          fontFamily:"Georgia,serif",fontWeight:"bold",cursor:"pointer"}}>
+        + Save Note
+      </button>
+      {showForm && (
+        <div style={{background:`linear-gradient(135deg,${T.cedar2},${T.cedar1})`,
+          borderRadius:12,border:`1px solid ${T.goldMid}`,padding:14,marginBottom:12}}>
+          {[["Brand",form.brand,"brand"],["Line",form.line,"line"],
+            ["Vitola",form.vitola,"vitola"],["Pairing",form.pairing,"pairing"]].map(([ph,val,key])=>(
+            <input key={key} value={val as string}
+              onChange={e=>setForm(f=>({...f,[key]:e.target.value}))}
+              placeholder={ph as string}
+              style={{width:"100%",boxSizing:"border-box" as const,background:"rgba(0,0,0,0.3)",
+                border:`1px solid ${T.goldDark44}`,borderRadius:8,padding:"8px 12px",
+                color:T.cream,fontSize:13,marginBottom:8,outline:"none"}}/>
+          ))}
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+            <span style={{color:T.parchment,fontSize:12,minWidth:50}}>Rating:</span>
+            <input type="range" min="50" max="100" value={form.rating}
+              onChange={e=>setForm(f=>({...f,rating:e.target.value}))}
+              style={{flex:1}}/>
+            <span style={{color:T.goldLight,fontSize:16,fontWeight:"bold",minWidth:30}}>{form.rating}</span>
+          </div>
+          <textarea value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))}
+            placeholder="Tasting notes..."
+            rows={3}
+            style={{width:"100%",boxSizing:"border-box" as const,background:"rgba(0,0,0,0.3)",
+              border:`1px solid ${T.goldDark44}`,borderRadius:8,padding:"8px 12px",
+              color:T.cream,fontSize:13,resize:"none",outline:"none",marginBottom:8}}/>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={save}
+              style={{flex:1,padding:"10px",background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
+                border:"none",borderRadius:8,color:T.cedar1,fontSize:13,
+                fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>
+              Save Note
+            </button>
+            <button onClick={()=>setShowForm(false)}
+              style={{padding:"10px 16px",background:"transparent",
+                border:`1px solid ${T.goldDark44}`,borderRadius:8,
+                color:T.parchment,fontSize:13,cursor:"pointer"}}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      {notes.map(n=>(
+        <div key={n.id} onClick={()=>setSel(sel===n.id?null:n.id)}
+          style={{background:`linear-gradient(135deg,${T.cedar2},${T.cedar1})`,borderRadius:12,
+            border:`1px solid ${sel===n.id?T.goldMid:T.goldDark44}`,marginBottom:12,
+            overflow:"hidden",cursor:"pointer"}}>
+          <div style={{padding:"12px 14px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+              <div>
+                <div style={{fontSize:14,fontWeight:"bold",color:T.cream,fontFamily:"Georgia,serif"}}>{n.brand}</div>
+                <div style={{fontSize:12,color:T.goldMid,fontStyle:"italic"}}>{n.line} · {n.vitola}</div>
+                <div style={{fontSize:10,color:T.parchment,marginTop:2}}>{n.date}</div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:24,fontWeight:"bold",color:T.goldLight,fontFamily:"Georgia,serif"}}>{n.rating}</div>
+                <div style={{fontSize:9,color:T.parchment}}>/ 100</div>
+              </div>
+            </div>
+            {sel===n.id && (
+              <div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${T.goldDark44}`}}>
+                <div style={{fontSize:13,color:T.creamDark,fontFamily:"Georgia,serif",
+                  fontStyle:"italic",lineHeight:1.6,marginBottom:8}}>{n.notes}</div>
+                {n.pairing && (
+                  <div style={{background:"rgba(0,0,0,0.3)",borderRadius:6,padding:"6px 10px",
+                    display:"flex",alignItems:"center",gap:6}}>
+                    <span style={{fontSize:14}}>🥃</span>
+                    <span style={{fontSize:12,color:T.goldMid}}>Paired with {n.pairing}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── SETTINGS TAB ───────────────────────────────────────────────────────────
+function SettingsTab() {
+  const [tempUnit, setTempUnit] = useState("F");
+  const [notifications, setNotifications] = useState(true);
+  const [darkMode, setDarkMode] = useState(true);
+
+  const Toggle = ({val,set}:{val:boolean,set:(v:boolean)=>void}) => (
+    <div onClick={()=>set(!val)}
+      style={{width:44,height:24,borderRadius:12,cursor:"pointer",transition:"background 0.2s",
+        background:val?T.goldMid:T.cedar3,position:"relative"}}>
+      <div style={{position:"absolute",top:3,left:val?22:3,width:18,height:18,borderRadius:"50%",
+        background:val?T.cedar1:T.cedar5,transition:"left 0.2s"}}/>
+    </div>
+  );
+
+  return (
+    <div style={{padding:"16px 16px 0"}}>
+      <SectionTitle>Settings</SectionTitle>
+      {[
+        {label:"Temperature Unit",sub:"Display preference",el:(
+          <div style={{display:"flex",gap:6}}>
+            {["F","C"].map(u=>(
+              <button key={u} onClick={()=>setTempUnit(u)}
+                style={{padding:"4px 14px",borderRadius:8,cursor:"pointer",
+                  background:tempUnit===u?`linear-gradient(135deg,${T.goldDark},${T.goldMid})`:T.cedar3,
+                  border:`1px solid ${tempUnit===u?T.goldMid:T.goldDark44}`,
+                  color:tempUnit===u?T.cedar1:T.parchment,fontSize:13}}>°{u}</button>
+            ))}
+          </div>
+        )},
+        {label:"Notifications",sub:"Humidity & temp alerts",el:<Toggle val={notifications} set={setNotifications}/>},
+        {label:"Dark Mode",sub:"Cedar wood theme",el:<Toggle val={darkMode} set={setDarkMode}/>},
+      ].map(s=>(
+        <div key={s.label} style={{background:`linear-gradient(135deg,${T.cedar2},${T.cedar1})`,
+          borderRadius:12,border:`1px solid ${T.goldDark44}`,padding:"14px 16px",
+          marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div style={{fontSize:14,color:T.cream,fontFamily:"Georgia,serif"}}>{s.label}</div>
+            <div style={{fontSize:11,color:T.parchment,marginTop:2}}>{s.sub}</div>
+          </div>
+          {s.el}
+        </div>
+      ))}
+      <div style={{background:`linear-gradient(135deg,${T.cedar2},${T.cedar1})`,
+        borderRadius:12,border:`1px solid ${T.goldDark44}`,padding:16,marginTop:8}}>
+        <div style={{textAlign:"center",marginBottom:8}}>
+          <div style={{fontSize:32,marginBottom:4}}>🍁</div>
+          <div style={{fontSize:16,fontWeight:"bold",color:T.cream,fontFamily:"Georgia,serif"}}>Mario's Humidor</div>
+          <div style={{fontSize:11,color:T.parchment,marginTop:2}}>v1.0 · The Cigar Lifestyle Platform</div>
+        </div>
+        <div style={{display:"flex",justifyContent:"center",gap:16,marginTop:12}}>
+          {["Privacy","Terms","Support"].map(l=>(
+            <span key={l} style={{fontSize:11,color:T.goldMid,cursor:"pointer",
+              fontFamily:"Georgia,serif",textDecoration:"underline"}}>{l}</span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── SPLASH SCREEN ──────────────────────────────────────────────────────────
+function SplashScreen({onDone}:{onDone:()=>void}) {
+  useEffect(()=>{
+    const t = setTimeout(onDone, 2800);
+    return ()=>clearTimeout(t);
+  },[onDone]);
+  return (
+    <div style={{position:"fixed",inset:0,zIndex:1000,display:"flex",flexDirection:"column",
+      alignItems:"center",justifyContent:"center",
+      background:`linear-gradient(160deg,${T.cedar1} 0%,${T.cedar2} 50%,${T.cedar1} 100%)`}}>
+      <CedarBg/>
+      <div style={{position:"relative",zIndex:1,textAlign:"center"}}>
+        <div style={{fontSize:72,marginBottom:16,
+          filter:`drop-shadow(0 0 30px ${T.goldMid})`}}>🍁</div>
+        <div style={{fontSize:32,fontWeight:"bold",color:T.cream,
+          fontFamily:"Georgia,serif",letterSpacing:2,marginBottom:8}}>
+          Mario's Humidor
+        </div>
+        <CubanRibbon/>
+        <div style={{fontSize:13,color:T.goldMid,letterSpacing:4,
+          textTransform:"uppercase",marginTop:10}}>The Cigar Lifestyle Platform</div>
+        <div style={{marginTop:40,display:"flex",gap:8,justifyContent:"center"}}>
+          {[0,1,2].map(i=>(
+            <div key={i} style={{width:6,height:6,borderRadius:"50%",background:T.goldMid,
+              opacity:0.4,animation:`pulse 1.2s ease-in-out ${i*0.4}s infinite`}}/>
+          ))}
+        </div>
+      </div>
+      <style>{`@keyframes pulse{0%,100%{opacity:0.3;transform:scale(0.8)}50%{opacity:1;transform:scale(1.2)}}`}</style>
+    </div>
+  );
+}
+
+// ── MAIN APP ───────────────────────────────────────────────────────────────
+export default function MariosHumidor() {
+  const [tab, setTab] = useState("humidors");
+  const [splash, setSplash] = useState(true);
+  const apiKey = process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY || "";
+
+  const renderTab = () => {
+    switch(tab) {
+      case "humidors":    return <HumidorsTab/>;
+      case "collection":  return <CollectionTab/>;
+      case "mario":       return <AskMarioTab apiKey={apiKey}/>;
+      case "news":        return <NewsTab/>;
+      case "community":   return <CommunityTab/>;
+      case "notes":       return <TastingNotesTab/>;
+      case "settings":    return <SettingsTab/>;
+      default:            return <HumidorsTab/>;
+    }
+  };
+
+  return (
+    <div style={{minHeight:"100vh",background:T.cedar1,color:T.cream,
+      fontFamily:"Georgia,serif",maxWidth:480,margin:"0 auto",position:"relative"}}>
+      <CedarBg/>
+      {splash && <SplashScreen onDone={()=>setSplash(false)}/>}
+      <div style={{position:"relative",zIndex:1,paddingBottom:120}}>
+        <AppHeader/>
+        {renderTab()}
+      </div>
+      <BottomNav tab={tab} setTab={setTab}/>
+      <style>{`
+        *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+        body{margin:0;padding:0;overflow-x:hidden}
+        input,textarea,select{font-family:Georgia,serif}
+        ::-webkit-scrollbar{width:4px;height:4px}
+        ::-webkit-scrollbar-track{background:transparent}
+        ::-webkit-scrollbar-thumb{background:${T.cedar4};border-radius:2px}
+        @keyframes pulse{0%,100%{opacity:0.3;transform:scale(0.8)}50%{opacity:1;transform:scale(1.2)}}
+      `}</style>
+    </div>
+  );
+}
