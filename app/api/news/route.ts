@@ -30,8 +30,8 @@ function parseRSS(xml: string, source: string, accent: string, fallbackImage: st
                   item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>|<title>(.*?)<\/title>/)?.[2] || '';
     const link = item.match(/<link>(.*?)<\/link>|<link\s[^>]*href="([^"]*)"[^>]*\/>/)?.[1] ||
                  item.match(/<link>(.*?)<\/link>|<link\s[^>]*href="([^"]*)"[^>]*\/>/)?.[2] || '';
-    const desc = item.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>|<description>(.*?)<\/description>/s)?.[1] ||
-                 item.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>|<description>(.*?)<\/description>/s)?.[2] || '';
+    const desc = item.match(//<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>|<description>([\s\S]*?)<\/description>/)?.[1] ||
+                 item.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>|<description>([\s\S]*?)<\/description>/)?.[2] ||
     const pubDate = item.match(/<pubDate>(.*?)<\/pubDate>/)?.[1] || '';
     
     // Try multiple image sources from RSS
