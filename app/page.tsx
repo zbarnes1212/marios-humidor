@@ -1071,10 +1071,8 @@ function AskMarioTab({liveData}:{liveData:Record<string,{temperature:number|null
         <div style={{display:"flex",alignItems:"center",gap:16}}>
           <div style={{width:72,height:72,borderRadius:"50%",flexShrink:0,
             border:`2px solid ${T.goldMid}`,overflow:"hidden",
-            background:"linear-gradient(135deg,#1a1a1a,#0d0d0d)",
-            display:"flex",alignItems:"center",justifyContent:"center",
             boxShadow:`0 0 0 3px #0a0a0a, 0 0 0 5px ${T.goldDark}44`}}>
-            <span style={{fontSize:42}}>🧔</span>
+            <img src="/mario-avatar.jpg" alt="Mario" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 50%"}}/>
           </div>
           <div style={{flex:1}}>
             <div style={{fontSize:24,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1.15}}>Ask Mario</div>
@@ -1095,7 +1093,9 @@ function AskMarioTab({liveData}:{liveData:Record<string,{temperature:number|null
                 padding:"16px 18px",boxShadow:"0 4px 20px rgba(0,0,0,0.5)"}}>
                 <div style={{fontSize:9,color:T.goldMid,letterSpacing:2,textTransform:"uppercase",
                   marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
-                  <span style={{fontSize:14}}>🧔</span>
+                  <div style={{width:18,height:18,borderRadius:"50%",overflow:"hidden",border:`1px solid ${T.goldDark}`,flexShrink:0}}>
+                    <img src="/mario-avatar.jpg" alt="Mario" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 50%"}}/>
+                  </div>
                   <span>Mario</span>
                 </div>
                 <div style={{fontSize:15,color:T.textPrimary,lineHeight:1.85,fontFamily:"Georgia,serif",whiteSpace:"pre-line"}}>{m.text}</div>
@@ -1207,7 +1207,9 @@ function NewsCard({n}:{n:any}) {
             borderRadius:10,border:`1px solid rgba(196,154,40,0.22)`}}>
             <div style={{fontSize:9,color:T.goldMid,letterSpacing:2,textTransform:"uppercase",
               marginBottom:8,display:"flex",alignItems:"center",gap:6,fontFamily:"Georgia,serif"}}>
-              <span style={{fontSize:13}}>🧔</span>
+              <div style={{width:16,height:16,borderRadius:"50%",overflow:"hidden",border:`1px solid ${T.goldDark}`,flexShrink:0}}>
+                <img src="/mario-avatar.jpg" alt="Mario" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 50%"}}/>
+              </div>
               Mario's Take
             </div>
             <div style={{fontSize:13,color:T.textPrimary,fontFamily:"Georgia,serif",fontStyle:"italic",lineHeight:1.7}}>
@@ -2542,77 +2544,20 @@ function AppHeader({totalCigars}:{totalCigars:number}) {
 // ── HOME TAB ───────────────────────────────────────────────────────────────
 function HomeTab({liveData,liveStatus,lastUpdated,onRefresh}:{
   liveData:Record<string,{temperature:number|null;humidity:number|null;observedAt:string|null}>;
-  liveStatus:string;lastUpdated:string|null;onRefresh:()=>void;
+  liveStatus:"idle"|"loading"|"connected"|"error";lastUpdated:string|null;onRefresh:()=>void;
 }) {
-  const sensors=Object.entries(liveData);
   const h=new Date().getHours();
   const timeStr=h<12?"Good morning":h<17?"Good afternoon":"Good evening";
   return (
-    <div style={{padding:"0 0 32px"}}>
+    <div>
       {/* Greeting */}
-      <div style={{padding:"24px 20px 20px",borderBottom:`1px solid ${T.border}`}}>
-        <div style={{fontSize:10,color:T.textMuted,letterSpacing:4,textTransform:"uppercase",fontFamily:"Georgia,serif",marginBottom:8}}>{timeStr}</div>
-        <div style={{fontSize:26,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1.2,marginBottom:4}}>Zebulon</div>
-        <div style={{fontSize:13,color:T.textSecondary,fontFamily:"Georgia,serif",fontStyle:"italic"}}>Welcome back to the lounge.</div>
+      <div style={{padding:"20px 20px 16px",borderBottom:`1px solid ${T.border}`}}>
+        <div style={{fontSize:10,color:T.textMuted,letterSpacing:4,textTransform:"uppercase",fontFamily:"Georgia,serif",marginBottom:6}}>{timeStr}</div>
+        <div style={{fontSize:24,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1.2}}>Zebulon</div>
+        <div style={{fontSize:13,color:T.textSecondary,fontFamily:"Georgia,serif",fontStyle:"italic",marginTop:4}}>Welcome back to the lounge.</div>
       </div>
-
-      {/* Live sensor snapshot */}
-      <div style={{padding:"20px 16px 0"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-          <div style={{fontSize:11,color:T.textMuted,letterSpacing:3,textTransform:"uppercase",fontFamily:"Georgia,serif"}}>Humidor Status</div>
-          <div style={{display:"flex",alignItems:"center",gap:8}}>
-            {lastUpdated&&<div style={{fontSize:10,color:T.textMuted}}>Updated {lastUpdated}</div>}
-            <button onClick={onRefresh} style={{background:"none",border:`1px solid ${T.border}`,
-              borderRadius:20,padding:"3px 10px",color:T.textMuted,fontSize:10,cursor:"pointer",fontFamily:"Georgia,serif"}}>
-              Refresh
-            </button>
-          </div>
-        </div>
-        {liveStatus==="loading"&&(
-          <div style={{textAlign:"center",padding:24,color:T.textMuted,fontFamily:"Georgia,serif",fontSize:13}}>Loading sensors...</div>
-        )}
-        {sensors.length>0&&(
-          <div style={{display:"flex",flexDirection:"column",gap:10}}>
-            {sensors.map(([name,s])=>{
-              const hum=s.humidity??0;
-              const temp=s.temperature??0;
-              const humOk=hum>=65&&hum<=72;
-              const tempOk=temp>=65&&temp<=70;
-              const hasData=hum>0||temp>0;
-              const status=!hasData?"No Data":humOk&&tempOk?"Optimal":humOk||tempOk?"Good":"Warning";
-              const statusColor=status==="Optimal"?"#5ab07a":status==="Good"?T.goldMid:status==="No Data"?T.textMuted:"#c05050";
-              return (
-                <div key={name} style={{background:T.card,borderRadius:14,border:`1px solid ${T.border}`,padding:"14px 16px"}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                    <div style={{fontSize:13,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif"}}>{name}</div>
-                    <div style={{fontSize:10,color:statusColor,background:`${statusColor}18`,
-                      border:`1px solid ${statusColor}33`,borderRadius:20,padding:"3px 10px",letterSpacing:1}}>{status}</div>
-                  </div>
-                  <div style={{display:"flex",gap:24}}>
-                    <div>
-                      <div style={{fontSize:22,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif"}}>{hasData?`${hum.toFixed(1)}%`:"—"}</div>
-                      <div style={{fontSize:9,color:T.textMuted,letterSpacing:2,textTransform:"uppercase",marginTop:2}}>Humidity</div>
-                    </div>
-                    <div style={{width:1,background:T.border}}/>
-                    <div>
-                      <div style={{fontSize:22,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif"}}>{hasData?`${temp.toFixed(1)}°F`:"—"}</div>
-                      <div style={{fontSize:9,color:T.textMuted,letterSpacing:2,textTransform:"uppercase",marginTop:2}}>Temperature</div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Tonight's recommendation placeholder */}
-      <div style={{margin:"20px 16px 0",background:"linear-gradient(155deg,#1a1a1a,#0d0d0d)",
-        borderRadius:14,border:`1px solid rgba(196,154,40,0.25)`,padding:"16px 18px"}}>
-        <div style={{fontSize:9,color:T.goldMid,letterSpacing:3,textTransform:"uppercase",marginBottom:8,fontFamily:"Georgia,serif"}}>Tonight's Pick</div>
-        <div style={{fontSize:18,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",marginBottom:4}}>Ask Mario</div>
-        <div style={{fontSize:13,color:T.textSecondary,fontFamily:"Georgia,serif",fontStyle:"italic"}}>Tell Mario your mood and he'll recommend the perfect smoke.</div>
-      </div>
+      {/* Full gauge UI */}
+      <HumidorsTab liveData={liveData} liveStatus={liveStatus} lastUpdated={lastUpdated} onRefresh={onRefresh}/>
     </div>
   );
 }
