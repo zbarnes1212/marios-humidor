@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "strict": false,
+    "strict": true,
     "target": "ES2017",
     "lib": [
       "dom",
@@ -21,13 +21,15 @@
       {
         "name": "next"
       }
-    ]
+    ],
+    "paths": {
+      "@/*": ["./*"]
+    }
   },
   "include": [
     "next-env.d.ts",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts",
     "**/*.ts",
     "**/*.tsx"
   ],
