@@ -1677,33 +1677,42 @@ function CommunityTab({activeSubTab,setActiveSubTab}:{
       {/* ── HERO BANNER ─────────────────────────────── */}
       <div style={{
         margin:'0 0 0',
-        background:'linear-gradient(160deg,#1a1206 0%,#0f0a02 50%,#0a0a0a 100%)',
-        borderBottom:`1px solid rgba(196,154,40,0.2)`,
-        padding:'20px 20px 16px',
         position:'relative',overflow:'hidden',
+        borderBottom:`1px solid rgba(196,154,40,0.2)`,
+        minHeight:200,
       }}>
-        {/* Gold shimmer lines */}
+        {/* Background image */}
+        <img src="/club-hero.jpg" alt="Mario's Social Club"
+          style={{position:'absolute',inset:0,width:'100%',height:'100%',
+            objectFit:'cover',objectPosition:'center 40%',opacity:0.85}}/>
+        {/* Dark overlay gradient */}
+        <div style={{position:'absolute',inset:0,
+          background:'linear-gradient(160deg,rgba(10,5,0,0.35) 0%,rgba(10,5,0,0.2) 50%,rgba(10,5,0,0.45) 100%)'}}/>
+        {/* Gold top line */}
         <div style={{position:'absolute',top:0,left:0,right:0,height:2,
           background:`linear-gradient(90deg,transparent,${T.goldMid},transparent)`}}/>
-        <div style={{position:'absolute',top:-40,right:-20,width:120,height:120,
-          borderRadius:'50%',background:`radial-gradient(circle,${T.goldDark}18,transparent 70%)`}}/>
-        <div style={{fontSize:10,color:T.goldMid,letterSpacing:5,textTransform:'uppercase',
-          fontFamily:'Georgia,serif',marginBottom:8}}>Members Only</div>
-        <div style={{fontSize:26,fontWeight:'bold',color:T.textPrimary,
-          fontFamily:'Georgia,serif',lineHeight:1.1,marginBottom:6}}>
-          Mario's Social Club
+        {/* Content */}
+        <div style={{position:'relative',zIndex:1,padding:'24px 20px 20px'}}>
+          <div style={{fontSize:10,color:T.goldMid,letterSpacing:5,textTransform:'uppercase',
+            fontFamily:'Georgia,serif',marginBottom:8}}>Members Only</div>
+          <div style={{fontSize:26,fontWeight:'bold',color:'#ffffff',
+            fontFamily:'Georgia,serif',lineHeight:1.1,marginBottom:6,
+            textShadow:'0 2px 8px rgba(0,0,0,0.8)'}}>
+            Mario's Social Club
+          </div>
+          <div style={{fontSize:13,color:'rgba(255,255,255,0.75)',fontFamily:'Georgia,serif',
+            fontStyle:'italic',lineHeight:1.6,marginBottom:16,
+            textShadow:'0 1px 4px rgba(0,0,0,0.8)'}}>
+            A place for cigar enthusiasts to connect, share, learn, and celebrate the lifestyle.
+          </div>
+          <button onClick={()=>setShowCompose(true)}
+            style={{display:'flex',alignItems:'center',gap:8,padding:'10px 20px',
+              background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
+              border:'none',borderRadius:24,color:'#0a0a0a',fontSize:13,
+              fontWeight:'bold',cursor:'pointer',fontFamily:'Georgia,serif',letterSpacing:0.5}}>
+            <span style={{fontSize:16}}>✏️</span> NEW POST
+          </button>
         </div>
-        <div style={{fontSize:13,color:T.textSecondary,fontFamily:'Georgia,serif',
-          fontStyle:'italic',lineHeight:1.6,marginBottom:16}}>
-          A place for cigar enthusiasts to connect, share, learn, and celebrate the lifestyle.
-        </div>
-        <button onClick={()=>setShowCompose(true)}
-          style={{display:'flex',alignItems:'center',gap:8,padding:'10px 20px',
-            background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
-            border:'none',borderRadius:24,color:'#0a0a0a',fontSize:13,
-            fontWeight:'bold',cursor:'pointer',fontFamily:'Georgia,serif',letterSpacing:0.5}}>
-          <span style={{fontSize:16}}>✏️</span> NEW POST
-        </button>
       </div>
 
       {/* ── COMPOSE MODAL ───────────────────────────── */}
