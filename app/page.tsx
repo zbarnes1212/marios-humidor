@@ -2743,7 +2743,7 @@ export default function MariosHumidor() {
         </div>
         {render()}
       </div>
-      <ContextBar tab={tab} activeClubTab={activeClubTab} setActiveClubTab={setActiveClubTab} onNewPost={()=>setShowCompose(true)}/>
+      <ContextBar tab={tab} activeClubTab={activeClubTab} setActiveClubTab={(t:string)=>setActiveClubTab(t as any)} onNewPost={()=>setShowCompose(true)}/>
       <style>{`
         *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
         body{margin:0;padding:0;overflow-x:hidden}
