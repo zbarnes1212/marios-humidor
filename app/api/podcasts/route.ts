@@ -1,8 +1,21 @@
 import { NextResponse } from "next/server";
 
-const FEATURED_CHANNELS = [
-  { id: "UCmsHB4Gx7rYOaAP25d76C3w", name: "Cigars Daily" },
-  { id: "UC3Y7OkIW5Yu6-h2CcgtmPSQ", name: "Cigar Aficionado" },
+const PODCAST_CHANNELS = [
+  {
+    id: "UC1Zsfk4oNUId8Sx3Va0rfgg",
+    name: "The Cigar Authority",
+    accent: "#7a1212",
+  },
+  {
+    id: "UCqzjAgSNDxc5UpbjvId0yNA",
+    name: "Cigar Talk Podcast",
+    accent: "#8B6914",
+  },
+  {
+    id: "UCNbl-MAlxA-n_HL74GfT61g",
+    name: "Cigar Hustlers Podcast",
+    accent: "#2a5c38",
+  },
 ];
 
 export async function GET() {
@@ -11,8 +24,8 @@ export async function GET() {
 
   try {
     const results = await Promise.allSettled(
-      FEATURED_CHANNELS.map(async (channel) => {
-        const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channel.id}&type=video&maxResults=4&order=date&key=${apiKey}`;
+      PODCAST_CHANNELS.map(async (channel) => {
+        const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${channel.id}&type=video&maxResults=2&order=date&key=${apiKey}`;
         const res = await fetch(url, { next: { revalidate: 3600 } });
         const data = await res.json();
         if (!data.items?.length) return [];
@@ -20,24 +33,23 @@ export async function GET() {
           id: item.id.videoId,
           title: item.snippet.title,
           channel: channel.name,
-          description: item.snippet.description?.slice(0, 120) || "",
+          accent: channel.accent,
           thumbnail: item.snippet.thumbnails?.medium?.url || item.snippet.thumbnails?.default?.url,
           publishedAt: new Date(item.snippet.publishedAt).toLocaleDateString("en-US", {
-            month: "long", day: "numeric", year: "numeric",
+            month: "short", day: "numeric", year: "numeric",
           }),
           url: `https://www.youtube.com/watch?v=${item.id.videoId}`,
         }));
       })
     );
 
-    const videos = results
-      .filter(r => r.status === "fulfilled")
-      .flatMap((r: any) => r.value)
-      .slice(0, 8)
-      .map((v, i) => ({ ...v, idx: i }));
+    const grouped = PODCAST_CHANNELS.map((channel, i) => ({
+      channel: channel.name,
+      accent: channel.accent,
+      videos: results[i].status === "fulfilled" ? (results[i] as any).value : [],
+    }));
 
-    if (videos.length === 0) return NextResponse.json({ ok: false, error: "No videos found" });
-    return NextResponse.json({ ok: true, videos });
+    return NextResponse.json({ ok: true, grouped });
   } catch (err) {
     return NextResponse.json({ ok: false, error: String(err) });
   }

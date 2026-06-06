@@ -509,6 +509,97 @@ function BandScannerModal({onClose,onAddToCollection,onAddToJournal,onSmokedOne}
   );
 }
 
+// ── AD CAROUSEL ────────────────────────────────────────────────────────────
+const ADS = [
+  {brand:"Davidoff",line:"Winston Churchill\nThe Late Hour",vitola:"Toro · 6 × 50",badge:"New Release",
+    bg:"linear-gradient(135deg,#1a1208,#2a1f0e,#0f0a04)",accent:"#C49A28"},
+  {brand:"Padrón",line:"1964 Anniversary\nExclusivo Natural",vitola:"Robusto · 5 × 50",badge:"Member Favorite",
+    bg:"linear-gradient(135deg,#0f1a08,#1a2a0e,#080f04)",accent:"#5a8c3a"},
+  {brand:"Arturo Fuente",line:"Opus X\nAngel's Share",vitola:"Robusto · 5¼ × 50",badge:"Limited Edition",
+    bg:"linear-gradient(135deg,#1a0808,#2a0e0e,#0f0404)",accent:"#8B2020"},
+  {brand:"My Father",line:"Le Bijou 1922\nTorpedo",vitola:"Torpedo · 6¼ × 52",badge:"Top Rated",
+    bg:"linear-gradient(135deg,#0a0f1a,#0e1a2a,#04080f)",accent:"#4a6a9a"},
+  {brand:"Liga Privada",line:"No. 9\nRobusto",vitola:"Robusto · 5 × 52",badge:"Staff Pick",
+    bg:"linear-gradient(135deg,#0f0a1a,#1a0e2a,#08040f)",accent:"#7a3a8a"},
+];
+
+function AdCarousel() {
+  const [idx,setIdx]=useState(0);
+  const [fade,setFade]=useState(true);
+
+  useEffect(()=>{
+    const t=setInterval(()=>{
+      setFade(false);
+      setTimeout(()=>{
+        setIdx(i=>(i+1)%ADS.length);
+        setFade(true);
+      },400);
+    },12000);
+    return()=>clearInterval(t);
+  },[]);
+
+  const ad=ADS[idx];
+
+  return (
+    <div style={{margin:"16px 16px 0"}}>
+      <div style={{fontSize:8,letterSpacing:3,textTransform:"uppercase",color:T.textMuted,
+        fontFamily:"Georgia,serif",marginBottom:8,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <span>Featured Release · Brand Partner</span>
+        {/* Dot indicators */}
+        <div style={{display:"flex",gap:5}}>
+          {ADS.map((_,i)=>(
+            <div key={i} onClick={()=>{setFade(false);setTimeout(()=>{setIdx(i);setFade(true);},400);}}
+              style={{width:i===idx?16:5,height:5,borderRadius:3,cursor:"pointer",transition:"all 0.3s",
+                background:i===idx?ad.accent:"rgba(160,120,40,0.25)"}}/>
+          ))}
+        </div>
+      </div>
+      <div style={{borderRadius:14,overflow:"hidden",border:`1px solid rgba(196,154,40,0.3)`,
+        background:"linear-gradient(170deg,#1a1a1a,#0d0d0d)",
+        opacity:fade?1:0,transition:"opacity 0.4s ease"}}>
+        {/* Feature image area */}
+        <div style={{position:"relative",height:180,background:ad.bg,
+          display:"flex",alignItems:"flex-end",padding:16}}>
+          {/* Badge */}
+          <div style={{position:"absolute",top:12,right:12,
+            background:`linear-gradient(135deg,${ad.accent}cc,${ad.accent})`,
+            color:"#fff",fontFamily:"Georgia,serif",fontSize:8,letterSpacing:2,
+            padding:"4px 10px",borderRadius:4,fontWeight:"bold",textTransform:"uppercase"}}>
+            {ad.badge}
+          </div>
+          {/* Gold accent line */}
+          <div style={{position:"absolute",bottom:0,left:0,right:0,height:2,
+            background:`linear-gradient(90deg,transparent,${ad.accent},transparent)`}}/>
+          {/* Info */}
+          <div style={{position:"relative",zIndex:2}}>
+            <div style={{fontSize:9,letterSpacing:3,color:ad.accent,textTransform:"uppercase",
+              fontFamily:"Georgia,serif",marginBottom:3}}>{ad.brand}</div>
+            <div style={{fontSize:20,color:T.textPrimary,fontFamily:"Georgia,serif",
+              lineHeight:1.2,marginBottom:2,whiteSpace:"pre-line"}}>{ad.line}</div>
+            <div style={{fontSize:11,color:T.textSecondary,fontStyle:"italic",
+              fontFamily:"Georgia,serif"}}>{ad.vitola}</div>
+          </div>
+        </div>
+        {/* Action buttons */}
+        <div style={{display:"flex",gap:10,padding:"12px 14px",
+          borderTop:`1px solid rgba(196,154,40,0.12)`}}>
+          <button style={{flex:1,padding:"10px",
+            background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
+            border:"none",borderRadius:8,fontFamily:"Georgia,serif",fontSize:10,
+            letterSpacing:2,color:"#0a0a0a",fontWeight:"bold",cursor:"pointer",textTransform:"uppercase"}}>
+            Add to Collection
+          </button>
+          <button style={{flex:1,padding:"10px",background:"transparent",
+            border:`1px solid rgba(196,154,40,0.35)`,borderRadius:8,fontFamily:"Georgia,serif",
+            fontSize:10,letterSpacing:2,color:T.goldMid,cursor:"pointer",textTransform:"uppercase"}}>
+            Learn More
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── COLLECTION SCREEN ──────────────────────────────────────────────────────
 function CollectionTab() {
   const [sel,setSel]=useState<number|null>(null);
@@ -631,43 +722,8 @@ function CollectionTab() {
         </div>
       </div>
 
-      {/* ── BRAND PARTNER FEATURE SLOT ── */}
-      <div style={{margin:"16px 16px 0"}}>
-        <div style={{fontSize:8,letterSpacing:3,textTransform:"uppercase",color:T.textMuted,fontFamily:"Georgia,serif",marginBottom:8}}>
-          Featured Release · Brand Partner
-        </div>
-        <div style={{borderRadius:14,overflow:"hidden",border:`1px solid rgba(196,154,40,0.3)`,background:"linear-gradient(170deg,#1a1a1a,#0d0d0d)"}}>
-          {/* Feature image area */}
-          <div style={{position:"relative",height:180,background:"linear-gradient(135deg,#1a1208,#2a1f0e,#0f0a04)",
-            display:"flex",alignItems:"flex-end",padding:16}}>
-            {/* New Release badge */}
-            <div style={{position:"absolute",top:12,right:12,background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
-              color:"#0a0a0a",fontFamily:"Georgia,serif",fontSize:8,letterSpacing:2,
-              padding:"4px 10px",borderRadius:4,fontWeight:"bold",textTransform:"uppercase"}}>
-              New Release
-            </div>
-            {/* Cigar info overlay */}
-            <div style={{position:"relative",zIndex:2}}>
-              <div style={{fontSize:9,letterSpacing:3,color:T.goldMid,textTransform:"uppercase",fontFamily:"Georgia,serif",marginBottom:3}}>Davidoff</div>
-              <div style={{fontSize:20,color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1.2,marginBottom:2}}>Winston Churchill<br/>The Late Hour</div>
-              <div style={{fontSize:11,color:T.textSecondary,fontStyle:"italic",fontFamily:"Georgia,serif"}}>Toro · 6 × 50</div>
-            </div>
-          </div>
-          {/* Action buttons */}
-          <div style={{display:"flex",gap:10,padding:"12px 14px",borderTop:`1px solid rgba(196,154,40,0.12)`}}>
-            <button style={{flex:1,padding:"10px",background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
-              border:"none",borderRadius:8,fontFamily:"Georgia,serif",fontSize:10,
-              letterSpacing:2,color:"#0a0a0a",fontWeight:"bold",cursor:"pointer",textTransform:"uppercase"}}>
-              Add to Collection
-            </button>
-            <button style={{flex:1,padding:"10px",background:"transparent",
-              border:`1px solid rgba(196,154,40,0.35)`,borderRadius:8,fontFamily:"Georgia,serif",
-              fontSize:10,letterSpacing:2,color:T.goldMid,cursor:"pointer",textTransform:"uppercase"}}>
-              Learn More
-            </button>
-          </div>
-        </div>
-      </div>
+      {/* ── ROLLING AD CAROUSEL ── */}
+      <AdCarousel/>
 
       {/* Pre-fill banner — Collection */}
       {pendingCollection && (
@@ -1028,7 +1084,16 @@ function TastingNotesSection({prefill,onPrefillUsed}:{prefill:ScanResult|null,on
 }
 
 // ── ASK MARIO — emotional center ───────────────────────────────────────────
-const QUICK_PROMPTS=[["🍂","Recommend Cigars"],["🌡️","Humidor Advice"],["🍷","Pairing Suggestion"],["🌙","What to smoke tonight?"]];
+const QUICK_PROMPTS=[
+  {label:"Recommend me a cigar",
+    icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L9 9H2l5.5 4-2 7L12 16l6.5 4-2-7L22 9h-7z"/></svg>},
+  {label:"Humidor advice",
+    icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M7 6V4a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v2"/><circle cx="12" cy="15" r="2"/></svg>},
+  {label:"Pairing suggestion",
+    icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M8 22H5a2 2 0 0 1-2-2V7l3-4h8l3 4v13a2 2 0 0 1-2 2h-3"/><path d="M12 11v11"/><path d="M9 8h6"/></svg>},
+  {label:"What should I smoke tonight?",
+    icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/><path d="M19 3v4"/><path d="M21 5h-4"/></svg>},
+];
 
 function AskMarioTab({liveData}:{liveData:Record<string,{temperature:number|null;humidity:number|null;observedAt:string|null}>}) {
   const getGreeting=()=>{
@@ -1142,16 +1207,16 @@ function AskMarioTab({liveData}:{liveData:Record<string,{temperature:number|null
 
       {/* Quick prompts — full width stacked with icons */}
       <div style={{padding:"10px 16px 6px",display:"flex",flexDirection:"column",gap:8,flexShrink:0}}>
-        {QUICK_PROMPTS.map(([icon,label])=>(
-          <button key={label} onClick={()=>send(label)}
+        {QUICK_PROMPTS.map((p)=>(
+          <button key={p.label} onClick={()=>send(p.label)}
             style={{width:"100%",background:"linear-gradient(170deg,#1a1a1a,#111111)",
               border:`1px solid rgba(196,154,40,0.22)`,borderRadius:12,
               padding:"14px 18px",color:T.textPrimary,fontSize:15,cursor:"pointer",
               fontFamily:"Georgia,serif",textAlign:"left",display:"flex",
               alignItems:"center",justifyContent:"space-between"}}>
             <span style={{display:"flex",alignItems:"center",gap:12}}>
-              <span style={{fontSize:20}}>{icon}</span>
-              <span>{label}</span>
+              <span style={{color:T.goldMid,flexShrink:0}}>{p.icon}</span>
+              <span>{p.label}</span>
             </span>
             <span style={{color:T.goldMid,fontSize:20}}>›</span>
           </button>
@@ -1648,7 +1713,9 @@ function CommunityTab({activeSubTab,setActiveSubTab}:{
   const [newsLoading,setNewsLoading]=useState(false);
   const [videos,setVideos]=useState<any[]>([]);
   const [videosLoading,setVideosLoading]=useState(false);
-  const [newsSubTab,setNewsSubTab]=useState<'youtube'|'articles'>('youtube');
+  const [podcastGroups,setPodcastGroups]=useState<any[]>([]);
+  const [podcastsLoading,setPodcastsLoading]=useState(false);
+  const [newsSubTab,setNewsSubTab]=useState<'youtube'|'articles'|'podcasts'>('youtube');
   const [filter,setFilter]=useState<'all'|'following'|'mine'>('all');
 
   useEffect(()=>{
@@ -1669,6 +1736,14 @@ function CommunityTab({activeSubTab,setActiveSubTab}:{
           .catch(()=>{})
           .finally(()=>setVideosLoading(false));
       }
+      if(podcastGroups.length===0){
+        setPodcastsLoading(true);
+        fetch('/api/podcasts')
+          .then(r=>r.json())
+          .then(d=>{if(d.ok&&d.grouped?.length>0)setPodcastGroups(d.grouped);})
+          .catch(()=>{})
+          .finally(()=>setPodcastsLoading(false));
+      }
     }
   },[activeSubTab]);
 
@@ -1686,6 +1761,34 @@ function CommunityTab({activeSubTab,setActiveSubTab}:{
 
   return (
     <div style={{paddingBottom:100}}>
+
+      {/* ── CLUB SUB-TABS (inline, scrolls with content) ── */}
+      <div style={{overflowX:'auto',scrollbarWidth:'none',WebkitOverflowScrolling:'touch',
+        borderBottom:`1px solid rgba(160,120,40,0.28)`,
+        backgroundImage:"url('/leather-nav.png')",
+        backgroundSize:"cover",backgroundPosition:"center top",
+        boxShadow:"0 2px 12px rgba(0,0,0,0.5)"}}>
+        <div style={{display:'flex',padding:'10px 12px',gap:4,minWidth:'max-content'}}>
+          {CLUB_NAV_ICONS.map((item)=>{
+            const active=activeSubTab===item.tab;
+            const c=active?T.goldMid:'rgba(160,120,40,0.4)';
+            return (
+              <button key={item.tab} onClick={()=>setActiveSubTab(item.tab as any)}
+                style={{display:'flex',alignItems:'center',gap:6,padding:'7px 14px',
+                  background:active?'rgba(196,154,40,0.22)':'rgba(0,0,0,0.25)',
+                  border:`1px solid ${active?T.borderGold:'rgba(160,120,40,0.28)'}`,
+                  borderRadius:20,cursor:'pointer',flexShrink:0,
+                  transition:'all 0.18s'}}>
+                <item.Icon c={c}/>
+                <span style={{fontSize:11,color:active?T.goldMid:T.textMuted,
+                  fontFamily:'Georgia,serif',whiteSpace:'nowrap',letterSpacing:0.3}}>
+                  {item.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {/* ── HERO BANNER ─────────────────────────────── */}
       <div style={{
@@ -1744,6 +1847,24 @@ function CommunityTab({activeSubTab,setActiveSubTab}:{
               <path d="M23 7s-.3-2-1.2-2.8c-1.1-1.2-2.4-1.2-3-1.3C16.6 2.8 12 2.8 12 2.8s-4.6 0-6.8.1c-.6.1-1.9.1-3 1.3C1.3 5 1 7 1 7S.7 9.1.7 11.2v2c0 2.1.3 4.2.3 4.2s.3 2 1.2 2.8c1.1 1.2 2.6 1.1 3.3 1.2C7.2 21.6 12 21.6 12 21.6s4.6 0 6.8-.2c.6-.1 1.9-.1 3-1.3.9-.8 1.2-2.8 1.2-2.8s.3-2.1.3-4.2v-2C23.3 9.1 23 7 23 7zM9.7 15.5V8.4l6.6 3.6-6.6 3.5z"/>
             </svg>
             YouTube
+          </button>
+          {/* Podcasts pill */}
+          <button onClick={()=>setNewsSubTab('podcasts')}
+            style={{display:'flex',alignItems:'center',gap:7,padding:'8px 18px',
+              borderRadius:24,cursor:'pointer',fontFamily:'Georgia,serif',fontSize:13,
+              marginBottom:12,fontWeight:newsSubTab==='podcasts'?'bold':'normal',
+              background:newsSubTab==='podcasts'?`linear-gradient(135deg,${T.goldDark},${T.goldMid})`:'transparent',
+              border:newsSubTab==='podcasts'?'none':`1px solid rgba(196,154,40,0.25)`,
+              color:newsSubTab==='podcasts'?'#0a0a0a':T.textMuted}}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke={newsSubTab==='podcasts'?'#0a0a0a':T.goldMid} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="11" r="4"/>
+              <path d="M12 1a3 3 0 0 0-3 3v4a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" fill={newsSubTab==='podcasts'?'#0a0a0a':'none'} stroke={newsSubTab==='podcasts'?'#0a0a0a':T.goldMid}/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+            Podcasts
           </button>
           {/* News pill */}
           <button onClick={()=>setNewsSubTab('articles')}
@@ -1944,6 +2065,73 @@ function CommunityTab({activeSubTab,setActiveSubTab}:{
                 </div>
               )}
               {!newsLoading&&(liveNews.length>0?liveNews:NEWS).map(n=><NewsCard key={n.id} n={n}/>)}
+            </>
+          )}
+
+          {/* PODCASTS */}
+          {newsSubTab==='podcasts'&&(
+            <>
+              {podcastsLoading&&(
+                <div style={{textAlign:'center',padding:40,color:T.textMuted,fontFamily:'Georgia,serif'}}>
+                  <div style={{display:'flex',gap:7,justifyContent:'center',marginBottom:12}}>
+                    {[0,1,2].map(i=><div key={i} style={{width:6,height:6,borderRadius:'50%',background:T.goldDark,animation:`sp 1.4s ease-in-out ${i*0.28}s infinite`}}/>)}
+                  </div>
+                  Loading podcast episodes...
+                </div>
+              )}
+              {!podcastsLoading&&podcastGroups.length===0&&(
+                <div style={{textAlign:'center',padding:40,color:T.textMuted,fontFamily:'Georgia,serif',fontStyle:'italic'}}>
+                  No episodes loaded
+                </div>
+              )}
+              {!podcastsLoading&&podcastGroups.map((group:any)=>(
+                <div key={group.channel} style={{marginBottom:20}}>
+                  {/* Channel header */}
+                  <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
+                    <div style={{width:6,height:6,borderRadius:'50%',background:group.accent,flexShrink:0,
+                      boxShadow:`0 0 8px ${group.accent}`}}/>
+                    <div style={{fontSize:10,color:group.accent,letterSpacing:3,
+                      textTransform:'uppercase',fontFamily:'Georgia,serif',fontWeight:'bold'}}>{group.channel}</div>
+                    <div style={{flex:1,height:1,background:`linear-gradient(90deg,${group.accent}44,transparent)`}}/>
+                  </div>
+                  {/* Videos */}
+                  {group.videos.length===0?(
+                    <div style={{fontSize:12,color:T.textMuted,fontFamily:'Georgia,serif',fontStyle:'italic',paddingLeft:16}}>No recent episodes</div>
+                  ):group.videos.map((v:any)=>(
+                    <a key={v.id} href={v.url} target="_blank" rel="noopener noreferrer"
+                      style={{textDecoration:'none',display:'flex',gap:12,marginBottom:10,
+                        background:'linear-gradient(170deg,#1a1a1a,#0d0d0d)',
+                        borderRadius:12,border:`1px solid rgba(196,154,40,0.15)`,
+                        overflow:'hidden',cursor:'pointer'}}>
+                      {/* Thumbnail */}
+                      <div style={{width:110,flexShrink:0,position:'relative',aspectRatio:'16/9',background:'#111'}}>
+                        {v.thumbnail&&<img src={v.thumbnail} alt={v.title}
+                          style={{width:'100%',height:'100%',objectFit:'cover'}}/>}
+                        {/* Play overlay */}
+                        <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',
+                          justifyContent:'center',background:'rgba(0,0,0,0.3)'}}>
+                          <div style={{width:28,height:28,borderRadius:'50%',
+                            background:'rgba(196,154,40,0.85)',
+                            display:'flex',alignItems:'center',justifyContent:'center'}}>
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="#0a0a0a">
+                              <polygon points="3,2 8,5 3,8"/>
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Info */}
+                      <div style={{flex:1,padding:'10px 12px 10px 0',display:'flex',flexDirection:'column',justifyContent:'center',gap:4}}>
+                        <div style={{fontSize:12,fontWeight:'bold',color:T.textPrimary,
+                          fontFamily:'Georgia,serif',lineHeight:1.35,
+                          display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical' as any,overflow:'hidden'}}>
+                          {v.title}
+                        </div>
+                        <div style={{fontSize:10,color:T.textMuted,fontFamily:'Georgia,serif'}}>{v.publishedAt}</div>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              ))}
             </>
           )}
         </div>
@@ -2566,15 +2754,21 @@ function NavIcon({id,active}:{id:string,active:boolean}) {
 
 function TopNav({tab,setTab}:{tab:string,setTab:(t:string)=>void}) {
   return (
-    <div style={{background:"#0a0a0a",borderBottom:`1px solid rgba(160,120,40,0.18)`,
-      display:"flex",justifyContent:"space-around",padding:"6px 0 0"}}>
+    <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",
+      width:"100%",maxWidth:480,zIndex:100,
+      backgroundImage:"url('/leather-nav.png')",
+      backgroundSize:"cover",backgroundPosition:"center",
+      borderTop:`1px solid rgba(160,120,40,0.35)`,
+      display:"flex",justifyContent:"space-around",padding:"6px 0 0",
+      paddingBottom:"calc(env(safe-area-inset-bottom, 12px) + 6px)",
+      boxShadow:"0 -2px 16px rgba(0,0,0,0.6)"}}>
       {NAV.map(n=>{
         const active=tab===n.id;
         return (
           <button key={n.id} onClick={()=>setTab(n.id)}
             style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",
               justifyContent:"center",padding:"6px 2px 8px",background:"none",border:"none",
-              cursor:"pointer",borderBottom:active?`2px solid ${T.goldMid}`:"2px solid transparent",
+              cursor:"pointer",borderTop:active?`2px solid ${T.goldMid}`:"2px solid transparent",
               transition:"all 0.2s"}}>
             <div style={{filter:active?`drop-shadow(0 0 5px ${T.goldLight})`:"none",marginBottom:4,opacity:active?1:0.38}}>
               <NavIcon id={n.id} active={active}/>
@@ -2596,30 +2790,6 @@ function ContextBar({tab,activeClubTab,setActiveClubTab,onNewPost}:{
   setActiveClubTab:(t:string)=>void;
   onNewPost?:()=>void;
 }) {
-  if(tab==="community") return (
-    <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",
-      width:"100%",maxWidth:480,zIndex:100,background:"#0a0a0a",
-      borderTop:`1px solid rgba(160,120,40,0.18)`,
-      padding:"10px 4px 0",paddingBottom:"calc(env(safe-area-inset-bottom, 16px) + 10px)"}}>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>
-        {CLUB_NAV_ICONS.map((item,i)=>{
-          const active=activeClubTab===item.tab;
-          const c=active?T.goldMid:"rgba(160,120,40,0.4)";
-          return (
-            <button key={i} onClick={()=>setActiveClubTab(item.tab)}
-              style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,
-                padding:"6px 2px",background:"none",border:"none",cursor:"pointer"}}>
-              <item.Icon c={c}/>
-              <span style={{fontSize:8,color:active?T.goldMid:T.textMuted,
-                fontFamily:"Georgia,serif",textAlign:"center",lineHeight:1.2}}>
-                {item.label}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
   return null;
 }
 
@@ -2736,14 +2906,13 @@ export default function MariosHumidor() {
     <div style={{minHeight:"100vh",background:T.bg,color:T.textPrimary,fontFamily:"Georgia,serif",maxWidth:480,margin:"0 auto",position:"relative"}}>
       <CedarBg/>
       {splash&&<SplashScreen onDone={()=>setSplash(false)}/>}
-      <div style={{position:"relative",zIndex:1,paddingBottom:tab==="community"?120:32}}>
+      <div style={{position:"relative",zIndex:1,paddingBottom:90}}>
         <div style={{position:"sticky",top:0,zIndex:50}}>
           <AppHeader totalCigars={0}/>
-          <TopNav tab={tab} setTab={setTab}/>
         </div>
         {render()}
       </div>
-      <ContextBar tab={tab} activeClubTab={activeClubTab} setActiveClubTab={(t:string)=>setActiveClubTab(t as any)} onNewPost={()=>setShowCompose(true)}/>
+      <TopNav tab={tab} setTab={setTab}/>
       <style>{`
         *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
         body{margin:0;padding:0;overflow-x:hidden}
@@ -2751,6 +2920,7 @@ export default function MariosHumidor() {
         ::-webkit-scrollbar{width:3px;height:3px}
         ::-webkit-scrollbar-track{background:transparent}
         ::-webkit-scrollbar-thumb{background:rgba(180,140,60,0.12);border-radius:2px}
+        .club-subtabs::-webkit-scrollbar{display:none}
         @keyframes mT{0%,80%,100%{transform:translateY(0);opacity:0.3}40%{transform:translateY(-5px);opacity:1}}
         @keyframes sp{0%,80%,100%{transform:scale(0.6);opacity:0.3}40%{transform:scale(1);opacity:1}}
       `}</style>
