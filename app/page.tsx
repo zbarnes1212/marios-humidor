@@ -1646,16 +1646,28 @@ function CommunityTab({activeSubTab,setActiveSubTab}:{
   const [showCompose,setShowCompose]=useState(false);
   const [liveNews,setLiveNews]=useState<any[]>([]);
   const [newsLoading,setNewsLoading]=useState(false);
+  const [videos,setVideos]=useState<any[]>([]);
+  const [videosLoading,setVideosLoading]=useState(false);
   const [filter,setFilter]=useState<'all'|'following'|'mine'>('all');
 
   useEffect(()=>{
-    if(activeSubTab==='news'&&liveNews.length===0){
-      setNewsLoading(true);
-      fetch('/api/news')
-        .then(r=>r.json())
-        .then(d=>{if(d.ok&&d.articles?.length>0)setLiveNews(d.articles);})
-        .catch(()=>{})
-        .finally(()=>setNewsLoading(false));
+    if(activeSubTab==='news'){
+      if(liveNews.length===0){
+        setNewsLoading(true);
+        fetch('/api/news')
+          .then(r=>r.json())
+          .then(d=>{if(d.ok&&d.articles?.length>0)setLiveNews(d.articles);})
+          .catch(()=>{})
+          .finally(()=>setNewsLoading(false));
+      }
+      if(videos.length===0){
+        setVideosLoading(true);
+        fetch('/api/youtube')
+          .then(r=>r.json())
+          .then(d=>{if(d.ok&&d.videos?.length>0)setVideos(d.videos);})
+          .catch(()=>{})
+          .finally(()=>setVideosLoading(false));
+      }
     }
   },[activeSubTab]);
 
@@ -1684,10 +1696,10 @@ function CommunityTab({activeSubTab,setActiveSubTab}:{
         {/* Background image */}
         <img src="/club-hero.jpg" alt="Mario's Social Club"
           style={{position:'absolute',inset:0,width:'100%',height:'100%',
-            objectFit:'cover',objectPosition:'center 40%',opacity:0.85}}/>
+            objectFit:'cover',objectPosition:'center 40%',opacity:1}}/>
         {/* Dark overlay gradient */}
         <div style={{position:'absolute',inset:0,
-          background:'linear-gradient(160deg,rgba(10,5,0,0.35) 0%,rgba(10,5,0,0.2) 50%,rgba(10,5,0,0.45) 100%)'}}/>
+          background:'linear-gradient(160deg,rgba(10,5,0,0.1) 0%,rgba(10,5,0,0.05) 50%,rgba(10,5,0,0.2) 100%)'}}/>
         {/* Gold top line */}
         <div style={{position:'absolute',top:0,left:0,right:0,height:2,
           background:`linear-gradient(90deg,transparent,${T.goldMid},transparent)`}}/>
@@ -1835,15 +1847,70 @@ function CommunityTab({activeSubTab,setActiveSubTab}:{
       {/* ── NEWS ────────────────────────────────────── */}
       {activeSubTab==='news'&&(
         <div style={{padding:16,display:'flex',flexDirection:'column',gap:12}}>
-          {newsLoading&&(
-            <div style={{textAlign:'center',padding:40,color:T.textMuted,fontFamily:'Georgia,serif'}}>
-              <div style={{display:'flex',gap:7,justifyContent:'center',marginBottom:12}}>
-                {[0,1,2].map(i=><div key={i} style={{width:6,height:6,borderRadius:'50%',background:T.goldDark,animation:`sp 1.4s ease-in-out ${i*0.28}s infinite`}}/>)}
-              </div>
-              Loading latest news...
+
+          {/* ── YOUTUBE VIDEO FEED ── */}
+          <div style={{marginBottom:8}}>
+            <div style={{fontSize:10,color:T.goldMid,letterSpacing:4,textTransform:'uppercase',
+              fontFamily:'Georgia,serif',marginBottom:12,display:'flex',alignItems:'center',gap:8}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="#ff0000">
+                <path d="M23 7s-.3-2-1.2-2.8c-1.1-1.2-2.4-1.2-3-1.3C16.6 2.8 12 2.8 12 2.8s-4.6 0-6.8.1c-.6.1-1.9.1-3 1.3C1.3 5 1 7 1 7S.7 9.1.7 11.2v2c0 2.1.3 4.2.3 4.2s.3 2 1.2 2.8c1.1 1.2 2.6 1.1 3.3 1.2C7.2 21.6 12 21.6 12 21.6s4.6 0 6.8-.2c.6-.1 1.9-.1 3-1.3.9-.8 1.2-2.8 1.2-2.8s.3-2.1.3-4.2v-2C23.3 9.1 23 7 23 7zM9.7 15.5V8.4l6.6 3.6-6.6 3.5z"/>
+              </svg>
+              Latest Videos
+              {videosLoading&&<div style={{display:'flex',gap:4}}>{[0,1,2].map(i=><div key={i} style={{width:4,height:4,borderRadius:'50%',background:T.goldDark,animation:`sp 1.4s ease-in-out ${i*0.28}s infinite`}}/>)}</div>}
             </div>
-          )}
-          {!newsLoading&&(liveNews.length>0?liveNews:NEWS).map(n=><NewsCard key={n.id} n={n}/>)}
+
+            {videos.length>0&&(
+              <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                {videos.map(v=>(
+                  <a key={v.id} href={v.url} target="_blank" rel="noopener noreferrer"
+                    style={{textDecoration:'none',display:'flex',gap:12,
+                      background:'linear-gradient(170deg,#1a1a1a,#0d0d0d)',
+                      borderRadius:12,border:`1px solid rgba(196,154,40,0.15)`,
+                      overflow:'hidden',cursor:'pointer'}}>
+                    {/* Thumbnail */}
+                    <div style={{width:120,flexShrink:0,position:'relative'}}>
+                      <img src={v.thumbnail} alt={v.title}
+                        style={{width:'100%',height:'100%',objectFit:'cover',display:'block',minHeight:68}}/>
+                      <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',
+                        justifyContent:'center',background:'rgba(0,0,0,0.2)'}}>
+                        <div style={{width:28,height:28,borderRadius:'50%',background:'rgba(255,0,0,0.85)',
+                          display:'flex',alignItems:'center',justifyContent:'center'}}>
+                          <svg width="10" height="10" viewBox="0 0 10 10" fill="white">
+                            <path d="M3 2l5 3-5 3V2z"/>
+                          </svg>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Info */}
+                    <div style={{flex:1,padding:'10px 12px 10px 0'}}>
+                      <div style={{fontSize:13,fontWeight:'bold',color:T.textPrimary,
+                        fontFamily:'Georgia,serif',lineHeight:1.3,marginBottom:4,
+                        display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden'}}>
+                        {v.title}
+                      </div>
+                      <div style={{fontSize:11,color:T.goldMid}}>{v.channel}</div>
+                      <div style={{fontSize:10,color:T.textMuted,marginTop:3}}>{v.publishedAt}</div>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── NEWS ARTICLES ── */}
+          <div style={{borderTop:`1px solid rgba(196,154,40,0.15)`,paddingTop:16}}>
+            <div style={{fontSize:10,color:T.goldMid,letterSpacing:4,textTransform:'uppercase',
+              fontFamily:'Georgia,serif',marginBottom:12}}>From the Press</div>
+            {newsLoading&&(
+              <div style={{textAlign:'center',padding:20,color:T.textMuted,fontFamily:'Georgia,serif'}}>
+                <div style={{display:'flex',gap:7,justifyContent:'center',marginBottom:12}}>
+                  {[0,1,2].map(i=><div key={i} style={{width:6,height:6,borderRadius:'50%',background:T.goldDark,animation:`sp 1.4s ease-in-out ${i*0.28}s infinite`}}/>)}
+                </div>
+                Loading latest news...
+              </div>
+            )}
+            {!newsLoading&&(liveNews.length>0?liveNews:NEWS).map(n=><NewsCard key={n.id} n={n}/>)}
+          </div>
         </div>
       )}
 
