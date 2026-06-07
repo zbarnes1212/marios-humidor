@@ -79,6 +79,26 @@ const HUMIDORS=[
 ];
 type CigarEntry={id:number;brand:string;line:string;vitola:string;origin:string;wrapper:string;rating:number;count:number;purchaseDate:string;bandColor:string};
 const CIGARS:CigarEntry[]=[];
+
+// Map vitola + wrapper → placeholder cigar image
+function getCigarImage(vitola:string,wrapper:string):string {
+  const v=vitola.toLowerCase();
+  const w=wrapper.toLowerCase();
+  // Determine shape
+  const shape=v.includes("torpedo")?"torpedo"
+    :v.includes("churchill")?"churchill"
+    :v.includes("toro")?"toro"
+    :v.includes("figurado")?"figurado"
+    :v.includes("corona")?"corona"
+    :"robusto";
+  // Determine wrapper category
+  const wrap=w.includes("oscuro")?"oscuro"
+    :w.includes("maduro")?"maduro"
+    :w.includes("claro")&&w.includes("colorado")?"colorado-claro"
+    :w.includes("claro")||w.includes("connecticut")?"claro"
+    :"colorado";
+  return `/cigar-${wrap}-${shape}.png`;
+}
 const NOTES_INIT=[
   {id:1,brand:"Padrón",line:"1964 Anniversary",vitola:"Exclusivo",date:"May 28, 2026",rating:5,
     notes:"Rich dark chocolate and dried fruit — 31 months of aging has transformed this completely. The draw is effortless, burn line ruler-straight. A meditation in a stick.",pairing:"Blanton's Single Barrel"},
@@ -563,11 +583,8 @@ function AdCarousel() {
           {/* Actual ad image */}
           {ad.image&&<img src={ad.image} alt={ad.brand}
             style={{position:"absolute",inset:0,width:"100%",height:"100%",
-              objectFit:"cover",objectPosition:"center",opacity:0.55}}
+              objectFit:"cover",objectPosition:"center",opacity:1}}
             onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>}
-          {/* Dark overlay for text legibility */}
-          <div style={{position:"absolute",inset:0,
-            background:"linear-gradient(180deg,rgba(0,0,0,0.1) 0%,rgba(0,0,0,0.65) 100%)"}}/>
           {/* Badge */}
           <div style={{position:"absolute",top:12,right:12,
             background:`linear-gradient(135deg,${ad.accent}cc,${ad.accent})`,
@@ -578,16 +595,6 @@ function AdCarousel() {
           {/* Gold accent line */}
           <div style={{position:"absolute",bottom:0,left:0,right:0,height:2,
             background:`linear-gradient(90deg,transparent,${ad.accent},transparent)`}}/>
-          {/* Info */}
-          <div style={{position:"relative",zIndex:2}}>
-            <div style={{fontSize:9,letterSpacing:3,color:ad.accent,textTransform:"uppercase",
-              fontFamily:"Georgia,serif",marginBottom:3}}>{ad.brand}</div>
-            <div style={{fontSize:20,color:"#fff",fontFamily:"Georgia,serif",
-              lineHeight:1.2,marginBottom:2,whiteSpace:"pre-line",
-              textShadow:"0 1px 6px rgba(0,0,0,0.8)"}}>{ad.line}</div>
-            <div style={{fontSize:11,color:"rgba(255,255,255,0.8)",fontStyle:"italic",
-              fontFamily:"Georgia,serif"}}>{ad.vitola}</div>
-          </div>
         </div>
         {/* Action buttons */}
         <div style={{display:"flex",gap:10,padding:"12px 14px",
@@ -764,7 +771,20 @@ function CollectionTab() {
               style={{background:"linear-gradient(170deg,#1a1a1a,#0d0d0d)",borderRadius:14,marginBottom:14,overflow:"hidden",
                 cursor:"pointer",border:`1px solid ${isEx?T.borderGold:T.border}`,transition:"border-color 0.2s"}}>
               <div style={{display:"flex",alignItems:"stretch",minHeight:96}}>
-                <div style={{width:6,background:c.bandColor,flexShrink:0}}/>
+                {/* Cigar image — replaces color band */}
+                <div style={{width:72,flexShrink:0,background:"#000",
+                  display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",
+                  borderRight:`1px solid rgba(196,154,40,0.1)`}}>
+                  <img
+                    src={getCigarImage(c.vitola,c.wrapper)}
+                    alt={c.line}
+                    style={{height:"100%",width:"100%",objectFit:"cover",objectPosition:"center"}}
+                    onError={e=>{
+                      // fallback to color band if image missing
+                      (e.target as HTMLImageElement).style.display="none";
+                    }}
+                  />
+                </div>
                 <div style={{flex:1,padding:"18px 16px"}}>
                   <div style={{fontSize:10,color:T.textMuted,letterSpacing:4,textTransform:"uppercase",marginBottom:5,fontFamily:"Georgia,serif"}}>{c.brand}</div>
                   <div style={{fontSize:20,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1.15,marginBottom:6}}>{c.line}</div>
