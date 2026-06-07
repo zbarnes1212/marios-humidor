@@ -620,6 +620,7 @@ function AdCarousel() {
 function CollectionTab() {
   const [sel,setSel]=useState<number|null>(null);
   const [showScanner,setShowScanner]=useState(false);
+  const [showJournal,setShowJournal]=useState(false);
   const [pendingCollection,setPendingCollection]=useState<ScanResult|null>(null);
   const [pendingJournal,setPendingJournal]=useState<ScanResult|null>(null);
   const [cigars,setCigars]=useState<CigarEntry[]>(CIGARS);
@@ -878,12 +879,21 @@ function CollectionTab() {
             </div>
           );
         })}
-        <button onClick={()=>setShowAddForm(!showAddForm)}
-          style={{width:"100%",padding:"13px",background:"transparent",border:`1px solid rgba(196,154,40,0.3)`,
-          borderRadius:12,color:T.goldMid,fontSize:10,fontFamily:"Georgia,serif",
-          cursor:"pointer",letterSpacing:3,textTransform:"uppercase",marginTop:4}}>
-          + Add Manually
-        </button>
+        <div style={{display:"flex",gap:10,marginTop:4}}>
+          <button onClick={()=>{setShowAddForm(!showAddForm);setShowJournal(false);}}
+            style={{flex:1,padding:"13px",background:"transparent",border:`1px solid rgba(196,154,40,0.3)`,
+            borderRadius:12,color:T.goldMid,fontSize:10,fontFamily:"Georgia,serif",
+            cursor:"pointer",letterSpacing:3,textTransform:"uppercase"}}>
+            + Add Manually
+          </button>
+          <button onClick={()=>{setShowJournal(!showJournal);setShowAddForm(false);}}
+            style={{flex:1,padding:"13px",background:showJournal?`linear-gradient(135deg,${T.goldDark},${T.goldMid})`:"transparent",
+            border:`1px solid rgba(196,154,40,0.3)`,
+            borderRadius:12,color:showJournal?"#0a0a0a":T.goldMid,fontSize:10,fontFamily:"Georgia,serif",
+            cursor:"pointer",letterSpacing:3,textTransform:"uppercase"}}>
+            📓 Journal
+          </button>
+        </div>
 
         {showAddForm&&(
           <div style={{marginTop:12,background:T.card,borderRadius:14,border:`1px solid ${T.borderGold}`,padding:"18px 16px"}}>
@@ -932,8 +942,10 @@ function CollectionTab() {
         )}
       </div>
 
-      {/* Tasting Journal */}
-      <TastingNotesSection prefill={pendingJournal} onPrefillUsed={()=>setPendingJournal(null)}/>
+      {/* Tasting Journal — shown when Journal button tapped */}
+      {(showJournal||pendingJournal)&&(
+        <TastingNotesSection prefill={pendingJournal} onPrefillUsed={()=>setPendingJournal(null)}/>
+      )}
 
       {/* ── FLOATING SCANNER FAB ── */}
       <div onClick={()=>setShowScanner(true)} style={{
