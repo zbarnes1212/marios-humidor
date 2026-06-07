@@ -73,7 +73,7 @@ function LuxuryGauge({value,size,label,subtitle,min=20,max=100}:{value:number;si
 
 // DATA
 const HUMIDORS=[
-  {id:1,name:"Mario's Sensor",wood:"Spanish Cedar",temp:0,humidity:0,capacity:150,count:87,status:"optimal"},
+  {id:1,name:"Govee T",wood:"Spanish Cedar",temp:0,humidity:0,capacity:150,count:87,status:"optimal"},
   {id:2,name:"Govee M",wood:"Mahogany",temp:70,humidity:67,capacity:20,count:12,status:"good"},
   {id:3,name:"Govee B",wood:"Electronic",temp:67,humidity:70,capacity:900,count:210,status:"optimal"},
 ];
@@ -276,7 +276,7 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
           <div style={{fontSize:12,color:T.goldMid,fontFamily:"Georgia,serif",letterSpacing:2,
             textTransform:"uppercase",marginBottom:16}}>New Humidor</div>
           <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}
-            placeholder="Humidor name (must match sensor name)" style={fi}/>
+            placeholder="Humidor name (must match Govee sensor name)" style={fi}/>
           <input value={form.wood} onChange={e=>setForm(f=>({...f,wood:e.target.value}))}
             placeholder="Wood type (e.g. Spanish Cedar)" style={fi}/>
           <div style={{display:"flex",gap:10,marginBottom:10}}>
@@ -583,7 +583,7 @@ function AdCarousel() {
           {/* Actual ad image */}
           {ad.image&&<img src={ad.image} alt={ad.brand}
             style={{position:"absolute",inset:0,width:"100%",height:"100%",
-              objectFit:"cover",objectPosition:"left center",opacity:1}}
+              objectFit:"cover",objectPosition:"center",opacity:1}}
             onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>}
           {/* Badge */}
           <div style={{position:"absolute",top:12,right:12,
@@ -779,14 +779,15 @@ function CollectionTab() {
                 cursor:"pointer",border:`1px solid ${isEx?T.borderGold:T.border}`,transition:"border-color 0.2s"}}>
               <div style={{display:"flex",alignItems:"stretch",minHeight:96}}>
                 {/* Cigar image — replaces color band */}
-                <div style={{width:56,flexShrink:0,background:"#000",
+                <div style={{width:72,flexShrink:0,background:"#000",
                   display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",
                   borderRight:`1px solid rgba(196,154,40,0.1)`}}>
                   <img
                     src={getCigarImage(c.vitola,c.wrapper)}
                     alt={c.line}
-                    style={{height:"100%",width:"100%",objectFit:"cover",objectPosition:"center center"}}
+                    style={{height:"100%",width:"100%",objectFit:"cover",objectPosition:"center"}}
                     onError={e=>{
+                      // fallback to color band if image missing
                       (e.target as HTMLImageElement).style.display="none";
                     }}
                   />
@@ -954,7 +955,7 @@ function CollectionTab() {
 
       {/* ── FLOATING SCANNER FAB ── */}
       <div onClick={()=>setShowScanner(true)} style={{
-        position:"fixed",bottom:"calc(env(safe-area-inset-bottom, 0px) + 16px)",right:8,width:52,height:52,borderRadius:"50%",
+        position:"fixed",bottom:"calc(env(safe-area-inset-bottom, 12px) + 72px)",right:16,width:52,height:52,borderRadius:"50%",
         background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
         display:"flex",alignItems:"center",justifyContent:"center",
         boxShadow:`0 4px 20px rgba(196,154,40,0.4)`,cursor:"pointer",zIndex:200,
@@ -1219,6 +1220,27 @@ function AskMarioTab({liveData}:{liveData:Record<string,{temperature:number|null
             )}
           </div>
         ))}
+        {/* Tonight's Recommendation — below Mario's greeting */}
+        <div style={{background:"linear-gradient(155deg,#1a1a1a 0%,#111111 60%,#0d0d0d 100%)",
+          borderRadius:14,padding:"16px 18px",border:`1px solid rgba(196,154,40,0.25)`,
+          boxShadow:"0 8px 32px rgba(0,0,0,0.6)"}}>
+          <div style={{fontSize:9,color:T.goldMid,letterSpacing:3,textTransform:"uppercase",marginBottom:8,fontFamily:"Georgia,serif"}}>Tonight's Recommendation</div>
+          <div style={{fontSize:22,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",marginBottom:6}}>Padrón 1964 Exclusivo</div>
+          <div style={{display:"flex",gap:16,marginBottom:12}}>
+            <div style={{fontSize:13,color:T.textSecondary,fontFamily:"Georgia,serif"}}>Rested 31 months</div>
+            <div style={{fontSize:13,color:T.textSecondary,fontFamily:"Georgia,serif"}}>69% RH</div>
+          </div>
+          <div style={{borderTop:`1px solid rgba(196,154,40,0.15)`,paddingTop:10}}>
+            <div style={{fontSize:9,color:T.goldMid,letterSpacing:2,textTransform:"uppercase",marginBottom:8,fontFamily:"Georgia,serif"}}>Pair with</div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap" as const}}>
+              {["Espresso","Blanton's Bourbon","Dark Chocolate"].map(p=>(
+                <span key={p} style={{fontSize:12,color:T.textPrimary,background:"rgba(196,154,40,0.08)",
+                  border:`1px solid rgba(196,154,40,0.2)`,borderRadius:20,padding:"5px 14px",fontFamily:"Georgia,serif"}}>{p}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+
         {loading && (
           <div style={{display:"flex",justifyContent:"flex-start"}}>
             <div style={{background:"linear-gradient(155deg,#1a1a1a,#111111)",border:`1px solid rgba(196,154,40,0.22)`,
@@ -1557,11 +1579,11 @@ function TobaccoMap() {
         <div style={{fontSize:13,color:T.textSecondary,fontFamily:"Georgia,serif",marginTop:3,fontStyle:"italic"}}>Tap a highlighted region to explore</div>
       </div>
 
-      <div style={{background:"#1a3048",borderRadius:16,border:"1px solid rgba(196,154,40,0.2)",overflow:"hidden",marginBottom:16}}>
+      <div style={{background:"#0a1525",borderRadius:16,border:"1px solid rgba(196,154,40,0.2)",overflow:"hidden",marginBottom:16}}>
         <svg viewBox="0 0 2000 857" style={{width:"100%",height:"auto",display:"block"}}>
           {/* Base world map */}
           {basePaths.map((d,i)=>(
-            <path key={i} d={d} fill="#2e4d6a" stroke="#1a3048" strokeWidth="0.5"/>
+            <path key={i} d={d} fill="#1e2d3d" stroke="#0a1525" strokeWidth="0.5"/>
           ))}
           {/* Tobacco regions */}
           {TOBACCO_REGIONS.map(r=>{
@@ -2776,7 +2798,7 @@ const NAV=[
   {id:"home",label:"Home"},
   {id:"collection",label:"Collection"},
   {id:"mario",label:"Mario"},
-  {id:"community",label:"Social Club"},
+  {id:"community",label:"Club"},
   {id:"profile",label:"Profile"},
 ];
 
@@ -2933,26 +2955,28 @@ function HomeTab({liveData,liveStatus,lastUpdated,onRefresh}:{
   const timeStr=h<12?"Good morning":h<17?"Good afternoon":"Good evening";
   return (
     <div>
-      {/* Greeting — full width image, text overlaid on left */}
-      <div style={{borderBottom:`1px solid ${T.border}`,position:"relative",height:130,overflow:"hidden"}}>
-        {/* Full bleed humidor image */}
-        <img src="/humidor-hero.png" alt="Humidor"
-          style={{position:"absolute",inset:0,width:"100%",height:"100%",
-            objectFit:"cover",objectPosition:"center center"}}
-          onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
-        {/* Dark overlay so text is readable */}
-        <div style={{position:"absolute",inset:0,
-          background:"linear-gradient(90deg,rgba(10,8,5,0.92) 0%,rgba(10,8,5,0.75) 50%,rgba(10,8,5,0.1) 100%)"}}/>
-        {/* Text on top */}
-        <div style={{position:"relative",zIndex:1,padding:"22px 18px 18px 18px",
-          display:"flex",flexDirection:"column",justifyContent:"center",height:"100%"}}>
+      {/* Greeting — text left, humidor image right */}
+      <div style={{borderBottom:`1px solid ${T.border}`,display:"flex",alignItems:"stretch",overflow:"hidden"}}>
+        {/* Greeting text */}
+        <div style={{flex:1,padding:"22px 18px 18px 18px",display:"flex",flexDirection:"column",justifyContent:"center"}}>
           <div style={{fontSize:9,color:T.textMuted,letterSpacing:4,textTransform:"uppercase",
             fontFamily:"Georgia,serif",marginBottom:8}}>{timeStr}</div>
           <div style={{fontSize:26,fontWeight:"bold",color:T.textPrimary,
             fontFamily:"Georgia,serif",lineHeight:1.15}}>Zebulon</div>
           <div style={{fontSize:13,color:T.textSecondary,fontFamily:"Georgia,serif",
             fontStyle:"italic",marginTop:6,lineHeight:1.5}}>Welcome back to the lounge.</div>
+          {/* Gold divider */}
           <div style={{width:36,height:1,background:`linear-gradient(90deg,${T.goldMid},transparent)`,marginTop:12}}/>
+        </div>
+        {/* Humidor image — left edge of box aligns ~over the M in My Humidors */}
+        <div style={{width:200,flexShrink:0,position:"relative",minHeight:130}}>
+          {/* Left-edge fade so image bleeds in from text */}
+          <div style={{position:"absolute",inset:0,zIndex:1,
+            background:"linear-gradient(90deg,#0a0a0a 0%,transparent 30%)"}}/>
+          <img src="/humidor-hero.png" alt="Humidor"
+            style={{position:"absolute",inset:0,width:"100%",height:"100%",
+              objectFit:"cover",objectPosition:"left center"}}
+            onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
         </div>
       </div>
       {/* Full gauge UI */}
@@ -2980,8 +3004,7 @@ export default function MariosHumidor() {
   const fetchLive=useCallback(async(isInitial=false)=>{
     if(isInitial) setLiveStatus("loading");
     try{
-      const res=await fetch("/api/sensor");
-      if(!res.ok){ if(isInitial) setLiveStatus("error"); return; }
+      const res=await fetch("/api/govee");
       const data=await res.json();
       if(data.ok&&data.sensors&&data.sensors.length>0){
         setLiveData(prev=>{
