@@ -74,8 +74,9 @@ function LuxuryGauge({value,size,label,subtitle,min=20,max=100}:{value:number;si
 // DATA
 const HUMIDORS=[
   {id:1,name:"Mario's Sensor",wood:"Spanish Cedar",temp:0,humidity:0,capacity:150,count:87,status:"optimal"},
-  {id:2,name:"Govee M",wood:"Mahogany",temp:70,humidity:67,capacity:20,count:12,status:"good"},
-  {id:3,name:"Govee B",wood:"Electronic",temp:67,humidity:70,capacity:900,count:210,status:"optimal"},
+  {id:2,name:"Govee T",wood:"Spanish Cedar",temp:70,humidity:68,capacity:150,count:87,status:"optimal"},
+  {id:3,name:"Govee M",wood:"Mahogany",temp:70,humidity:67,capacity:20,count:12,status:"good"},
+  {id:4,name:"Govee B",wood:"Electronic",temp:67,humidity:70,capacity:900,count:210,status:"optimal"},
 ];
 type CigarEntry={id:number;brand:string;line:string;vitola:string;origin:string;wrapper:string;rating:number;count:number;purchaseDate:string;bandColor:string};
 const CIGARS:CigarEntry[]=[];
@@ -2980,21 +2981,34 @@ export default function MariosHumidor() {
   const fetchLive=useCallback(async(isInitial=false)=>{
     if(isInitial) setLiveStatus("loading");
     try{
-      const res=await fetch("/api/sensor");
-      if(!res.ok){ if(isInitial) setLiveStatus("error"); return; }
-      const data=await res.json();
-      if(data.ok&&data.sensors&&data.sensors.length>0){
-        setLiveData(prev=>{
-          const next={...prev};
-          let changed=false;
-          data.sensors.forEach((s:{name:string;temperature:number|null;humidity:number|null;observedAt:string|null})=>{
-            const existing=prev[s.name];
-            if(!existing||existing.temperature!==s.temperature||existing.humidity!==s.humidity){
-              next[s.name]={temperature:s.temperature,humidity:s.humidity,observedAt:s.observedAt};
-              changed=true;
-            }
+      const merged:Record<string,{temperature:number|null;humidity:number|null;observedAt:string|null}>={};
+      let anyConnected=false;
+      // Poll Govee
+      try{
+        const goveeRes=await fetch("/api/govee");
+        const goveeData=await goveeRes.json();
+        if(goveeData.ok&&goveeData.sensors&&goveeData.sensors.length>0){
+          goveeData.sensors.forEach((s:{name:string;temperature:number|null;humidity:number|null;observedAt:string|null})=>{
+            merged[s.name]={temperature:s.temperature,humidity:s.humidity,observedAt:s.observedAt};
           });
-          return changed?next:prev;
+          anyConnected=true;
+        }
+      } catch{}
+      // Poll ESP32 sensor
+      try{
+        const sensorRes=await fetch("/api/sensor");
+        if(sensorRes.ok){
+          const sensorData=await sensorRes.json();
+          if(typeof sensorData.temperature==="number"&&typeof sensorData.humidity==="number"){
+            merged["Mario's Sensor"]={temperature:sensorData.temperature,humidity:sensorData.humidity,observedAt:sensorData.timestamp??null};
+            anyConnected=true;
+          }
+        }
+      } catch{}
+      if(anyConnected){
+        setLiveData(prev=>{
+          const changed=Object.keys(merged).some(k=>prev[k]?.temperature!==merged[k].temperature||prev[k]?.humidity!==merged[k].humidity);
+          return changed?{...prev,...merged}:prev;
         });
         setLiveStatus("connected");
         setLastUpdated(new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}));
