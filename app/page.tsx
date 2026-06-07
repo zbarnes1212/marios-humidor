@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef, useId, useCallback } from "react";
+import React,{ useState, useEffect, useRef, useId, useCallback, createContext, useContext } from "react";
 import SplashScreen from "@/components/SplashScreen";
 
 const T = {
@@ -10,6 +10,190 @@ const T = {
   success:"#2a5c38", danger:"#7a1212", blue:"#0c1420", blueMid:"#1a2c50",
 };
 const r2=(n:number)=>Math.round(n*100)/100;
+
+// ── TRANSLATIONS ────────────────────────────────────────────────────────────
+type LangCode="en"|"es"|"pt"|"fr"|"de";
+const LANGS:{code:LangCode;flag:string;name:string}[]=[
+  {code:"en",flag:"🇺🇸",name:"English"},
+  {code:"es",flag:"🇪🇸",name:"Español"},
+  {code:"pt",flag:"🇧🇷",name:"Português"},
+  {code:"fr",flag:"🇫🇷",name:"Français"},
+  {code:"de",flag:"🇩🇪",name:"Deutsch"},
+];
+const TRANSLATIONS:{[K in LangCode]:Record<string,string>}={
+  en:{
+    // Nav
+    nav_home:"Home",nav_collection:"Collection",nav_mario:"Mario",nav_community:"Social Club",nav_profile:"Profile",
+    // Home
+    greeting_morning:"Good morning",greeting_afternoon:"Good afternoon",greeting_evening:"Good evening",
+    welcome_back:"Welcome back to the lounge.",
+    // Humidors
+    my_humidors:"My Humidors",sensor_offline:"Sensor offline",sensor_updating:"Updating…",
+    optimal:"Optimal",good:"Good",warning:"Warning",no_data:"No Data",
+    cigars:"Cigars",updated:"Updated",
+    // Collection
+    total_cigars:"Total Cigars",avg_rating:"Avg Rating",
+    add_manually:"+ Add Manually",journal_btn:"📓 Journal",
+    add_to_collection:"Add to Collection",save_to_collection:"Save to Collection",
+    scan_another:"Scan Another",smoked_one:"🔥 Smoked One — Remove from Inventory",log_to_journal:"📓 Log to Tasting Journal",
+    brand:"Brand",line:"Line",vitola:"Vitola",origin:"Origin",wrapper:"Wrapper",count:"Count",rating:"Rating",
+    edit:"✏️ Edit",save:"Save",cancel:"Cancel",
+    pts:"Pts",
+    // Tasting Journal
+    tasting_journal:"Tasting Journal",collectors_journal:"Collector's Journal",log_entry:"+ Log",
+    save_entry:"Save Entry",
+    paired_with:"Paired with",
+    describe_exp:"Describe the experience — flavors, draw, burn, finish...",
+    // Ask Mario
+    ask_mario:"Ask Mario",sommelier_title:"Master Cigar Sommelier · Private Lounge",
+    ask_placeholder:"Ask Mario anything...",
+    quick_recommend:"Recommend me a cigar",quick_humidor:"Humidor advice",
+    quick_pairing:"Pairing suggestion",quick_tonight:"What should I smoke tonight?",
+    // Settings
+    settings:"Settings",language:"Language",language_sub:"App language & Mario's responses",
+    account:"Account",collection_s:"Collection",api_s:"API",sensors_s:"Sensors",notifications_s:"Notifications",
+    temp_unit:"Temperature Unit",temp_sub:"Display preference",
+    api_key_title:"Anthropic API Key",api_key_sub:"Required for Ask Mario, Band Scanner, and Mario's Take on news.",
+    api_connected:"API Key Connected",remove_key:"Remove Key",save_key:"Save API Key",
+    hum_alert:"Humidity Alerts",hum_alert_sub:"Alert when below 65% RH",
+    temp_alert:"Temperature Alerts",temp_alert_sub:"Alert when above 70°F",
+    // Scanner
+    try_again:"Try Again",add_to_col_btn:"+ Add to Collection",
+  },
+  es:{
+    nav_home:"Inicio",nav_collection:"Colección",nav_mario:"Mario",nav_community:"Club Social",nav_profile:"Perfil",
+    greeting_morning:"Buenos días",greeting_afternoon:"Buenas tardes",greeting_evening:"Buenas noches",
+    welcome_back:"Bienvenido al salón.",
+    my_humidors:"Mis Humidores",sensor_offline:"Sensor desconectado",sensor_updating:"Actualizando…",
+    optimal:"Óptimo",good:"Bien",warning:"Alerta",no_data:"Sin datos",
+    cigars:"Puros",updated:"Actualizado",
+    total_cigars:"Total de Puros",avg_rating:"Puntuación Media",
+    add_manually:"+ Añadir Manual",journal_btn:"📓 Diario",
+    add_to_collection:"Añadir a Colección",save_to_collection:"Guardar en Colección",
+    scan_another:"Escanear Otro",smoked_one:"🔥 Fumado — Eliminar del Inventario",log_to_journal:"📓 Registrar en Diario",
+    brand:"Marca",line:"Línea",vitola:"Vitola",origin:"Origen",wrapper:"Capa",count:"Cantidad",rating:"Puntuación",
+    edit:"✏️ Editar",save:"Guardar",cancel:"Cancelar",
+    pts:"Pts",
+    tasting_journal:"Diario de Cata",collectors_journal:"Diario del Coleccionista",log_entry:"+ Registrar",
+    save_entry:"Guardar Entrada",paired_with:"Maridado con",describe_exp:"Describe la experiencia — sabores, tiro, combustión, retrogusto...",
+    ask_mario:"Pregunta a Mario",sommelier_title:"Sommelier Maestro · Salón Privado",
+    ask_placeholder:"Pregunta lo que quieras a Mario...",
+    quick_recommend:"Recomiéndame un puro",quick_humidor:"Consejo de humidor",
+    quick_pairing:"Sugerencia de maridaje",quick_tonight:"¿Qué debería fumar esta noche?",
+    settings:"Ajustes",language:"Idioma",language_sub:"Idioma de la app y respuestas de Mario",
+    account:"Cuenta",collection_s:"Colección",api_s:"API",sensors_s:"Sensores",notifications_s:"Notificaciones",
+    temp_unit:"Unidad de Temperatura",temp_sub:"Preferencia de visualización",
+    api_key_title:"Clave API de Anthropic",api_key_sub:"Requerida para Preguntar a Mario, Escáner y opinión de Mario.",
+    api_connected:"Clave API Conectada",remove_key:"Eliminar Clave",save_key:"Guardar Clave API",
+    hum_alert:"Alertas de Humedad",hum_alert_sub:"Alerta cuando baja del 65% RH",
+    temp_alert:"Alertas de Temperatura",temp_alert_sub:"Alerta cuando supera los 70°F",
+    try_again:"Intentar de Nuevo",add_to_col_btn:"+ Añadir a Colección",
+  },
+  pt:{
+    nav_home:"Início",nav_collection:"Coleção",nav_mario:"Mario",nav_community:"Clube Social",nav_profile:"Perfil",
+    greeting_morning:"Bom dia",greeting_afternoon:"Boa tarde",greeting_evening:"Boa noite",
+    welcome_back:"Bem-vindo ao salão.",
+    my_humidors:"Meus Humidores",sensor_offline:"Sensor offline",sensor_updating:"Atualizando…",
+    optimal:"Ótimo",good:"Bom",warning:"Atenção",no_data:"Sem Dados",
+    cigars:"Charutos",updated:"Atualizado",
+    total_cigars:"Total de Charutos",avg_rating:"Avaliação Média",
+    add_manually:"+ Adicionar Manual",journal_btn:"📓 Diário",
+    add_to_collection:"Adicionar à Coleção",save_to_collection:"Salvar na Coleção",
+    scan_another:"Escanear Outro",smoked_one:"🔥 Fumado — Remover do Inventário",log_to_journal:"📓 Registrar no Diário",
+    brand:"Marca",line:"Linha",vitola:"Vitola",origin:"Origem",wrapper:"Capa",count:"Quantidade",rating:"Avaliação",
+    edit:"✏️ Editar",save:"Salvar",cancel:"Cancelar",
+    pts:"Pts",
+    tasting_journal:"Diário de Degustação",collectors_journal:"Diário do Colecionador",log_entry:"+ Registrar",
+    save_entry:"Salvar Entrada",paired_with:"Harmonizado com",describe_exp:"Descreva a experiência — sabores, tiragem, queima, finalização...",
+    ask_mario:"Pergunte ao Mario",sommelier_title:"Sommelier Mestre · Salão Privado",
+    ask_placeholder:"Pergunte qualquer coisa ao Mario...",
+    quick_recommend:"Me recomende um charuto",quick_humidor:"Conselhos de humidor",
+    quick_pairing:"Sugestão de harmonização",quick_tonight:"O que devo fumar esta noite?",
+    settings:"Configurações",language:"Idioma",language_sub:"Idioma do app e respostas do Mario",
+    account:"Conta",collection_s:"Coleção",api_s:"API",sensors_s:"Sensores",notifications_s:"Notificações",
+    temp_unit:"Unidade de Temperatura",temp_sub:"Preferência de exibição",
+    api_key_title:"Chave API Anthropic",api_key_sub:"Necessária para Perguntar ao Mario, Scanner e opinião do Mario.",
+    api_connected:"Chave API Conectada",remove_key:"Remover Chave",save_key:"Salvar Chave API",
+    hum_alert:"Alertas de Umidade",hum_alert_sub:"Alerta quando abaixo de 65% RH",
+    temp_alert:"Alertas de Temperatura",temp_alert_sub:"Alerta quando acima de 70°F",
+    try_again:"Tentar Novamente",add_to_col_btn:"+ Adicionar à Coleção",
+  },
+  fr:{
+    nav_home:"Accueil",nav_collection:"Collection",nav_mario:"Mario",nav_community:"Club Social",nav_profile:"Profil",
+    greeting_morning:"Bonjour",greeting_afternoon:"Bon après-midi",greeting_evening:"Bonsoir",
+    welcome_back:"Bienvenue au salon.",
+    my_humidors:"Mes Humidors",sensor_offline:"Capteur hors ligne",sensor_updating:"Mise à jour…",
+    optimal:"Optimal",good:"Bon",warning:"Attention",no_data:"Pas de Données",
+    cigars:"Cigares",updated:"Mis à jour",
+    total_cigars:"Total Cigares",avg_rating:"Note Moyenne",
+    add_manually:"+ Ajouter Manuellement",journal_btn:"📓 Journal",
+    add_to_collection:"Ajouter à la Collection",save_to_collection:"Enregistrer dans la Collection",
+    scan_another:"Scanner un Autre",smoked_one:"🔥 Fumé — Retirer de l'Inventaire",log_to_journal:"📓 Enregistrer dans le Journal",
+    brand:"Marque",line:"Ligne",vitola:"Vitola",origin:"Origine",wrapper:"Cape",count:"Quantité",rating:"Note",
+    edit:"✏️ Modifier",save:"Enregistrer",cancel:"Annuler",
+    pts:"Pts",
+    tasting_journal:"Journal de Dégustation",collectors_journal:"Journal du Collectionneur",log_entry:"+ Enregistrer",
+    save_entry:"Sauvegarder",paired_with:"Accompagné de",describe_exp:"Décrivez l'expérience — saveurs, tirage, combustion, finale...",
+    ask_mario:"Demandez à Mario",sommelier_title:"Maître Sommelier · Salon Privé",
+    ask_placeholder:"Demandez tout à Mario...",
+    quick_recommend:"Recommandez-moi un cigare",quick_humidor:"Conseils pour humidor",
+    quick_pairing:"Suggestion d'accord",quick_tonight:"Que devrais-je fumer ce soir ?",
+    settings:"Paramètres",language:"Langue",language_sub:"Langue de l'appli et réponses de Mario",
+    account:"Compte",collection_s:"Collection",api_s:"API",sensors_s:"Capteurs",notifications_s:"Notifications",
+    temp_unit:"Unité de Température",temp_sub:"Préférence d'affichage",
+    api_key_title:"Clé API Anthropic",api_key_sub:"Requise pour Mario, le Scanner et les avis de Mario.",
+    api_connected:"Clé API Connectée",remove_key:"Supprimer la Clé",save_key:"Enregistrer la Clé API",
+    hum_alert:"Alertes d'Humidité",hum_alert_sub:"Alerte sous 65% HR",
+    temp_alert:"Alertes de Température",temp_alert_sub:"Alerte au-dessus de 70°F",
+    try_again:"Réessayer",add_to_col_btn:"+ Ajouter à la Collection",
+  },
+  de:{
+    nav_home:"Start",nav_collection:"Sammlung",nav_mario:"Mario",nav_community:"Social Club",nav_profile:"Profil",
+    greeting_morning:"Guten Morgen",greeting_afternoon:"Guten Tag",greeting_evening:"Guten Abend",
+    welcome_back:"Willkommen in der Lounge.",
+    my_humidors:"Meine Humidore",sensor_offline:"Sensor offline",sensor_updating:"Aktualisierung…",
+    optimal:"Optimal",good:"Gut",warning:"Warnung",no_data:"Keine Daten",
+    cigars:"Zigarren",updated:"Aktualisiert",
+    total_cigars:"Zigarren Gesamt",avg_rating:"Ø Bewertung",
+    add_manually:"+ Manuell Hinzufügen",journal_btn:"📓 Journal",
+    add_to_collection:"Zur Sammlung Hinzufügen",save_to_collection:"In Sammlung Speichern",
+    scan_another:"Weiteres Scannen",smoked_one:"🔥 Geraucht — Aus Inventar Entfernen",log_to_journal:"📓 Im Journal Eintragen",
+    brand:"Marke",line:"Linie",vitola:"Vitola",origin:"Herkunft",wrapper:"Deckblatt",count:"Anzahl",rating:"Bewertung",
+    edit:"✏️ Bearbeiten",save:"Speichern",cancel:"Abbrechen",
+    pts:"Pkt",
+    tasting_journal:"Verkostungsjournal",collectors_journal:"Sammler-Journal",log_entry:"+ Eintragen",
+    save_entry:"Eintrag Speichern",paired_with:"Gereicht mit",describe_exp:"Beschreibe das Erlebnis — Aromen, Zug, Abbrand, Abgang...",
+    ask_mario:"Mario Fragen",sommelier_title:"Meister-Sommelier · Private Lounge",
+    ask_placeholder:"Frag Mario was auch immer...",
+    quick_recommend:"Empfiehl mir eine Zigarre",quick_humidor:"Humidor-Ratschlag",
+    quick_pairing:"Kombinationsvorschlag",quick_tonight:"Was soll ich heute Abend rauchen?",
+    settings:"Einstellungen",language:"Sprache",language_sub:"App-Sprache & Marios Antworten",
+    account:"Konto",collection_s:"Sammlung",api_s:"API",sensors_s:"Sensoren",notifications_s:"Benachrichtigungen",
+    temp_unit:"Temperatureinheit",temp_sub:"Anzeigeeinstellung",
+    api_key_title:"Anthropic API-Schlüssel",api_key_sub:"Erforderlich für Mario, Scanner und Marios Bewertungen.",
+    api_connected:"API-Schlüssel Verbunden",remove_key:"Schlüssel Entfernen",save_key:"API-Schlüssel Speichern",
+    hum_alert:"Feuchtigkeitsalarme",hum_alert_sub:"Alarm unter 65% RH",
+    temp_alert:"Temperaturalarme",temp_alert_sub:"Alarm über 70°F",
+    try_again:"Erneut Versuchen",add_to_col_btn:"+ Zur Sammlung Hinzufügen",
+  },
+};
+
+// ── LANGUAGE CONTEXT ────────────────────────────────────────────────────────
+const LangContext=createContext<{lang:LangCode;t:(k:string)=>string;setLang:(l:LangCode)=>void}>({
+  lang:"en",t:(k)=>TRANSLATIONS.en[k]??k,setLang:()=>{},
+});
+function useLang(){return useContext(LangContext);}
+function LangProvider({children}:{children:React.ReactNode}){
+  const [lang,setLangState]=useState<LangCode>(()=>{
+    try{const s=localStorage.getItem("mh_lang");return(LANGS.find(l=>l.code===s)?s:"en") as LangCode;}catch{return "en";}
+  });
+  const setLang=(l:LangCode)=>{
+    setLangState(l);
+    try{localStorage.setItem("mh_lang",l);}catch{}
+  };
+  const t=(k:string)=>TRANSLATIONS[lang][k]??TRANSLATIONS.en[k]??k;
+  return <LangContext.Provider value={{lang,t,setLang}}>{children}</LangContext.Provider>;
+}
 const polar=(cx:number,cy:number,r:number,deg:number)=>{const a=(deg-90)*Math.PI/180;return{x:r2(cx+r*Math.cos(a)),y:r2(cy+r*Math.sin(a))};};
 
 
@@ -147,6 +331,7 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
   const [showForm,setShowForm]=useState(false);
   const [form,setForm]=useState({name:"",wood:"Spanish Cedar",capacity:"150",count:"0",status:"optimal"});
   const status=liveStatus;
+  const {t}=useLang();
 
   const getLive=(name:string)=>liveData[name]??null;
 
@@ -168,7 +353,7 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
         background:status==="connected"?"#4a9c68":status==="error"?"#9a3030":"#4a3018",
         boxShadow:status==="connected"?"0 0 6px #4a9c6888":"none"}}/>
       <span style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",letterSpacing:0.3}}>
-        {status==="connected"?`Live · ${lastUpdated}`:status==="loading"?"Updating…":"Sensor offline"}
+        {status==="connected"?`Live · ${lastUpdated}`:status==="loading"?t("sensor_updating"):t("sensor_offline")}
       </span>
     </div>
   );
@@ -182,7 +367,7 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
     const hasReading=humidity>0||temp>0;
     const calcStatus=!hasReading?"no-data":humOk&&tempOk?"optimal":humOk||tempOk?"good":"warning";
     const statusColor=calcStatus==="optimal"?"#5ab07a":calcStatus==="good"?T.goldMid:calcStatus==="no-data"?T.textMuted:"#c05050";
-    const statusLabel=calcStatus==="optimal"?"Optimal":calcStatus==="good"?"Good":calcStatus==="no-data"?"No Data":"Warning";
+    const statusLabel=calcStatus==="optimal"?t("optimal"):calcStatus==="good"?t("good"):calcStatus==="no-data"?t("no_data"):t("warning");
     const fillPct=Math.min((h.count/h.capacity)*100,100);
     return (
       <div style={{background:"linear-gradient(170deg,#1a1a1a 0%,#111111 60%,#0d0d0d 100%)",
@@ -197,7 +382,7 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
               {h.wood}
               <span style={{color:T.textMuted,margin:"0 5px"}}>·</span>
               <span style={{color:T.goldMid,fontWeight:"bold"}}>{h.count}</span>
-              <span style={{color:T.textMuted}}>/{h.capacity} Cigars</span>
+              <span style={{color:T.textMuted}}>/{h.capacity} {t("cigars")}</span>
             </div>
           </div>
           <div style={{background:"transparent",border:`1px solid ${statusColor}88`,
@@ -235,7 +420,7 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
           </div>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:6}}>
             <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",fontStyle:"italic"}}>
-              {status==="connected"?`Updated ${lastUpdated}`:"Sensor offline"}
+              {status==="connected"?`${t("updated")} ${lastUpdated}`:t("sensor_offline")}
             </div>
             <div style={{fontSize:11,color:T.textMuted,fontFamily:"Georgia,serif"}}>
               {h.count} <span style={{color:T.textMuted,fontSize:10}}>/ {h.capacity}</span>
@@ -256,7 +441,7 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
         <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:12}}>
           <div style={{flex:1,height:1,background:`linear-gradient(90deg,transparent,${T.goldDark}66)`}}/>
           <div style={{fontSize:10,letterSpacing:5,textTransform:"uppercase",color:T.goldMid,
-            fontFamily:"Georgia,serif",whiteSpace:"nowrap"}}>My Humidors</div>
+            fontFamily:"Georgia,serif",whiteSpace:"nowrap"}}>{t("my_humidors")}</div>
           <div style={{flex:1,height:1,background:`linear-gradient(90deg,${T.goldDark}66,transparent)`}}/>
         </div>
         <div style={{display:"flex",justifyContent:"flex-end"}}><StatusDot/></div>
@@ -331,6 +516,7 @@ function BandScannerModal({onClose,onAddToCollection,onAddToJournal,onSmokedOne}
   const [preview,setPreview]=useState<string|null>(null);
   const [result,setResult]=useState<ScanResult|null>(null);
   const [errMsg,setErrMsg]=useState("");
+  const {t}=useLang();
 
   const scan=async(file:File)=>{
     setPhase("scanning");
@@ -481,26 +667,26 @@ function BandScannerModal({onClose,onAddToCollection,onAddToJournal,onSmokedOne}
                   background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
                   border:"none",borderRadius:12,color:"#0a0a0a",fontSize:14,
                   fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>
-                + Add to Collection
+                {t("add_to_col_btn")}
               </button>
               <button onClick={()=>onSmokedOne(result)}
                 style={{width:"100%",padding:"15px",
                   background:"linear-gradient(135deg,#7a1212,#a01818)",
                   border:"none",borderRadius:12,color:"#f0e8d8",fontSize:14,
                   fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>
-                🔥 Smoked One — Remove from Inventory
+                {t("smoked_one")}
               </button>
               <button onClick={()=>onAddToJournal(result)}
                 style={{width:"100%",padding:"15px",background:"none",
                   border:`1px solid ${T.borderGold}`,borderRadius:12,color:T.goldLight,
                   fontSize:14,cursor:"pointer",fontFamily:"Georgia,serif",fontWeight:"bold"}}>
-                📓 Log to Tasting Journal
+                {t("log_to_journal")}
               </button>
               <button onClick={()=>{setPhase("idle");setPreview(null);setResult(null);}}
                 style={{width:"100%",padding:"12px",background:"none",
                   border:`1px solid ${T.border}`,borderRadius:12,color:T.textMuted,
                   fontSize:13,cursor:"pointer",fontFamily:"Georgia,serif"}}>
-                Scan Another
+                {t("scan_another")}
               </button>
             </div>
           </div>
@@ -521,7 +707,7 @@ function BandScannerModal({onClose,onAddToCollection,onAddToJournal,onSmokedOne}
                 background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
                 border:"none",borderRadius:12,color:"#1a0e04",fontSize:14,
                 fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>
-              Try Again
+              {t("try_again")}
             </button>
           </div>
         )}
@@ -619,6 +805,7 @@ function AdCarousel() {
 
 // ── COLLECTION SCREEN ──────────────────────────────────────────────────────
 function CollectionTab() {
+  const {t}=useLang();
   const [sel,setSel]=useState<number|null>(null);
   const [showScanner,setShowScanner]=useState(false);
   const [showJournal,setShowJournal]=useState(false);
@@ -734,14 +921,14 @@ function CollectionTab() {
         <div style={{display:"flex",gap:28,alignItems:"baseline"}}>
           <div>
             <div style={{fontSize:36,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1}}>{total}</div>
-            <div style={{fontSize:9,color:T.textMuted,letterSpacing:3,textTransform:"uppercase",marginTop:5}}>Total Cigars</div>
+            <div style={{fontSize:9,color:T.textMuted,letterSpacing:3,textTransform:"uppercase",marginTop:5}}>{t("total_cigars")}</div>
           </div>
           <div style={{width:1,height:36,background:T.border}}/>
           <div>
             <div style={{fontSize:36,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1}}>
               {cigars.length===0?"—":(cigars.reduce((a,c)=>a+c.rating,0)/cigars.length).toFixed(1)}
             </div>
-            <div style={{fontSize:9,color:T.textMuted,letterSpacing:3,textTransform:"uppercase",marginTop:5}}>Avg Rating</div>
+            <div style={{fontSize:9,color:T.textMuted,letterSpacing:3,textTransform:"uppercase",marginTop:5}}>{t("avg_rating")}</div>
           </div>
         </div>
       </div>
@@ -862,7 +1049,7 @@ function CollectionTab() {
                               style={{flex:1,padding:"9px",background:"transparent",
                                 border:`1px solid ${T.borderGold}`,borderRadius:8,
                                 color:T.goldMid,fontSize:11,cursor:"pointer",fontFamily:"Georgia,serif",letterSpacing:0.5}}>
-                              ✏️ Edit
+                              {t("edit")}
                             </button>
                             <button onClick={e=>deleteCigar(c.id,e)}
                               style={{padding:"9px 14px",background:"transparent",
@@ -879,7 +1066,7 @@ function CollectionTab() {
                 <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
                   padding:"18px 16px 18px 0",flexShrink:0,minWidth:56}}>
                   <div style={{fontSize:26,fontWeight:"bold",color:T.goldLight,fontFamily:"Georgia,serif",lineHeight:1}}>{c.rating}</div>
-                  <div style={{fontSize:8,color:T.textMuted,letterSpacing:2,textTransform:"uppercase",marginTop:3}}>Pts</div>
+                  <div style={{fontSize:8,color:T.textMuted,letterSpacing:2,textTransform:"uppercase",marginTop:3}}>{t("pts")}</div>
                 </div>
               </div>
             </div>
@@ -890,20 +1077,20 @@ function CollectionTab() {
             style={{flex:1,padding:"13px",background:"transparent",border:`1px solid rgba(196,154,40,0.3)`,
             borderRadius:12,color:T.goldMid,fontSize:10,fontFamily:"Georgia,serif",
             cursor:"pointer",letterSpacing:3,textTransform:"uppercase"}}>
-            + Add Manually
+            {t("add_manually")}
           </button>
           <button onClick={()=>{setShowJournal(!showJournal);setShowAddForm(false);}}
             style={{flex:1,padding:"13px",background:showJournal?`linear-gradient(135deg,${T.goldDark},${T.goldMid})`:"transparent",
             border:`1px solid rgba(196,154,40,0.3)`,
             borderRadius:12,color:showJournal?"#0a0a0a":T.goldMid,fontSize:10,fontFamily:"Georgia,serif",
             cursor:"pointer",letterSpacing:3,textTransform:"uppercase"}}>
-            📓 Journal
+            {t("journal_btn")}
           </button>
         </div>
 
         {showAddForm&&(
           <div style={{marginTop:12,background:T.card,borderRadius:14,border:`1px solid ${T.borderGold}`,padding:"18px 16px"}}>
-            <div style={{fontSize:12,color:T.goldLight,fontFamily:"Georgia,serif",fontWeight:"bold",marginBottom:14,letterSpacing:1}}>Add to Collection</div>
+            <div style={{fontSize:12,color:T.goldLight,fontFamily:"Georgia,serif",fontWeight:"bold",marginBottom:14,letterSpacing:1}}>{t("add_to_collection")}</div>
             {([["Brand *","brand","e.g. Padrón"],["Line *","line","e.g. 1964 Anniversary"],["Vitola","vitola","e.g. Robusto"],
                ["Origin","origin","e.g. Nicaragua"],["Wrapper","wrapper","e.g. Natural"]] as [string,string,string][]).map(([label,key,ph])=>(
               <div key={key} style={{marginBottom:10}}>
@@ -936,12 +1123,12 @@ function CollectionTab() {
                 style={{flex:1,padding:"12px",background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
                   border:"none",borderRadius:8,color:"#1a0e04",fontSize:13,fontWeight:"bold",
                   cursor:"pointer",fontFamily:"Georgia,serif"}}>
-                Save to Collection
+                {t("save_to_collection")}
               </button>
               <button onClick={()=>setShowAddForm(false)}
                 style={{padding:"12px 16px",background:"transparent",border:`1px solid ${T.border}`,
                   borderRadius:8,color:T.textMuted,fontSize:13,cursor:"pointer"}}>
-                Cancel
+                {t("cancel")}
               </button>
             </div>
           </div>
@@ -984,6 +1171,7 @@ function TastingNotesSection({prefill,onPrefillUsed}:{prefill:ScanResult|null,on
   const [showForm,setShowForm]=useState(false);
   const [form,setForm]=useState({brand:"",line:"",vitola:"",rating:5,notes:"",pairing:""});
   const [sel,setSel]=useState<number|null>(null);
+  const {t}=useLang();
 
   useEffect(()=>{
     try{const s=localStorage.getItem("mh_notes");if(s)setNotes(JSON.parse(s));}catch{}
@@ -1017,14 +1205,14 @@ function TastingNotesSection({prefill,onPrefillUsed}:{prefill:ScanResult|null,on
       <div style={{padding:"0 20px 16px",borderTop:`1px solid ${T.border}`,paddingTop:24,
         display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}>
         <div>
-          <div style={{fontSize:10,letterSpacing:5,textTransform:"uppercase",color:T.textMuted,fontFamily:"Georgia,serif",marginBottom:6}}>Tasting Journal</div>
-          <div style={{fontSize:20,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif"}}>Collector's Journal</div>
+          <div style={{fontSize:10,letterSpacing:5,textTransform:"uppercase",color:T.textMuted,fontFamily:"Georgia,serif",marginBottom:6}}>{t("tasting_journal")}</div>
+          <div style={{fontSize:20,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif"}}>{t("collectors_journal")}</div>
         </div>
         <button onClick={()=>setShowForm(!showForm)}
           style={{background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,border:"none",
             borderRadius:20,padding:"8px 18px",color:"#1a0e04",fontSize:12,
             fontFamily:"Georgia,serif",fontWeight:"bold",cursor:"pointer"}}>
-          + Log
+{t("log_entry")}
         </button>
       </div>
 
@@ -1040,7 +1228,7 @@ function TastingNotesSection({prefill,onPrefillUsed}:{prefill:ScanResult|null,on
             ))}
           </div>
           <textarea value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))}
-            placeholder="Describe the experience — flavors, draw, burn, finish..." rows={4}
+            placeholder={t("describe_exp")} rows={4}
             style={{...fi,resize:"vertical",lineHeight:1.7}}/>
           <div style={{display:"flex",gap:10}}>
             <button onClick={save} style={{flex:1,padding:"11px",background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,border:"none",borderRadius:8,color:"#1a0e04",fontSize:13,fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>Save Entry</button>
@@ -1117,7 +1305,7 @@ function TastingNotesSection({prefill,onPrefillUsed}:{prefill:ScanResult|null,on
                     padding:"8px 12px",border:"1px solid rgba(139,105,20,0.2)"}}>
                     <span>🥃</span>
                     <span style={{fontSize:12,color:"#6a4010",fontFamily:"Georgia,serif",fontStyle:"italic"}}>
-                      Paired with {n.pairing}
+                      {t("paired_with")} {n.pairing}
                     </span>
                   </div>
                 )}
@@ -1132,20 +1320,22 @@ function TastingNotesSection({prefill,onPrefillUsed}:{prefill:ScanResult|null,on
 
 // ── ASK MARIO — emotional center ───────────────────────────────────────────
 const QUICK_PROMPTS=[
-  {label:"Recommend me a cigar",
+  {tk:"quick_recommend",
     icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L9 9H2l5.5 4-2 7L12 16l6.5 4-2-7L22 9h-7z"/></svg>},
-  {label:"Humidor advice",
+  {tk:"quick_humidor",
     icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M7 6V4a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v2"/><circle cx="12" cy="15" r="2"/></svg>},
-  {label:"Pairing suggestion",
+  {tk:"quick_pairing",
     icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M8 22H5a2 2 0 0 1-2-2V7l3-4h8l3 4v13a2 2 0 0 1-2 2h-3"/><path d="M12 11v11"/><path d="M9 8h6"/></svg>},
-  {label:"What should I smoke tonight?",
+  {tk:"quick_tonight",
     icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/><path d="M19 3v4"/><path d="M21 5h-4"/></svg>},
 ];
 
 function AskMarioTab({liveData}:{liveData:Record<string,{temperature:number|null;humidity:number|null;observedAt:string|null}>}) {
+  const {t,lang}=useLang();
+  const langName=LANGS.find(l=>l.code===lang)?.name||"English";
   const getGreeting=()=>{
     const h=new Date().getHours();
-    const timeStr=h<12?"Good morning":h<17?"Good afternoon":h<21?"Good evening":"Good evening";
+    const timeStr=h<12?t("greeting_morning"):h<17?t("greeting_afternoon"):h<21?t("greeting_evening"):t("greeting_evening");
     // Find best sensor reading
     const sensors=Object.values(liveData).filter(s=>s.humidity&&s.humidity>0);
     const bestSensor=sensors[0];
@@ -1166,7 +1356,7 @@ function AskMarioTab({liveData}:{liveData:Record<string,{temperature:number|null
     setLoading(true);
     try {
       const res=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({system:"You are Mario, a warm, deeply knowledgeable private cigar concierge. Speak like a trusted friend at a private lounge. Be specific and personal. Sign responses with '— Mario'. Under 100 words.",
+        body:JSON.stringify({system:`You are Mario, a warm, deeply knowledgeable private cigar concierge. Speak like a trusted friend at a private lounge. Be specific and personal. Sign responses with '— Mario'. Under 100 words. Always respond in ${langName}.`,
           messages:[...messages.map(m=>({role:m.role==="ai"?"assistant":"user",content:m.text})),{role:"user",content:text}]})});
       const data=await res.json();
       const reply=data.content?.find((b:{type:string;text?:string})=>b.type==="text")?.text||"Please try again.";
@@ -1187,8 +1377,8 @@ function AskMarioTab({liveData}:{liveData:Record<string,{temperature:number|null
             <img src="/mario-avatar.jpg" alt="Mario" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 50%"}}/>
           </div>
           <div style={{flex:1}}>
-            <div style={{fontSize:24,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1.15}}>Ask Mario</div>
-            <div style={{fontSize:10,color:T.goldMid,letterSpacing:2.5,textTransform:"uppercase",marginTop:4}}>Master Cigar Sommelier · Private Lounge</div>
+            <div style={{fontSize:24,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1.15}}>{t("ask_mario")}</div>
+            <div style={{fontSize:10,color:T.goldMid,letterSpacing:2.5,textTransform:"uppercase",marginTop:4}}>{t("sommelier_title")}</div>
           </div>
         </div>
       </div>
@@ -1234,7 +1424,7 @@ function AskMarioTab({liveData}:{liveData:Record<string,{temperature:number|null
       {/* Quick prompts — full width stacked with icons */}
       <div style={{padding:"10px 16px 6px",display:"flex",flexDirection:"column",gap:8,flexShrink:0}}>
         {QUICK_PROMPTS.map((p)=>(
-          <button key={p.label} onClick={()=>send(p.label)}
+          <button key={p.tk} onClick={()=>send(t(p.tk))}
             style={{width:"100%",background:"linear-gradient(170deg,#1a1a1a,#111111)",
               border:`1px solid rgba(196,154,40,0.22)`,borderRadius:12,
               padding:"14px 18px",color:T.textPrimary,fontSize:15,cursor:"pointer",
@@ -1242,7 +1432,7 @@ function AskMarioTab({liveData}:{liveData:Record<string,{temperature:number|null
               alignItems:"center",justifyContent:"space-between"}}>
             <span style={{display:"flex",alignItems:"center",gap:12}}>
               <span style={{color:T.goldMid,flexShrink:0}}>{p.icon}</span>
-              <span>{p.label}</span>
+              <span>{t(p.tk)}</span>
             </span>
             <span style={{color:T.goldMid,fontSize:20}}>›</span>
           </button>
@@ -1253,7 +1443,7 @@ function AskMarioTab({liveData}:{liveData:Record<string,{temperature:number|null
       <div style={{padding:"6px 16px 16px",display:"flex",gap:10,alignItems:"center",flexShrink:0}}>
         <input value={input} onChange={e=>setInput(e.target.value)}
           onKeyDown={e=>{if(e.key==="Enter")send(input);}}
-          placeholder="Ask Mario anything..."
+          placeholder={t("ask_placeholder")}
           style={{flex:1,background:"linear-gradient(170deg,#1a1a1a,#111111)",border:`1px solid rgba(196,154,40,0.22)`,
             borderRadius:24,padding:"12px 18px",color:T.textPrimary,fontSize:13,
             fontFamily:"Georgia,serif",outline:"none"}}/>
@@ -2524,6 +2714,7 @@ function TastingNotesTab() {
   const [showForm,setShowForm]=useState(false);
   const [form,setForm]=useState({brand:"",line:"",vitola:"",rating:5,notes:"",pairing:""});
   const [sel,setSel]=useState<number|null>(null);
+  const {t}=useLang();
   const save=()=>{
     if(!form.brand.trim()) return;
     setNotes(n=>[{id:Date.now(),brand:form.brand,line:form.line,vitola:form.vitola,
@@ -2540,14 +2731,14 @@ function TastingNotesTab() {
       <div style={{padding:"24px 20px 20px",borderBottom:`1px solid ${T.border}`,
         display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}>
         <div>
-          <div style={{fontSize:10,letterSpacing:5,textTransform:"uppercase",color:T.textMuted,fontFamily:"Georgia,serif",marginBottom:6}}>Tasting Journal</div>
-          <div style={{fontSize:22,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif"}}>Collector's Journal</div>
+          <div style={{fontSize:10,letterSpacing:5,textTransform:"uppercase",color:T.textMuted,fontFamily:"Georgia,serif",marginBottom:6}}>{t("tasting_journal")}</div>
+          <div style={{fontSize:22,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif"}}>{t("collectors_journal")}</div>
         </div>
         <button onClick={()=>setShowForm(!showForm)}
           style={{background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,border:"none",
             borderRadius:20,padding:"8px 18px",color:"#1a0e04",fontSize:12,
             fontFamily:"Georgia,serif",fontWeight:"bold",cursor:"pointer"}}>
-          + Log
+{t("log_entry")}
         </button>
       </div>
 
@@ -2563,7 +2754,7 @@ function TastingNotesTab() {
             ))}
           </div>
           <textarea value={form.notes} onChange={e=>setForm(f=>({...f,notes:e.target.value}))}
-            placeholder="Describe the experience — flavors, draw, burn, finish..." rows={4}
+            placeholder={t("describe_exp")} rows={4}
             style={{...fi,resize:"vertical",lineHeight:1.7}}/>
           <div style={{display:"flex",gap:10}}>
             <button onClick={save} style={{flex:1,padding:"11px",background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,border:"none",borderRadius:8,color:"#1a0e04",fontSize:13,fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>Save Entry</button>
@@ -2615,7 +2806,7 @@ function TastingNotesTab() {
                   <div style={{display:"flex",alignItems:"center",gap:8,background:"rgba(139,105,20,0.08)",
                     borderRadius:8,padding:"8px 12px",border:"1px solid rgba(139,105,20,0.2)"}}>
                     <span>🥃</span>
-                    <span style={{fontSize:12,color:"#6a4010",fontFamily:"Georgia,serif",fontStyle:"italic"}}>Paired with {n.pairing}</span>
+                    <span style={{fontSize:12,color:"#6a4010",fontFamily:"Georgia,serif",fontStyle:"italic"}}>{t("paired_with")} {n.pairing}</span>
                   </div>
                 )}
               </div>
@@ -2633,6 +2824,7 @@ function SettingsTab() {
   const [notifs,setNotifs]=useState(true);
   const [apiKeySaved,setApiKeySaved]=useState(false);
   const [apiKeyInput,setApiKeyInput]=useState("");
+  const {t,lang,setLang}=useLang();
   const Toggle=({val,set}:{val:boolean,set:(v:boolean)=>void})=>(
     <div onClick={()=>set(!val)} style={{width:44,height:26,borderRadius:13,cursor:"pointer",
       background:val?T.goldMid:"rgba(255,255,255,0.07)",position:"relative",transition:"background 0.2s",flexShrink:0}}>
@@ -2660,18 +2852,38 @@ function SettingsTab() {
   return (
     <div style={{padding:"0 0 32px"}}>
       <div style={{padding:"24px 20px 20px",borderBottom:`1px solid ${T.border}`}}>
-        <div style={{fontSize:10,letterSpacing:5,textTransform:"uppercase",color:T.textMuted,fontFamily:"Georgia,serif"}}>Settings</div>
+        <div style={{fontSize:10,letterSpacing:5,textTransform:"uppercase",color:T.textMuted,fontFamily:"Georgia,serif"}}>{t("settings")}</div>
       </div>
 
       {/* Account */}
-      <Group title="Account">
+      <Group title={t("account")}>
         <Row label="Mario's Humidor" sub="v1.0.0 · The Cigar Lifestyle Platform"
           right={<div style={{width:32,height:32,borderRadius:8,background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:"bold",color:"#1a0e04",fontFamily:"Georgia,serif"}}>M</div>}/>
       </Group>
 
+      {/* Language */}
+      <Group title={t("language")}>
+        <div style={{padding:"14px 16px"}}>
+          <div style={{fontSize:11,color:T.textMuted,marginBottom:12,fontFamily:"Georgia,serif"}}>{t("language_sub")}</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {LANGS.map(l=>(
+              <button key={l.code} onClick={()=>setLang(l.code)}
+                style={{display:"flex",alignItems:"center",gap:12,padding:"11px 14px",
+                  background:lang===l.code?`linear-gradient(135deg,${T.goldDark}22,${T.goldMid}18)`:"transparent",
+                  border:`1px solid ${lang===l.code?T.goldMid:T.border}`,
+                  borderRadius:10,cursor:"pointer",width:"100%",textAlign:"left"}}>
+                <span style={{fontSize:22,lineHeight:1}}>{l.flag}</span>
+                <span style={{fontSize:14,color:lang===l.code?T.goldLight:T.textPrimary,fontFamily:"Georgia,serif",flex:1}}>{l.name}</span>
+                {lang===l.code&&<span style={{fontSize:16,color:T.goldMid}}>✓</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      </Group>
+
       {/* Collection */}
-      <Group title="Collection">
-        <Row label="Temperature Unit" sub="Display preference"
+      <Group title={t("collection_s")}>
+        <Row label={t("temp_unit")} sub={t("temp_sub")}
           right={
             <div style={{display:"flex",gap:2,background:"rgba(0,0,0,0.2)",borderRadius:8,padding:2}}>
               {["F","C"].map(u=>(
@@ -2687,19 +2899,19 @@ function SettingsTab() {
       </Group>
 
       {/* API */}
-      <Group title="API">
+      <Group title={t("api_s")}>
         <div style={{padding:"16px"}}>
-          <div style={{fontSize:14,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",marginBottom:4}}>Anthropic API Key</div>
-          <div style={{fontSize:12,color:T.textMuted,lineHeight:1.65,marginBottom:12}}>Required for Ask Mario, Band Scanner, and Mario's Take on news.</div>
+          <div style={{fontSize:14,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",marginBottom:4}}>{t("api_key_title")}</div>
+          <div style={{fontSize:12,color:T.textMuted,lineHeight:1.65,marginBottom:12}}>{t("api_key_sub")}</div>
           {apiKeySaved ? (
             <div>
               <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
                 <div style={{width:7,height:7,borderRadius:"50%",background:T.success}}/>
-                <span style={{fontSize:13,color:T.success,fontFamily:"Georgia,serif"}}>API Key Connected</span>
+                <span style={{fontSize:13,color:T.success,fontFamily:"Georgia,serif"}}>{t("api_connected")}</span>
               </div>
               <button onClick={()=>{setApiKeySaved(false);setApiKeyInput("");}}
                 style={{background:"none",border:`1px solid ${T.border}`,borderRadius:8,color:T.textMuted,
-                  padding:"6px 14px",fontSize:12,cursor:"pointer",fontFamily:"Georgia,serif"}}>Remove Key</button>
+                  padding:"6px 14px",fontSize:12,cursor:"pointer",fontFamily:"Georgia,serif"}}>{t("remove_key")}</button>
             </div>
           ):(
             <div>
@@ -2710,7 +2922,7 @@ function SettingsTab() {
               <button onClick={()=>{if(!apiKeyInput.startsWith("sk-"))return;setApiKeySaved(true);}}
                 style={{width:"100%",padding:"11px",background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
                   border:"none",borderRadius:8,color:"#1a0e04",fontSize:13,fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>
-                Save API Key
+                {t("save_key")}
               </button>
               <div style={{fontSize:11,color:T.textMuted,marginTop:8,textAlign:"center"}}>console.anthropic.com</div>
             </div>
@@ -2719,15 +2931,15 @@ function SettingsTab() {
       </Group>
 
       {/* Sensors */}
-      <Group title="Sensors">
+      <Group title={t("sensors_s")}>
         <Row label="Govee H5051" sub="WiFi sensor integration — coming soon" right={<div style={{fontSize:11,color:T.textMuted}}>Pending</div>}/>
         <Row label="Raching MON1800A" sub="Built-in sensor support" right={<div style={{fontSize:11,color:T.textMuted}}>Pending</div>} last/>
       </Group>
 
       {/* Notifications */}
-      <Group title="Notifications">
-        <Row label="Humidity Alerts" sub="Alert when below 65% RH" right={<Toggle val={notifs} set={setNotifs}/>}/>
-        <Row label="Temperature Alerts" sub="Alert when above 70°F" right={<Toggle val={false} set={()=>{}}/>} last/>
+      <Group title={t("notifications_s")}>
+        <Row label={t("hum_alert")} sub={t("hum_alert_sub")} right={<Toggle val={notifs} set={setNotifs}/>}/>
+        <Row label={t("temp_alert")} sub={t("temp_alert_sub")} right={<Toggle val={false} set={()=>{}}/>} last/>
       </Group>
 
       <div style={{padding:"24px 20px 0",display:"flex",justifyContent:"center",gap:24}}>
@@ -2774,11 +2986,11 @@ function NewsTab() {
 
 
 const NAV=[
-  {id:"home",label:"Home"},
-  {id:"collection",label:"Collection"},
-  {id:"mario",label:"Mario"},
-  {id:"community",label:"Social Club"},
-  {id:"profile",label:"Profile"},
+  {id:"home",tk:"nav_home"},
+  {id:"collection",tk:"nav_collection"},
+  {id:"mario",tk:"nav_mario"},
+  {id:"community",tk:"nav_community"},
+  {id:"profile",tk:"nav_profile"},
 ];
 
 function NavIcon({id,active}:{id:string,active:boolean}) {
@@ -2856,6 +3068,7 @@ function NavIcon({id,active}:{id:string,active:boolean}) {
 }
 
 function TopNav({tab,setTab}:{tab:string,setTab:(t:string)=>void}) {
+  const {t}=useLang();
   return (
     <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",
       width:"100%",maxWidth:480,zIndex:100,
@@ -2878,7 +3091,7 @@ function TopNav({tab,setTab}:{tab:string,setTab:(t:string)=>void}) {
             </div>
             <div style={{fontSize:8.5,color:active?T.goldLight:"rgba(255,255,255,0.28)",
               fontFamily:"Georgia,serif",letterSpacing:0.3,whiteSpace:"nowrap"}}>
-              {n.label}
+              {t(n.tk)}
             </div>
           </button>
         );
@@ -2930,8 +3143,9 @@ function HomeTab({liveData,liveStatus,lastUpdated,onRefresh}:{
   liveData:Record<string,{temperature:number|null;humidity:number|null;observedAt:string|null}>;
   liveStatus:"idle"|"loading"|"connected"|"error";lastUpdated:string|null;onRefresh:()=>void;
 }) {
+  const {t}=useLang();
   const h=new Date().getHours();
-  const timeStr=h<12?"Good morning":h<17?"Good afternoon":"Good evening";
+  const timeStr=h<12?t("greeting_morning"):h<17?t("greeting_afternoon"):t("greeting_evening");
   return (
     <div>
       {/* Greeting — full width image, text overlaid on left */}
@@ -2952,7 +3166,7 @@ function HomeTab({liveData,liveStatus,lastUpdated,onRefresh}:{
           <div style={{fontSize:26,fontWeight:"bold",color:T.textPrimary,
             fontFamily:"Georgia,serif",lineHeight:1.15}}>Zebulon</div>
           <div style={{fontSize:13,color:T.textSecondary,fontFamily:"Georgia,serif",
-            fontStyle:"italic",marginTop:6,lineHeight:1.5}}>Welcome back to the lounge.</div>
+            fontStyle:"italic",marginTop:6,lineHeight:1.5}}>{t("welcome_back")}</div>
           <div style={{width:36,height:1,background:`linear-gradient(90deg,${T.goldMid},transparent)`,marginTop:12}}/>
         </div>
       </div>
@@ -2981,20 +3195,18 @@ export default function MariosHumidor() {
   const fetchLive=useCallback(async(isInitial=false)=>{
     if(isInitial) setLiveStatus("loading");
     try{
-      const merged:Record<string,{temperature:number|null;humidity:number|null;observedAt:string|null}>={};
+      const merged={};
       let anyConnected=false;
-      // Poll Govee
       try{
         const goveeRes=await fetch("/api/govee");
         const goveeData=await goveeRes.json();
         if(goveeData.ok&&goveeData.sensors&&goveeData.sensors.length>0){
-          goveeData.sensors.forEach((s:{name:string;temperature:number|null;humidity:number|null;observedAt:string|null})=>{
+          goveeData.sensors.forEach((s)=>{
             merged[s.name]={temperature:s.temperature,humidity:s.humidity,observedAt:s.observedAt};
           });
           anyConnected=true;
         }
       } catch{}
-      // Poll ESP32 sensor
       try{
         const sensorRes=await fetch("/api/sensor");
         if(sensorRes.ok){
@@ -3006,10 +3218,7 @@ export default function MariosHumidor() {
         }
       } catch{}
       if(anyConnected){
-        setLiveData(prev=>{
-          const changed=Object.keys(merged).some(k=>prev[k]?.temperature!==merged[k].temperature||prev[k]?.humidity!==merged[k].humidity);
-          return changed?{...prev,...merged}:prev;
-        });
+        setLiveData(prev=>({...prev,...merged}));
         setLiveStatus("connected");
         setLastUpdated(new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}));
       } else { if(isInitial) setLiveStatus("error"); }
@@ -3084,6 +3293,7 @@ export default function MariosHumidor() {
 
   const render=()=>renderTab(tab);
   return (
+    <LangProvider>
     <div style={{minHeight:"100vh",background:T.bg,color:T.textPrimary,fontFamily:"Georgia,serif",maxWidth:480,margin:"0 auto",position:"relative"}}>
       <CedarBg/>
       {splash&&<SplashScreen onDone={()=>setSplash(false)}/>}
@@ -3129,5 +3339,6 @@ export default function MariosHumidor() {
         @keyframes slideOutRight{from{transform:translateX(0)}to{transform:translateX(100%)}}
       `}</style>
     </div>
+    </LangProvider>
   );
 }
