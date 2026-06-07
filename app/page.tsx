@@ -3201,7 +3201,7 @@ export default function MariosHumidor() {
         const goveeRes=await fetch("/api/govee");
         const goveeData=await goveeRes.json();
         if(goveeData.ok&&goveeData.sensors&&goveeData.sensors.length>0){
-          goveeData.sensors.forEach((s)=>{
+          goveeData.sensors.forEach((s:any)=>{
             merged[s.name]={temperature:s.temperature,humidity:s.humidity,observedAt:s.observedAt};
           });
           anyConnected=true;
