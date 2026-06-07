@@ -3195,7 +3195,7 @@ export default function MariosHumidor() {
   const fetchLive=useCallback(async(isInitial=false)=>{
     if(isInitial) setLiveStatus("loading");
     try{
-      const merged={};
+      const merged:Record<string,{temperature:number|null;humidity:number|null;observedAt:string|null}>={};
       let anyConnected=false;
       try{
         const goveeRes=await fetch("/api/govee");
