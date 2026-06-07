@@ -512,15 +512,15 @@ function BandScannerModal({onClose,onAddToCollection,onAddToJournal,onSmokedOne}
 // ── AD CAROUSEL ────────────────────────────────────────────────────────────
 const ADS = [
   {brand:"Davidoff",line:"Winston Churchill\nThe Late Hour",vitola:"Toro · 6 × 50",badge:"New Release",
-    bg:"linear-gradient(135deg,#1a1208,#2a1f0e,#0f0a04)",accent:"#C49A28"},
+    bg:"linear-gradient(135deg,#1a1208,#2a1f0e,#0f0a04)",accent:"#C49A28",image:"/ad-davidoff.png"},
   {brand:"Padrón",line:"1964 Anniversary\nExclusivo Natural",vitola:"Robusto · 5 × 50",badge:"Member Favorite",
-    bg:"linear-gradient(135deg,#0f1a08,#1a2a0e,#080f04)",accent:"#5a8c3a"},
+    bg:"linear-gradient(135deg,#0f1a08,#1a2a0e,#080f04)",accent:"#5a8c3a",image:"/ad-padron.png"},
   {brand:"Arturo Fuente",line:"Opus X\nAngel's Share",vitola:"Robusto · 5¼ × 50",badge:"Limited Edition",
-    bg:"linear-gradient(135deg,#1a0808,#2a0e0e,#0f0404)",accent:"#8B2020"},
+    bg:"linear-gradient(135deg,#1a0808,#2a0e0e,#0f0404)",accent:"#8B2020",image:"/ad-fuente.png"},
   {brand:"My Father",line:"Le Bijou 1922\nTorpedo",vitola:"Torpedo · 6¼ × 52",badge:"Top Rated",
-    bg:"linear-gradient(135deg,#0a0f1a,#0e1a2a,#04080f)",accent:"#4a6a9a"},
+    bg:"linear-gradient(135deg,#0a0f1a,#0e1a2a,#04080f)",accent:"#4a6a9a",image:"/ad-myfather.png"},
   {brand:"Liga Privada",line:"No. 9\nRobusto",vitola:"Robusto · 5 × 52",badge:"Staff Pick",
-    bg:"linear-gradient(135deg,#0f0a1a,#1a0e2a,#08040f)",accent:"#7a3a8a"},
+    bg:"linear-gradient(135deg,#0f0a1a,#1a0e2a,#08040f)",accent:"#7a3a8a",image:"/ad-ligaprivada.png"},
 ];
 
 function AdCarousel() {
@@ -559,7 +559,15 @@ function AdCarousel() {
         opacity:fade?1:0,transition:"opacity 0.4s ease"}}>
         {/* Feature image area */}
         <div style={{position:"relative",height:180,background:ad.bg,
-          display:"flex",alignItems:"flex-end",padding:16}}>
+          display:"flex",alignItems:"flex-end",padding:16,overflow:"hidden"}}>
+          {/* Actual ad image */}
+          {ad.image&&<img src={ad.image} alt={ad.brand}
+            style={{position:"absolute",inset:0,width:"100%",height:"100%",
+              objectFit:"cover",objectPosition:"center",opacity:0.55}}
+            onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>}
+          {/* Dark overlay for text legibility */}
+          <div style={{position:"absolute",inset:0,
+            background:"linear-gradient(180deg,rgba(0,0,0,0.1) 0%,rgba(0,0,0,0.65) 100%)"}}/>
           {/* Badge */}
           <div style={{position:"absolute",top:12,right:12,
             background:`linear-gradient(135deg,${ad.accent}cc,${ad.accent})`,
@@ -574,9 +582,10 @@ function AdCarousel() {
           <div style={{position:"relative",zIndex:2}}>
             <div style={{fontSize:9,letterSpacing:3,color:ad.accent,textTransform:"uppercase",
               fontFamily:"Georgia,serif",marginBottom:3}}>{ad.brand}</div>
-            <div style={{fontSize:20,color:T.textPrimary,fontFamily:"Georgia,serif",
-              lineHeight:1.2,marginBottom:2,whiteSpace:"pre-line"}}>{ad.line}</div>
-            <div style={{fontSize:11,color:T.textSecondary,fontStyle:"italic",
+            <div style={{fontSize:20,color:"#fff",fontFamily:"Georgia,serif",
+              lineHeight:1.2,marginBottom:2,whiteSpace:"pre-line",
+              textShadow:"0 1px 6px rgba(0,0,0,0.8)"}}>{ad.line}</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.8)",fontStyle:"italic",
               fontFamily:"Georgia,serif"}}>{ad.vitola}</div>
           </div>
         </div>
@@ -2892,8 +2901,48 @@ export default function MariosHumidor() {
   const [showCompose,setShowCompose]=useState(false);
   const [activeClubTab,setActiveClubTab]=useState<'feed'|'news'|'trending'|'rareFinds'|'spotlights'|'showcase'|'events'|'learn'>('feed');
 
-  const render=()=>{
-    switch(tab){
+  const TAB_ORDER=["home","collection","mario","community","profile"];
+  const touchStartX=useRef<number|null>(null);
+  const touchStartY=useRef<number|null>(null);
+  const [prevTab,setPrevTab]=useState<string|null>(null);
+  const [slideDir,setSlideDir]=useState<'left'|'right'|null>(null);
+  const [animating,setAnimating]=useState(false);
+
+  const navigateTo=(nextTab:string)=>{
+    if(nextTab===tab||animating) return;
+    const cur=TAB_ORDER.indexOf(tab);
+    const next=TAB_ORDER.indexOf(nextTab);
+    const dir=next>cur?'left':'right';
+    setPrevTab(tab);
+    setSlideDir(dir);
+    setAnimating(true);
+    setTab(nextTab);
+    setTimeout(()=>{
+      setPrevTab(null);
+      setSlideDir(null);
+      setAnimating(false);
+    },300);
+  };
+
+  const handleTouchStart=(e:React.TouchEvent)=>{
+    touchStartX.current=e.touches[0].clientX;
+    touchStartY.current=e.touches[0].clientY;
+  };
+
+  const handleTouchEnd=(e:React.TouchEvent)=>{
+    if(touchStartX.current===null||touchStartY.current===null) return;
+    const dx=e.changedTouches[0].clientX-touchStartX.current;
+    const dy=e.changedTouches[0].clientY-touchStartY.current;
+    if(Math.abs(dx)<50||Math.abs(dy)>Math.abs(dx)*0.7) return;
+    const cur=TAB_ORDER.indexOf(tab);
+    if(dx<0&&cur<TAB_ORDER.length-1) navigateTo(TAB_ORDER[cur+1]);
+    if(dx>0&&cur>0) navigateTo(TAB_ORDER[cur-1]);
+    touchStartX.current=null;
+    touchStartY.current=null;
+  };
+
+  const renderTab=(t:string)=>{
+    switch(t){
       case "home":       return <HomeTab liveData={liveData} liveStatus={liveStatus} lastUpdated={lastUpdated} onRefresh={()=>fetchLive(false)}/>;
       case "collection": return <CollectionTab/>;
       case "mario":      return <AskMarioTab liveData={liveData}/>;
@@ -2902,17 +2951,38 @@ export default function MariosHumidor() {
       default:           return <HomeTab liveData={liveData} liveStatus={liveStatus} lastUpdated={lastUpdated} onRefresh={()=>fetchLive(false)}/>;
     }
   };
+
+  const render=()=>renderTab(tab);
   return (
     <div style={{minHeight:"100vh",background:T.bg,color:T.textPrimary,fontFamily:"Georgia,serif",maxWidth:480,margin:"0 auto",position:"relative"}}>
       <CedarBg/>
       {splash&&<SplashScreen onDone={()=>setSplash(false)}/>}
-      <div style={{position:"relative",zIndex:1,paddingBottom:90}}>
+      <div style={{position:"relative",zIndex:1,paddingBottom:90,overflow:"hidden"}}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}>
         <div style={{position:"sticky",top:0,zIndex:50}}>
           <AppHeader totalCigars={0}/>
         </div>
-        {render()}
+        {/* Sliding page container */}
+        <div style={{position:"relative"}}>
+          {/* Incoming page */}
+          <div key={tab} style={{
+            animation:slideDir?`slideIn${slideDir==='left'?'Right':'Left'} 0.3s cubic-bezier(0.25,0.46,0.45,0.94) forwards`:'none',
+            willChange:"transform"}}>
+            {render()}
+          </div>
+          {/* Outgoing page */}
+          {prevTab&&slideDir&&(
+            <div key={prevTab+"_out"} style={{
+              position:"absolute",top:0,left:0,right:0,pointerEvents:"none",
+              animation:`slideOut${slideDir==='left'?'Left':'Right'} 0.3s cubic-bezier(0.25,0.46,0.45,0.94) forwards`,
+              willChange:"transform"}}>
+              {renderTab(prevTab)}
+            </div>
+          )}
+        </div>
       </div>
-      <TopNav tab={tab} setTab={setTab}/>
+      <TopNav tab={tab} setTab={navigateTo}/>
       <style>{`
         *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
         body{margin:0;padding:0;overflow-x:hidden}
@@ -2923,6 +2993,10 @@ export default function MariosHumidor() {
         .club-subtabs::-webkit-scrollbar{display:none}
         @keyframes mT{0%,80%,100%{transform:translateY(0);opacity:0.3}40%{transform:translateY(-5px);opacity:1}}
         @keyframes sp{0%,80%,100%{transform:scale(0.6);opacity:0.3}40%{transform:scale(1);opacity:1}}
+        @keyframes slideInRight{from{transform:translateX(100%)}to{transform:translateX(0)}}
+        @keyframes slideInLeft{from{transform:translateX(-100%)}to{transform:translateX(0)}}
+        @keyframes slideOutLeft{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+        @keyframes slideOutRight{from{transform:translateX(0)}to{transform:translateX(100%)}}
       `}</style>
     </div>
   );
