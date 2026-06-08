@@ -3855,24 +3855,50 @@ function HomeTab({liveData,liveStatus,lastUpdated,onRefresh}:{
 // ── PROFILE TAB ────────────────────────────────────────────────────────────
 // ── CHALLENGES TAB ─────────────────────────────────────────────────────────
 function ChallengesTab() {
+  const [mounted,setMounted]=useState(false);
+  const [cigars,setCigars]=useState<any[]>([]);
+  const [notes,setNotes]=useState<any[]>([]);
+
+  useEffect(()=>{
+    try{const s=localStorage.getItem('mh_cigars');if(s)setCigars(JSON.parse(s));}catch{}
+    try{const s=localStorage.getItem('mh_notes');if(s)setNotes(JSON.parse(s));}catch{}
+    setMounted(true);
+  },[]);
+
+  // Auto-calculated challenge progress
+  const totalCigars=mounted?cigars.reduce((a:number,c:any)=>a+c.count,0):0;
+  const uniqueBrands=mounted?new Set(cigars.map((c:any)=>c.brand)).size:0;
+  const uniqueCountries=mounted?new Set(cigars.filter((c:any)=>c.origin).map((c:any)=>c.origin)).size:0;
+  const totalNotes=mounted?notes.length:0;
+
+  const GOAL_BRANDS=5;
+  const GOAL_COUNTRIES=4;
+  const GOAL_NOTES=10;
+  const GOAL_CIGARS=20;
+
   const ACTIVE_CHALLENGES=[
     {id:1,icon:"🔥",title:"Smoke 5 Different Brands",subtitle:"This Month Challenge",
-      progress:73,color:"#e05050",detail:"4 of 5 brands smoked"},
+      progress:Math.min(Math.round((uniqueBrands/GOAL_BRANDS)*100),100),
+      color:"#e05050",detail:`${uniqueBrands} of ${GOAL_BRANDS} brands`},
     {id:2,icon:"🌎",title:"World Tour Challenge",subtitle:"Smoke cigars from 4 countries",
-      progress:75,color:T.goldMid,detail:"3 of 4 countries",
+      progress:Math.min(Math.round((uniqueCountries/GOAL_COUNTRIES)*100),100),
+      color:T.goldMid,detail:`${uniqueCountries} of ${GOAL_COUNTRIES} countries`,
       flags:["🇳🇮","🇩🇴","🇨🇺","🇭🇳"]},
-    {id:3,icon:"💧",title:"Humidor Perfection",subtitle:"Maintain 65-70% RH for 30 days",
-      progress:70,color:"#6a9fe0",detail:"21 of 30 days"},
+    {id:3,icon:"💧",title:"Humidor Perfection",subtitle:"Maintain 65–70% RH for 30 days",
+      progress:0,color:"#6a9fe0",detail:"Requires sensor connection",locked:true},
     {id:4,icon:"📓",title:"Tasting Notes Challenge",subtitle:"Write 10 detailed reviews",
-      progress:60,color:"#b67ee0",detail:"6 of 10 reviews"},
+      progress:Math.min(Math.round((totalNotes/GOAL_NOTES)*100),100),
+      color:"#b67ee0",detail:`${totalNotes} of ${GOAL_NOTES} reviews`},
     {id:5,icon:"🗄",title:"Collection Builder",subtitle:"Add 20 cigars to your collection",
-      progress:60,color:"#3dd68c",detail:"12 of 20 cigars"},
+      progress:Math.min(Math.round((totalCigars/GOAL_CIGARS)*100),100),
+      color:"#3dd68c",detail:`${totalCigars} of ${GOAL_CIGARS} cigars`},
   ];
 
+  // Auto-detect completed challenges
   const COMPLETED_CHALLENGES=[
-    {id:1,icon:"🏆",title:"Weekend Warrior",subtitle:"Smoke 3 cigars in a weekend",color:T.goldMid},
-    {id:2,icon:"⭐",title:"First Review",subtitle:"Write your first tasting note",color:"#3dd68c"},
-    {id:3,icon:"🔥",title:"7-Day Streak",subtitle:"Log a cigar 7 days in a row",color:"#e05050"},
+    ...(uniqueBrands>=1?[{id:'first_brand',icon:"🏷",title:"First Brand",subtitle:"Added your first cigar brand",color:T.goldMid}]:[]),
+    ...(totalNotes>=1?[{id:'first_note',icon:"⭐",title:"First Review",subtitle:"Wrote your first tasting note",color:"#3dd68c"}]:[]),
+    ...(totalCigars>=5?[{id:'collector',icon:"🗄",title:"Budding Collector",subtitle:"Added 5 cigars to your collection",color:"#b67ee0"}]:[]),
   ];
 
   return (
@@ -3911,8 +3937,9 @@ function ChallengesTab() {
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
           {ACTIVE_CHALLENGES.map(c=>(
             <div key={c.id} style={{background:"linear-gradient(170deg,#1a1208,#0f0a04)",
-              borderRadius:14,border:`1px solid rgba(196,154,40,0.15)`,
-              padding:"16px",boxShadow:"0 4px 16px rgba(0,0,0,0.4)"}}>
+              borderRadius:14,border:`1px solid ${(c as any).locked?"rgba(196,154,40,0.08)":"rgba(196,154,40,0.15)"}`,
+              padding:"16px",boxShadow:"0 4px 16px rgba(0,0,0,0.4)",
+              opacity:(c as any).locked?0.6:1}}>
               <div style={{display:"flex",alignItems:"flex-start",gap:12,marginBottom:12}}>
                 {/* Icon */}
                 <div style={{width:42,height:42,borderRadius:12,flexShrink:0,
@@ -3969,7 +3996,12 @@ function ChallengesTab() {
             fontFamily:"Georgia,serif"}}>See All</div>
         </div>
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {COMPLETED_CHALLENGES.map(c=>(
+          {COMPLETED_CHALLENGES.length===0?(
+            <div style={{textAlign:"center",padding:"20px",color:T.textMuted,
+              fontFamily:"Georgia,serif",fontStyle:"italic",fontSize:12}}>
+              Complete challenges to earn recognition here
+            </div>
+          ):COMPLETED_CHALLENGES.map(c=>(
             <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,
               background:"linear-gradient(170deg,#1a1208,#0f0a04)",
               borderRadius:12,border:`1px solid rgba(196,154,40,0.1)`,padding:"12px 14px"}}>
@@ -4110,7 +4142,7 @@ function LeaderboardTab() {
         {/* Podium — top 3 */}
         {top3.length>=3&&(
           <div style={{display:"flex",alignItems:"flex-end",justifyContent:"center",
-            gap:8,marginBottom:24,height:160}}>
+            gap:8,marginBottom:24,marginTop:16,height:160}}>
             {/* 2nd place */}
             <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
               <div style={{fontSize:11,color:T.textMuted,fontFamily:"Georgia,serif"}}>{top3[1].detail}</div>
