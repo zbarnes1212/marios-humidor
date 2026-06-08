@@ -334,6 +334,15 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
 
   const HUMIDOR_COLORS=['#3dd68c','#C49A28','#6a9fe0','#e07a5f','#b67ee0'];
   const getHistoryData=(id:number)=>{
+    const h=humidors.find(hh=>hh.id===id);
+    const live=h?getLive(h.name):null;
+    const currentHumidity=live?.humidity??null;
+    // If we have a live reading, show it as a flat line at current value
+    // Future: store time-series data in an API route
+    if(currentHumidity&&currentHumidity>0){
+      return Array(24).fill(currentHumidity);
+    }
+    // Fallback mock data per humidor
     const base=[68,69,70,69,68,67,68,69,70,71,70,69,68,67,68,69,70,69,68,69,70,69,68,67];
     return base.map(v=>Math.max(60,Math.min(80,v+(id%3)-1)));
   };
@@ -3434,8 +3443,8 @@ function NewsTab() {
 const NAV=[
   {id:"home",tk:"nav_home"},
   {id:"collection",tk:"nav_collection"},
-  {id:"mario",tk:"nav_mario"},
   {id:"humidors",tk:"nav_humidors"},
+  {id:"mario",tk:"nav_mario"},
   {id:"community",tk:"nav_community"},
   {id:"profile",tk:"nav_profile"},
 ];
@@ -3863,7 +3872,7 @@ export default function MariosHumidor() {
   const [showCompose,setShowCompose]=useState(false);
   const [activeClubTab,setActiveClubTab]=useState<'feed'|'news'|'trending'|'rareFinds'|'spotlights'|'showcase'|'events'|'learn'>('feed');
 
-  const TAB_ORDER=["home","collection","mario","humidors","community","profile"];
+  const TAB_ORDER=["home","collection","humidors","mario","community","profile"];
   const touchStartX=useRef<number|null>(null);
   const touchStartY=useRef<number|null>(null);
   const [prevTab,setPrevTab]=useState<string|null>(null);
