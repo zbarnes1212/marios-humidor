@@ -23,7 +23,7 @@ const LANGS:{code:LangCode;flag:string;name:string}[]=[
 const TRANSLATIONS:{[K in LangCode]:Record<string,string>}={
   en:{
     // Nav
-    nav_home:"Home",nav_collection:"Collection",nav_mario:"Mario",nav_community:"Social Club",nav_profile:"Profile",
+    nav_home:"Feed",nav_collection:"Collection",nav_mario:"Mario",nav_humidors:"Humidors",nav_community:"Social Club",nav_profile:"Profile",
     // Home
     greeting_morning:"Good morning",greeting_afternoon:"Good afternoon",greeting_evening:"Good evening",
     welcome_back:"Welcome back to the lounge.",
@@ -257,12 +257,7 @@ function LuxuryGauge({value,size,label,subtitle,min=20,max=100}:{value:number;si
 
 
 // DATA
-const HUMIDORS=[
-  {id:1,name:"Mario's Sensor",wood:"Spanish Cedar",temp:0,humidity:0,capacity:150,count:87,status:"optimal"},
-  {id:2,name:"Govee T",wood:"Spanish Cedar",temp:0,humidity:0,capacity:150,count:0,status:"no_data"},
-  {id:3,name:"Govee M",wood:"Mahogany",temp:70,humidity:67,capacity:20,count:12,status:"good"},
-  {id:4,name:"Govee B",wood:"Electronic",temp:67,humidity:70,capacity:900,count:210,status:"optimal"},
-];
+const HUMIDORS:any[]=[];
 type CigarEntry={id:number;brand:string;line:string;vitola:string;origin:string;wrapper:string;rating:number;count:number;purchaseDate:string;bandColor:string;humidorId:number};
 const CIGARS:CigarEntry[]=[];
 
@@ -327,177 +322,355 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
   lastUpdated:string|null;
   onRefresh:()=>void;
 }) {
-  type Humidor={id:number;name:string;wood:string;temp:number;humidity:number;capacity:number;count:number;status:string};
-  const [humidors,setHumidors]=useState<Humidor[]>(HUMIDORS);
+  type Humidor={id:number;name:string;wood:string;capacity:number;status:string;photo?:string};
+  const [humidors,setHumidors]=useState<Humidor[]>(()=>{
+    try{const s=localStorage.getItem('mh_humidors');return s?JSON.parse(s):[];}catch{return [];}
+  });
   const [showForm,setShowForm]=useState(false);
-  const [form,setForm]=useState({name:"",wood:"Spanish Cedar",capacity:"150",count:"0",status:"optimal"});
-  const status=liveStatus;
+  const [form,setForm]=useState({name:"",wood:"Spanish Cedar",capacity:"150"});
+  const [selectedHumidor,setSelectedHumidor]=useState<number|null>(null);
+  const [historyRange,setHistoryRange]=useState<'24H'|'7D'|'30D'|'90D'>('24H');
+  const [expandedCigars,setExpandedCigars]=useState<number|null>(null);
   const {t}=useLang();
 
+  const HUMIDOR_COLORS=['#3dd68c','#C49A28','#6a9fe0','#e07a5f','#b67ee0'];
+  const getHistoryData=(id:number)=>{
+    const base=[68,69,70,69,68,67,68,69,70,71,70,69,68,67,68,69,70,69,68,69,70,69,68,67];
+    return base.map(v=>Math.max(60,Math.min(80,v+(id%3)-1)));
+  };
+
+  useEffect(()=>{
+    try{localStorage.setItem('mh_humidors',JSON.stringify(humidors));}catch{}
+  },[humidors]);
+
   const getLive=(name:string)=>liveData[name]??null;
+  const connected=liveStatus==="connected";
 
   const addHumidor=()=>{
     if(!form.name.trim()) return;
-    const newH:Humidor={
-      id:Date.now(),name:form.name.trim(),wood:form.wood,
-      temp:70,humidity:69,capacity:parseInt(form.capacity)||150,
-      count:parseInt(form.count)||0,status:form.status,
-    };
+    const newH:Humidor={id:Date.now(),name:form.name.trim(),wood:form.wood,
+      capacity:parseInt(form.capacity)||150,status:"no_data"};
     setHumidors(h=>[...h,newH]);
-    setForm({name:"",wood:"Spanish Cedar",capacity:"150",count:"0",status:"optimal"});
+    setForm({name:"",wood:"Spanish Cedar",capacity:"150"});
     setShowForm(false);
   };
 
-  const StatusDot=()=>(
-    <div style={{display:"flex",alignItems:"center",gap:6}}>
-      <div style={{width:5,height:5,borderRadius:"50%",flexShrink:0,
-        background:status==="connected"?"#4a9c68":status==="error"?"#9a3030":"#4a3018",
-        boxShadow:status==="connected"?"0 0 6px #4a9c6888":"none"}}/>
-      <span style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",letterSpacing:0.3}}>
-        {status==="connected"?`Live · ${lastUpdated}`:status==="loading"?t("sensor_updating"):t("sensor_offline")}
-      </span>
-    </div>
-  );
-
-  const HumidorCard=({h,isHero}:{h:Humidor,isHero:boolean})=>{
-    const live=getLive(h.name);
-    const humidity=live?.humidity??h.humidity;
-    const temp=live?.temperature??h.temp;
-    const humOk=humidity>=65&&humidity<=72;
-    const tempOk=temp>=65&&temp<=70;
-    const hasReading=humidity>0||temp>0;
-    const calcStatus=!hasReading?"no-data":humOk&&tempOk?"optimal":humOk||tempOk?"good":"warning";
-    const statusColor=calcStatus==="optimal"?"#5ab07a":calcStatus==="good"?T.goldMid:calcStatus==="no-data"?T.textMuted:"#c05050";
-    const statusLabel=calcStatus==="optimal"?t("optimal"):calcStatus==="good"?t("good"):calcStatus==="no-data"?t("no_data"):t("warning");
-    const fillPct=Math.min((h.count/h.capacity)*100,100);
-    return (
-      <div style={{background:"linear-gradient(170deg,#1a1a1a 0%,#111111 60%,#0d0d0d 100%)",
-        borderRadius:16,border:`1px solid rgba(160,120,40,0.28)`,overflow:"hidden",
-        boxShadow:"0 8px 32px rgba(0,0,0,0.55), inset 0 1px 0 rgba(200,160,60,0.08)"}}>
-        {/* Header row */}
-        <div style={{padding:"16px 18px 0",display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-          <div>
-            <div style={{fontSize:22,fontWeight:"bold",color:T.textPrimary,
-              fontFamily:"Georgia,serif",letterSpacing:0.2,lineHeight:1.15}}>{h.name}</div>
-            <div style={{fontSize:14,color:T.textPrimary,marginTop:4,fontFamily:"Georgia,serif",letterSpacing:0.3}}>
-              {h.wood}
-              <span style={{color:T.textMuted,margin:"0 5px"}}>·</span>
-              <span style={{color:T.goldMid,fontWeight:"bold"}}>{h.count}</span>
-              <span style={{color:T.textMuted}}>/{h.capacity} {t("cigars")}</span>
-            </div>
-          </div>
-          <div style={{background:"transparent",border:`1px solid ${statusColor}88`,
-            borderRadius:6,padding:"4px 12px",fontSize:9,color:statusColor,
-            letterSpacing:2,textTransform:"uppercase",fontFamily:"Georgia,serif",marginTop:4,
-          }}>{statusLabel}</div>
-        </div>
-        {/* Gauges left + readings right */}
-        <div style={{display:"flex",alignItems:"center",padding:"14px 18px 6px",gap:12}}>
-          {/* Two small gauges */}
-          <div style={{display:"flex",gap:16,flexShrink:0}}>
-            <LuxuryGauge value={humidity} size={110} label="" subtitle="RH"/>
-            <LuxuryGauge value={temp} size={110} label="" subtitle="Temp"/>
-          </div>
-          {/* Large readings */}
-          <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}>
-            <div>
-              <span style={{fontSize:36,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1}}>{humidity}</span>
-              <span style={{fontSize:16,color:T.goldMid,fontFamily:"Georgia,serif"}}>%</span>
-              <div style={{fontSize:9,color:T.textMuted,letterSpacing:2,textTransform:"uppercase",textAlign:"right",marginTop:1}}>RH</div>
-            </div>
-            <div>
-              <span style={{fontSize:36,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1}}>{temp}</span>
-              <span style={{fontSize:16,color:T.goldMid,fontFamily:"Georgia,serif"}}>°F</span>
-              <div style={{fontSize:9,color:T.textMuted,letterSpacing:2,textTransform:"uppercase",textAlign:"right",marginTop:1}}>TEMP</div>
-            </div>
-          </div>
-        </div>
-        {/* Fill bar */}
-        <div style={{padding:"4px 18px 14px"}}>
-          <div style={{height:5,background:"rgba(0,0,0,0.35)",borderRadius:5,overflow:"hidden"}}>
-            <div style={{height:"100%",width:`${fillPct}%`,
-              background:`linear-gradient(90deg,#8B6914,#C49A28 50%,#e8c84a)`,
-              borderRadius:5,boxShadow:`0 0 10px rgba(196,154,40,0.5)`}}/>
-          </div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:6}}>
-            <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",fontStyle:"italic"}}>
-              {status==="connected"?`${t("updated")} ${lastUpdated}`:t("sensor_offline")}
-            </div>
-            <div style={{fontSize:11,color:T.textMuted,fontFamily:"Georgia,serif"}}>
-              {h.count} <span style={{color:T.textMuted,fontSize:10}}>/ {h.capacity}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+  const handlePhotoUpload=(id:number,e:React.ChangeEvent<HTMLInputElement>)=>{
+    const file=e.target.files?.[0];
+    if(!file) return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      setHumidors(prev=>prev.map(h=>h.id===id?{...h,photo:ev.target?.result as string}:h));
+    };
+    reader.readAsDataURL(file);
   };
 
-  const fi:React.CSSProperties={width:"100%",background:"rgba(0,0,0,0.25)",border:`1px solid rgba(160,120,40,0.22)`,
-    borderRadius:10,padding:"11px 14px",color:T.textPrimary,fontSize:13,outline:"none",
-    boxSizing:"border-box",marginBottom:10,fontFamily:"Georgia,serif"};
+  const fi:React.CSSProperties={width:"100%",background:"rgba(0,0,0,0.25)",
+    border:`1px solid rgba(160,120,40,0.22)`,borderRadius:10,padding:"11px 14px",
+    color:T.textPrimary,fontSize:13,outline:"none",boxSizing:"border-box",
+    marginBottom:10,fontFamily:"Georgia,serif"};
 
   return (
-    <div style={{padding:"0 0 36px"}}>
-      <div style={{padding:"24px 18px 0",display:"flex",flexDirection:"column",gap:10}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:12}}>
-          <div style={{flex:1,height:1,background:`linear-gradient(90deg,transparent,${T.goldDark}66)`}}/>
-          <div style={{fontSize:10,letterSpacing:5,textTransform:"uppercase",color:T.goldMid,
-            fontFamily:"Georgia,serif",whiteSpace:"nowrap"}}>{t("my_humidors")}</div>
-          <div style={{flex:1,height:1,background:`linear-gradient(90deg,${T.goldDark}66,transparent)`}}/>
-        </div>
-        <div style={{display:"flex",justifyContent:"flex-end"}}><StatusDot/></div>
-      </div>
-
-      <div style={{margin:"14px 16px 0"}}>
-        <HumidorCard h={humidors[0]} isHero={true}/>
-      </div>
-      <div style={{margin:"14px 16px 0",display:"flex",flexDirection:"column",gap:14}}>
-        {humidors.slice(1).map(h=><HumidorCard key={h.id} h={h} isHero={false}/>)}
-      </div>
-
-      {/* Add Humidor Form */}
-      {showForm && (
-        <div style={{margin:"14px 16px 0",background:"linear-gradient(170deg,#1a1a1a,#111111)",
-          borderRadius:20,border:`1px solid rgba(160,120,40,0.30)`,padding:"20px 20px 16px",
-          boxShadow:"0 8px 32px rgba(0,0,0,0.5)"}}>
-          <div style={{fontSize:12,color:T.goldMid,fontFamily:"Georgia,serif",letterSpacing:2,
-            textTransform:"uppercase",marginBottom:16}}>New Humidor</div>
-          <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}
-            placeholder="Humidor name (must match sensor name)" style={fi}/>
-          <input value={form.wood} onChange={e=>setForm(f=>({...f,wood:e.target.value}))}
-            placeholder="Wood type (e.g. Spanish Cedar)" style={fi}/>
-          <div style={{display:"flex",gap:10,marginBottom:10}}>
-            <input value={form.capacity} onChange={e=>setForm(f=>({...f,capacity:e.target.value}))}
-              placeholder="Capacity" type="number"
-              style={{...fi,marginBottom:0,flex:1}}/>
-            <input value={form.count} onChange={e=>setForm(f=>({...f,count:e.target.value}))}
-              placeholder="Current cigars" type="number"
-              style={{...fi,marginBottom:0,flex:1}}/>
+    <div style={{paddingBottom:100}}>
+      {/* Header */}
+      <div style={{padding:"20px 16px 16px",borderBottom:`1px solid ${T.border}`}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
+          <div style={{fontSize:22,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif"}}>
+            My Humidors
           </div>
-          <select value={form.status} onChange={e=>setForm(f=>({...f,status:e.target.value}))}
-            style={{...fi}}>
-            <option value="optimal">Optimal</option>
-            <option value="good">Good</option>
-            <option value="warning">Warning</option>
-          </select>
-          <div style={{display:"flex",gap:10,marginTop:4}}>
-            <button onClick={addHumidor} style={{flex:1,padding:"12px",
-              background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
-              border:"none",borderRadius:10,color:"#1a0e04",fontSize:13,
-              fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>Add</button>
-            <button onClick={()=>setShowForm(false)} style={{padding:"12px 20px",
-              background:"transparent",border:`1px solid rgba(160,120,40,0.22)`,
-              borderRadius:10,color:T.textMuted,fontSize:13,cursor:"pointer"}}>Cancel</button>
+          <button onClick={onRefresh} style={{background:"none",border:"none",cursor:"pointer",padding:4}}>
+            <div style={{display:"flex",alignItems:"center",gap:5}}>
+              <div style={{width:6,height:6,borderRadius:"50%",
+                background:connected?"#3dd68c":liveStatus==="loading"?T.goldMid:T.textMuted,
+                boxShadow:connected?"0 0 6px #3dd68c88":"none"}}/>
+              <span style={{fontSize:10,color:connected?"#3dd68c":T.textMuted,
+                fontFamily:"Georgia,serif",letterSpacing:0.5}}>
+                {connected?`Live · ${lastUpdated}`:liveStatus==="loading"?"Updating…":"Sensor Offline"}
+              </span>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* Humidor cards */}
+      <div style={{padding:"16px 16px 0",display:"flex",flexDirection:"column",gap:16}}>
+        {humidors.length===0&&!showForm&&(
+          <div style={{textAlign:"center",padding:"40px 20px",color:T.textMuted,
+            fontFamily:"Georgia,serif",fontStyle:"italic"}}>
+            No humidors yet — add your first one below
+          </div>
+        )}
+
+        {humidors.map(h=>{
+          const live=getLive(h.name);
+          const humidity=live?.humidity??null;
+          const temp=live?.temperature??null;
+          const humOk=humidity!==null&&humidity>=65&&humidity<=72;
+          const tempOk=temp!==null&&temp>=65&&temp<=70;
+          const hasReading=humidity!==null||temp!==null;
+          const calcStatus=!hasReading?"No Sensor":humOk&&tempOk?"Optimal":humOk||tempOk?"Good":"Warning";
+          const statusColor=calcStatus==="Optimal"?"#3dd68c":calcStatus==="Good"?T.goldMid:calcStatus==="No Sensor"?T.textMuted:"#e05050";
+          const isSelected=selectedHumidor===h.id;
+
+          return (
+            <div key={h.id} style={{background:"linear-gradient(170deg,#1a1208,#0f0a04)",
+              borderRadius:16,border:`1px solid rgba(196,154,40,0.2)`,overflow:"hidden",
+              boxShadow:"0 8px 24px rgba(0,0,0,0.5)"}}>
+
+              {/* Humidor photo */}
+              <div style={{position:"relative",height:140,overflow:"hidden",background:"#0a0602",
+                borderBottom:`1px solid rgba(196,154,40,0.12)`}}>
+                <img src={h.photo||"/humidor-hero.png"} alt={h.name}
+                  style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center",
+                    filter:"brightness(0.6) saturate(1.1)"}}
+                  onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
+                <div style={{position:"absolute",inset:0,
+                  background:"linear-gradient(180deg,rgba(0,0,0,0.1) 0%,rgba(18,10,2,0.75) 100%)"}}/>
+                {/* Status badge */}
+                <div style={{position:"absolute",top:10,right:10,
+                  display:"flex",alignItems:"center",gap:5,padding:"4px 10px",
+                  background:"rgba(10,5,0,0.75)",borderRadius:20,
+                  border:`1px solid ${statusColor}44`,backdropFilter:"blur(4px)"}}>
+                  <div style={{width:6,height:6,borderRadius:"50%",background:statusColor,
+                    boxShadow:hasReading?`0 0 6px ${statusColor}88`:"none"}}/>
+                  <span style={{fontSize:9,color:statusColor,fontFamily:"Georgia,serif",letterSpacing:1}}>
+                    {calcStatus}
+                  </span>
+                </div>
+                {/* Photo upload button */}
+                <label style={{position:"absolute",top:10,left:10,cursor:"pointer",
+                  background:"rgba(0,0,0,0.6)",border:`1px solid rgba(196,154,40,0.3)`,
+                  borderRadius:8,padding:"5px 8px",display:"flex",alignItems:"center",gap:5}}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                    stroke={T.goldMid} strokeWidth="2">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                  </svg>
+                  <span style={{fontSize:9,color:T.goldMid,fontFamily:"Georgia,serif",letterSpacing:0.5}}>Photo</span>
+                  <input type="file" accept="image/*" style={{display:"none"}}
+                    onChange={e=>handlePhotoUpload(h.id,e)}/>
+                </label>
+                {/* Name overlay */}
+                <div style={{position:"absolute",bottom:12,left:16}}>
+                  <div style={{fontSize:18,fontWeight:"bold",color:"#fff",fontFamily:"Georgia,serif",
+                    textShadow:"0 1px 6px rgba(0,0,0,0.9)"}}>{h.name}</div>
+                  <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontFamily:"Georgia,serif",
+                    fontStyle:"italic"}}>{h.wood}</div>
+                </div>
+              </div>
+
+              {/* Live readings */}
+              <div style={{padding:"14px 16px 0"}}>
+                {hasReading?(
+                  <div style={{display:"flex",gap:10,marginBottom:14}}>
+                    <div style={{flex:1,background:"rgba(61,214,140,0.08)",
+                      border:"1px solid rgba(61,214,140,0.2)",borderRadius:10,
+                      padding:"10px",textAlign:"center"}}>
+                      <div style={{fontSize:28,fontWeight:"bold",color:"#3dd68c",
+                        fontFamily:"Georgia,serif",lineHeight:1}}>{humidity}</div>
+                      <div style={{fontSize:8,color:T.textMuted,letterSpacing:2,
+                        textTransform:"uppercase",marginTop:3,fontFamily:"Georgia,serif"}}>% RH</div>
+                    </div>
+                    <div style={{flex:1,background:"rgba(196,154,40,0.08)",
+                      border:`1px solid rgba(196,154,40,0.2)`,borderRadius:10,
+                      padding:"10px",textAlign:"center"}}>
+                      <div style={{fontSize:28,fontWeight:"bold",color:T.goldMid,
+                        fontFamily:"Georgia,serif",lineHeight:1}}>{temp}</div>
+                      <div style={{fontSize:8,color:T.textMuted,letterSpacing:2,
+                        textTransform:"uppercase",marginTop:3,fontFamily:"Georgia,serif"}}>°F</div>
+                    </div>
+                    <div style={{flex:1,background:"rgba(196,154,40,0.05)",
+                      border:`1px solid rgba(196,154,40,0.1)`,borderRadius:10,
+                      padding:"10px",textAlign:"center"}}>
+                      <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",
+                        marginBottom:4}}>Last Updated</div>
+                      <div style={{fontSize:11,color:T.textPrimary,fontFamily:"Georgia,serif"}}>
+                        {lastUpdated||"—"}
+                      </div>
+                    </div>
+                  </div>
+                ):(
+                  <div style={{textAlign:"center",padding:"16px",marginBottom:14,
+                    background:"rgba(196,154,40,0.04)",border:`1px solid rgba(196,154,40,0.1)`,
+                    borderRadius:10}}>
+                    <div style={{fontSize:11,color:T.textMuted,fontFamily:"Georgia,serif",fontStyle:"italic"}}>
+                      No sensor connected · ESP32 integration coming soon
+                    </div>
+                  </div>
+                )}
+
+                {/* Cigars in this humidor */}
+                {(()=>{
+                  const hCigars=(()=>{try{const s=localStorage.getItem('mh_cigars');return s?JSON.parse(s):[];}catch{return [];}}()).filter((c:any)=>c.humidorId===h.id);
+                  const isExpanded=expandedCigars===h.id;
+                  return (
+                    <div style={{marginBottom:14}}>
+                      <button onClick={()=>setExpandedCigars(isExpanded?null:h.id)}
+                        style={{width:"100%",display:"flex",alignItems:"center",
+                          justifyContent:"space-between",background:"rgba(196,154,40,0.06)",
+                          border:`1px solid rgba(196,154,40,0.15)`,borderRadius:10,
+                          padding:"10px 14px",cursor:"pointer"}}>
+                        <div style={{display:"flex",alignItems:"center",gap:8}}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                            stroke={T.goldMid} strokeWidth="2">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                            <polyline points="9 22 9 12 15 12 15 22"/>
+                          </svg>
+                          <span style={{fontSize:12,color:T.goldMid,fontFamily:"Georgia,serif",
+                            letterSpacing:0.5}}>Cigars in this Humidor</span>
+                        </div>
+                        <div style={{display:"flex",alignItems:"center",gap:8}}>
+                          <span style={{fontSize:12,color:T.textMuted,fontFamily:"Georgia,serif"}}>
+                            {hCigars.length} / {h.capacity}
+                          </span>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                            stroke={T.textMuted} strokeWidth="2">
+                            <polyline points={isExpanded?"18 15 12 9 6 15":"6 9 12 15 18 9"}/>
+                          </svg>
+                        </div>
+                      </button>
+                      {isExpanded&&(
+                        <div style={{marginTop:8,display:"flex",flexDirection:"column",gap:6}}>
+                          {hCigars.length===0?(
+                            <div style={{textAlign:"center",padding:"16px",
+                              color:T.textMuted,fontFamily:"Georgia,serif",fontStyle:"italic",fontSize:12}}>
+                              No cigars assigned to this humidor yet
+                            </div>
+                          ):hCigars.map((c:any)=>(
+                            <div key={c.id} style={{display:"flex",alignItems:"center",gap:10,
+                              background:"rgba(0,0,0,0.3)",borderRadius:10,overflow:"hidden",
+                              border:`1px solid rgba(196,154,40,0.1)`}}>
+                              <div style={{width:44,height:44,flexShrink:0,background:"#000"}}>
+                                <img src={getCigarImage(c.vitola,c.wrapper)} alt={c.line}
+                                  style={{width:"100%",height:"100%",objectFit:"cover"}}
+                                  onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
+                              </div>
+                              <div style={{flex:1,padding:"6px 0"}}>
+                                <div style={{fontSize:12,fontWeight:"bold",color:T.textPrimary,
+                                  fontFamily:"Georgia,serif"}}>{c.line}</div>
+                                <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",
+                                  fontStyle:"italic"}}>{c.brand} · {c.vitola}</div>
+                              </div>
+                              <div style={{padding:"0 12px",textAlign:"center"}}>
+                                <div style={{fontSize:16,fontWeight:"bold",color:T.goldMid,
+                                  fontFamily:"Georgia,serif"}}>{c.count}</div>
+                                <div style={{fontSize:8,color:T.textMuted,letterSpacing:1,
+                                  textTransform:"uppercase"}}>Left</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          );
+        })}
+
+        {/* Add Humidor Form */}
+        {showForm&&(
+          <div style={{background:"linear-gradient(170deg,#1a1208,#0f0a04)",borderRadius:16,
+            border:`1px solid rgba(196,154,40,0.25)`,padding:"20px"}}>
+            <div style={{fontSize:12,color:T.goldMid,fontFamily:"Georgia,serif",letterSpacing:2,
+              textTransform:"uppercase",marginBottom:16}}>New Humidor</div>
+            <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}
+              placeholder="Humidor name" style={fi}/>
+            <input value={form.wood} onChange={e=>setForm(f=>({...f,wood:e.target.value}))}
+              placeholder="Wood type (e.g. Spanish Cedar)" style={fi}/>
+            <input value={form.capacity} onChange={e=>setForm(f=>({...f,capacity:e.target.value}))}
+              placeholder="Capacity" type="number" style={fi}/>
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={addHumidor} style={{flex:1,padding:"12px",
+                background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
+                border:"none",borderRadius:10,color:"#1a0e04",fontSize:13,
+                fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>Add</button>
+              <button onClick={()=>setShowForm(false)} style={{padding:"12px 20px",
+                background:"transparent",border:`1px solid rgba(160,120,40,0.22)`,
+                borderRadius:10,color:T.textMuted,fontSize:13,cursor:"pointer"}}>Cancel</button>
+            </div>
+          </div>
+        )}
+
+        <button onClick={()=>setShowForm(s=>!s)} style={{width:"100%",padding:"15px",
+          background:"none",border:`1px dashed rgba(160,120,40,0.22)`,borderRadius:16,
+          color:T.textMuted,fontSize:10,fontFamily:"Georgia,serif",cursor:"pointer",
+          letterSpacing:2.5,textTransform:"uppercase"}}>
+          {showForm?"— Cancel":"+ Add Humidor"}
+        </button>
+      </div>
+
+      {/* ── PERMANENT HUMIDITY CHART ── */}
+      {humidors.length>0&&(
+        <div style={{position:"sticky",bottom:90,left:0,right:0,zIndex:10,
+          background:"linear-gradient(170deg,#0a0602,#050300)",
+          borderTop:`1px solid rgba(196,154,40,0.2)`,
+          boxShadow:"0 -8px 24px rgba(0,0,0,0.8)"}}>
+          <div style={{padding:"12px 16px 8px"}}>
+            {/* Header */}
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+              <div style={{fontSize:9,letterSpacing:3,textTransform:"uppercase",
+                color:T.textMuted,fontFamily:"Georgia,serif"}}>Humidity History</div>
+              {/* Range selector */}
+              <div style={{display:"flex",gap:3}}>
+                {(['24H','7D','30D','90D'] as const).map(r=>(
+                  <button key={r} onClick={()=>setHistoryRange(r)}
+                    style={{padding:"3px 7px",
+                      background:historyRange===r?`linear-gradient(135deg,${T.goldDark},${T.goldMid})`:"transparent",
+                      border:`1px solid ${historyRange===r?"transparent":"rgba(196,154,40,0.2)"}`,
+                      borderRadius:5,color:historyRange===r?"#0a0a0a":T.textMuted,
+                      fontSize:9,fontFamily:"Georgia,serif",cursor:"pointer"}}>
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* Multi-line SVG chart */}
+            <div style={{background:"rgba(0,0,0,0.4)",borderRadius:10,padding:"10px",
+              border:`1px solid rgba(196,154,40,0.08)`}}>
+              <svg width="100%" height="70" viewBox="0 0 300 70" preserveAspectRatio="none">
+                {/* Grid lines */}
+                {[65,68,71,74].map((v,i)=>(
+                  <line key={i} x1="0" y1={70-((v-60)/20)*70} x2="300" y2={70-((v-60)/20)*70}
+                    stroke="rgba(196,154,40,0.06)" strokeWidth="1"/>
+                ))}
+                {/* Ideal zone */}
+                <rect x="0" y={70-((72-60)/20)*70} width="300"
+                  height={((72-65)/20)*70} fill="rgba(61,214,140,0.04)"/>
+                {/* One line per humidor */}
+                {humidors.map((h,i)=>{
+                  const color=HUMIDOR_COLORS[i%HUMIDOR_COLORS.length];
+                  const data=getHistoryData(h.id);
+                  return (
+                    <polyline key={h.id}
+                      points={data.map((v,j)=>`${(j/(data.length-1))*300},${70-((v-60)/20)*70}`).join(" ")}
+                      fill="none" stroke={color} strokeWidth="1.5"
+                      strokeLinecap="round" strokeLinejoin="round" opacity="0.85"/>
+                  );
+                })}
+              </svg>
+              {/* Legend */}
+              <div style={{display:"flex",flexWrap:"wrap",gap:"4px 12px",marginTop:6}}>
+                {humidors.map((h,i)=>(
+                  <div key={h.id} style={{display:"flex",alignItems:"center",gap:4}}>
+                    <div style={{width:12,height:3,borderRadius:2,
+                      background:HUMIDOR_COLORS[i%HUMIDOR_COLORS.length]}}/>
+                    <span style={{fontSize:9,color:T.textMuted,fontFamily:"Georgia,serif"}}>
+                      {h.name}
+                    </span>
+                  </div>
+                ))}
+                <div style={{display:"flex",alignItems:"center",gap:4,marginLeft:"auto"}}>
+                  <span style={{fontSize:9,color:"#3dd68c",fontFamily:"Georgia,serif"}}>
+                    Ideal: 65–72% RH
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
-
-      <div style={{margin:"14px 16px 0"}}>
-        <button onClick={()=>setShowForm(s=>!s)} style={{width:"100%",padding:"15px",background:"none",
-          border:`1px dashed rgba(160,120,40,0.22)`,borderRadius:16,color:T.textMuted,
-          fontSize:10,fontFamily:"Georgia,serif",cursor:"pointer",letterSpacing:2.5,textTransform:"uppercase",
-        }}>{showForm?"— Cancel":"+ Add Humidor"}</button>
-      </div>
     </div>
   );
 }
@@ -918,24 +1091,107 @@ function CollectionTab() {
       )}
 
       {/* Header — stats */}
-      <div style={{padding:"24px 20px 20px",borderBottom:`1px solid ${T.border}`}}>
-        <div style={{display:"flex",gap:28,alignItems:"baseline"}}>
-          <div>
-            <div style={{fontSize:36,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1}}>{mounted?total:0}</div>
-            <div style={{fontSize:9,color:T.textMuted,letterSpacing:3,textTransform:"uppercase",marginTop:5}}>{t("total_cigars")}</div>
+      <div style={{padding:"20px 16px 16px",borderBottom:`1px solid ${T.border}`}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+          <div style={{fontSize:22,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif"}}>
+            My Collection
           </div>
-          <div style={{width:1,height:36,background:T.border}}/>
-          <div>
-            <div style={{fontSize:36,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1}}>
-              {!mounted?"—":cigars.length===0?"—":(cigars.reduce((a,c)=>a+c.rating,0)/cigars.length).toFixed(1)}
-            </div>
-            <div style={{fontSize:9,color:T.textMuted,letterSpacing:3,textTransform:"uppercase",marginTop:5}}>{t("avg_rating")}</div>
+          <div style={{fontSize:9,color:T.textMuted,letterSpacing:3,textTransform:"uppercase",fontFamily:"Georgia,serif"}}>
+            View All
           </div>
         </div>
+        {/* Stats row */}
+        <div style={{background:"linear-gradient(170deg,#1a1208,#0f0a04)",borderRadius:14,
+          border:`1px solid rgba(196,154,40,0.15)`,padding:"16px",marginBottom:12}}>
+          <div style={{display:"flex",gap:0,alignItems:"center"}}>
+            <div style={{flex:1,textAlign:"center"}}>
+              <div style={{fontSize:32,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1}}>
+                {mounted?total:0}
+              </div>
+              <div style={{fontSize:8,color:T.textMuted,letterSpacing:3,textTransform:"uppercase",marginTop:4,fontFamily:"Georgia,serif"}}>
+                Total Cigars
+              </div>
+            </div>
+            <div style={{width:1,height:44,background:T.border}}/>
+            {/* Collection Score ring */}
+            <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center"}}>
+              <div style={{position:"relative",width:52,height:52}}>
+                <svg width="52" height="52" viewBox="0 0 52 52">
+                  <circle cx="26" cy="26" r="22" fill="none" stroke="rgba(196,154,40,0.15)" strokeWidth="4"/>
+                  <circle cx="26" cy="26" r="22" fill="none" stroke={T.goldMid} strokeWidth="4"
+                    strokeDasharray={`${2*Math.PI*22*0.86} ${2*Math.PI*22}`}
+                    strokeDashoffset={2*Math.PI*22*0.25} strokeLinecap="round"
+                    style={{transform:"rotate(-90deg)",transformOrigin:"center"}}/>
+                </svg>
+                <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",
+                  fontSize:13,fontWeight:"bold",color:T.goldMid,fontFamily:"Georgia,serif"}}>86</div>
+              </div>
+              <div style={{fontSize:8,color:T.textMuted,letterSpacing:2,textTransform:"uppercase",marginTop:4,fontFamily:"Georgia,serif"}}>
+                Score
+              </div>
+            </div>
+            <div style={{width:1,height:44,background:T.border}}/>
+            <div style={{flex:1,textAlign:"center"}}>
+              <div style={{fontSize:20,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1}}>
+                {mounted&&cigars.length>0?`$${(cigars.reduce((a,c)=>a+c.count,0)*34).toLocaleString()}`:"—"}
+              </div>
+              <div style={{fontSize:8,color:T.textMuted,letterSpacing:3,textTransform:"uppercase",marginTop:4,fontFamily:"Georgia,serif"}}>
+                Est. Value
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quick stats row */}
+        {mounted&&cigars.length>0&&(
+          <div style={{display:"flex",gap:8}}>
+            {[
+              {label:"Brands",value:new Set(cigars.map(c=>c.brand)).size},
+              {label:"Countries",value:new Set(cigars.filter(c=>c.origin).map(c=>c.origin)).size||"—"},
+              {label:"Vitolas",value:new Set(cigars.map(c=>c.vitola)).size},
+              {label:"Avg Rating",value:cigars.length===0?"—":(cigars.reduce((a,c)=>a+c.rating,0)/cigars.length).toFixed(0)},
+            ].map(s=>(
+              <div key={s.label} style={{flex:1,background:"rgba(196,154,40,0.06)",
+                border:`1px solid rgba(196,154,40,0.1)`,borderRadius:10,padding:"8px 4px",textAlign:"center"}}>
+                <div style={{fontSize:16,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1}}>
+                  {s.value}
+                </div>
+                <div style={{fontSize:8,color:T.textMuted,letterSpacing:1.5,textTransform:"uppercase",
+                  marginTop:3,fontFamily:"Georgia,serif"}}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* ── ROLLING AD CAROUSEL ── */}
-      <AdCarousel/>
+      {/* Collection Breakdown */}
+      {mounted&&cigars.length>0&&(
+        <div style={{padding:"16px 16px 0",borderBottom:`1px solid ${T.border}`}}>
+          <div style={{fontSize:9,letterSpacing:4,textTransform:"uppercase",color:T.textMuted,
+            fontFamily:"Georgia,serif",marginBottom:10}}>Collection Breakdown</div>
+          {[
+            {label:"By Brand",value:`${new Set(cigars.map(c=>c.brand)).size} Brands`,icon:"🏷"},
+            {label:"By Country",value:`${new Set(cigars.filter(c=>c.origin).map(c=>c.origin)).size||0} Countries`,icon:"🌎"},
+            {label:"By Vitola",value:`${new Set(cigars.map(c=>c.vitola)).size} Vitolas`,icon:"🍂"},
+            {label:"By Wrapper",value:`${new Set(cigars.filter(c=>c.wrapper).map(c=>c.wrapper)).size||0} Wrapper Types`,icon:"🍃"},
+            {label:"By Strength",value:"Mild · Medium · Full",icon:"💪"},
+          ].map(row=>(
+            <div key={row.label} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+              padding:"11px 0",borderBottom:`1px solid rgba(196,154,40,0.06)`}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <span style={{fontSize:14}}>{row.icon}</span>
+                <span style={{fontSize:13,color:T.textPrimary,fontFamily:"Georgia,serif"}}>{row.label}</span>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontSize:12,color:T.textMuted,fontFamily:"Georgia,serif",fontStyle:"italic"}}>{row.value}</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(196,154,40,0.3)" strokeWidth="2">
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Pre-fill banner — Collection */}
       {pendingCollection && (
@@ -949,6 +1205,37 @@ function CollectionTab() {
             style={{marginTop:8,background:"none",border:"none",color:T.textMuted,fontSize:11,cursor:"pointer",padding:0,fontFamily:"Georgia,serif"}}>
             Dismiss
           </button>
+        </div>
+      )}
+
+      {/* Recent Additions */}
+      {mounted&&cigars.length>0&&(
+        <div style={{padding:"16px 16px 0",borderBottom:`1px solid ${T.border}`}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+            <div style={{fontSize:9,letterSpacing:4,textTransform:"uppercase",color:T.textMuted,fontFamily:"Georgia,serif"}}>
+              Recent Additions
+            </div>
+            <div style={{fontSize:9,color:T.goldMid,letterSpacing:2,textTransform:"uppercase",fontFamily:"Georgia,serif"}}>
+              See All
+            </div>
+          </div>
+          {cigars.slice(-3).reverse().map(c=>(
+            <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+              <div style={{width:44,height:44,borderRadius:8,overflow:"hidden",flexShrink:0,background:"#000"}}>
+                <img src={getCigarImage(c.vitola,c.wrapper)} alt={c.line}
+                  style={{width:"100%",height:"100%",objectFit:"cover"}}
+                  onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:12,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif"}}>{c.line}</div>
+                <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",fontStyle:"italic"}}>{c.brand}</div>
+                <div style={{fontSize:9,color:T.textMuted,fontFamily:"Georgia,serif"}}>{c.purchaseDate}</div>
+              </div>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(196,154,40,0.2)" strokeWidth="2">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+              </svg>
+            </div>
+          ))}
         </div>
       )}
 
@@ -1008,13 +1295,8 @@ function CollectionTab() {
                     </div>
                     <div style={{width:1,height:28,background:T.border}}/>
                     <div>
-                      <div style={{fontSize:20,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1}}>{h.humidity||"—"}{h.humidity?"%":""}</div>
-                      <div style={{fontSize:9,color:T.textMuted,letterSpacing:2,textTransform:"uppercase",marginTop:2}}>Humidity</div>
-                    </div>
-                    <div style={{width:1,height:28,background:T.border}}/>
-                    <div>
-                      <div style={{fontSize:20,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1}}>{h.temp||"—"}{h.temp?"°F":""}</div>
-                      <div style={{fontSize:9,color:T.textMuted,letterSpacing:2,textTransform:"uppercase",marginTop:2}}>Temp</div>
+                      <div style={{fontSize:20,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1}}>{h.capacity}</div>
+                      <div style={{fontSize:9,color:T.textMuted,letterSpacing:2,textTransform:"uppercase",marginTop:2}}>Capacity</div>
                     </div>
                   </div>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.textMuted} strokeWidth="2" strokeLinecap="round">
@@ -3146,6 +3428,7 @@ const NAV=[
   {id:"home",tk:"nav_home"},
   {id:"collection",tk:"nav_collection"},
   {id:"mario",tk:"nav_mario"},
+  {id:"humidors",tk:"nav_humidors"},
   {id:"community",tk:"nav_community"},
   {id:"profile",tk:"nav_profile"},
 ];
@@ -3303,36 +3586,214 @@ function HomeTab({liveData,liveStatus,lastUpdated,onRefresh}:{
   liveData:Record<string,{temperature:number|null;humidity:number|null;observedAt:string|null}>;
   liveStatus:"idle"|"loading"|"connected"|"error";lastUpdated:string|null;onRefresh:()=>void;
 }) {
-  const {t}=useLang();
   const h=new Date().getHours();
-  const timeStr=h<12?t("greeting_morning"):h<17?t("greeting_afternoon"):t("greeting_evening");
+  const timeStr=h<12?"Good Morning":h<17?"Good Afternoon":"Good Evening";
+
+  const FEED_ITEMS=[
+    {id:1,user:"Mario",avatar:"M",time:"2h ago",streak:17,
+      activity:"Smoked",cigar:"Padrón 1964 Exclusivo",vitola:"Robusto · Nicaragua",
+      rating:94,review:"Tons of cocoa and espresso. Incredible burn and construction.",
+      likes:24,comments:7,image:"/cigar-colorado-robusto.png",accent:T.goldMid},
+    {id:2,user:"James",avatar:"J",time:"5h ago",streak:null,
+      activity:"Added 12 Cigars",cigar:"My Father Le Bijou 1922",vitola:"Torpedo · Nicaragua",
+      rating:null,review:null,humidor:"Humidor Count: 327",
+      likes:18,comments:3,image:"/cigar-maduro-robusto.png",accent:"#8B6914"},
+    {id:3,user:"Sarah",avatar:"S",time:"8h ago",streak:null,
+      activity:"Humidor Stable",cigar:null,vitola:null,rating:null,review:null,
+      humidity:69,temp:68,likes:12,comments:2,image:null,accent:"#2a5c38"},
+    {id:4,user:"Carlos",avatar:"C",time:"12h ago",streak:9,
+      activity:"Smoked",cigar:"Arturo Fuente Opus X",vitola:"Robusto · Dominican Republic",
+      rating:96,review:"Perfect draw, incredible complexity. A true masterpiece.",
+      likes:31,comments:9,image:"/cigar-colorado-claro-robusto.png",accent:"#7a1212"},
+    {id:5,user:"Linda",avatar:"L",time:"1d ago",streak:null,
+      activity:"Added Tasting Note",cigar:"Cohiba Behike BHK 54",vitola:"BHK 54 · Cuba",
+      rating:97,review:"Creamy cedar and leather with a flawless retrohale. Exceptional.",
+      likes:44,comments:11,image:"/cigar-oscuro-robusto.png",accent:"#4a6a9a"},
+  ];
+
   return (
-    <div>
-      {/* Greeting — full width image, text overlaid on left */}
-      <div style={{borderBottom:`1px solid ${T.border}`,position:"relative",height:130,overflow:"hidden"}}>
-        {/* Full bleed humidor hygrometer image */}
-        <img src="/humidor-hygrometer.png" alt="Humidor"
-          style={{position:"absolute",inset:0,width:"100%",height:"100%",
-            objectFit:"cover",objectPosition:"60% center",
-            filter:"brightness(0.75) saturate(1.05)"}}
-          onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
-        {/* Dark overlay — heavy left so text is readable, fades right to show gauge */}
-        <div style={{position:"absolute",inset:0,
-          background:"linear-gradient(90deg,rgba(6,3,0,0.93) 0%,rgba(6,3,0,0.72) 40%,rgba(6,3,0,0.15) 100%)"}}/>
-        {/* Text on top */}
-        <div style={{position:"relative",zIndex:1,padding:"22px 18px 18px 18px",
-          display:"flex",flexDirection:"column",justifyContent:"center",height:"100%"}}>
-          <div style={{fontSize:9,color:T.textMuted,letterSpacing:4,textTransform:"uppercase",
-            fontFamily:"Georgia,serif",marginBottom:8}}>{timeStr}</div>
-          <div style={{fontSize:26,fontWeight:"bold",color:T.textPrimary,
-            fontFamily:"Georgia,serif",lineHeight:1.15}}>Zebulon</div>
-          <div style={{fontSize:13,color:T.textSecondary,fontFamily:"Georgia,serif",
-            fontStyle:"italic",marginTop:6,lineHeight:1.5}}>{t("welcome_back")}</div>
-          <div style={{width:36,height:1,background:`linear-gradient(90deg,${T.goldMid},transparent)`,marginTop:12}}/>
+    <div style={{paddingBottom:8}}>
+      {/* Header */}
+      <div style={{padding:"18px 16px 12px",borderBottom:`1px solid ${T.border}`,
+        background:"linear-gradient(180deg,rgba(18,10,2,0.98),rgba(18,10,2,0.92))"}}>
+        <div style={{fontSize:9,color:T.textMuted,letterSpacing:4,textTransform:"uppercase",
+          fontFamily:"Georgia,serif",marginBottom:4}}>{timeStr}</div>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div style={{fontSize:24,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif"}}>
+            Feed
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:6,
+            background:"rgba(196,154,40,0.1)",border:`1px solid rgba(196,154,40,0.25)`,
+            borderRadius:20,padding:"5px 12px"}}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill={T.goldMid}>
+              <path d="M12 2C9.243 2 7 4.243 7 7c0 3.866 5 13 5 13s5-9.134 5-13c0-2.757-2.243-5-5-5zm0 8c-1.657 0-3-1.343-3-3s1.343-3 3-3 3 1.343 3 3-1.343 3-3 3z"/>
+            </svg>
+            <span style={{fontSize:10,color:T.goldMid,fontFamily:"Georgia,serif",letterSpacing:1}}>
+              🔥 17 Day Streak
+            </span>
+          </div>
         </div>
       </div>
-      {/* Full gauge UI */}
-      <HumidorsTab liveData={liveData} liveStatus={liveStatus} lastUpdated={lastUpdated} onRefresh={onRefresh}/>
+
+      {/* Feed items */}
+      <div style={{display:"flex",flexDirection:"column",gap:1}}>
+        {FEED_ITEMS.map((item,idx)=>{
+          const heroImg=idx%2===0?"/club-hero.jpg":"/humidor-hero.png";
+          return (
+          <div key={item.id} style={{
+            borderBottom:`1px solid rgba(196,154,40,0.08)`}}>
+
+            {/* Hero image — alternating */}
+            <div style={{position:"relative",height:160,overflow:"hidden"}}>
+              <img src={heroImg} alt=""
+                style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center",
+                  filter:"brightness(0.55) saturate(0.9)"}}/>
+              <div style={{position:"absolute",inset:0,
+                background:"linear-gradient(180deg,rgba(18,10,2,0.85) 0%,rgba(0,0,0,0.2) 100%)"}}/>
+              {/* User row overlaid on TOP of image */}
+              <div style={{position:"absolute",top:12,left:16,right:16,
+                display:"flex",alignItems:"center",gap:10}}>
+                <div style={{width:38,height:38,borderRadius:"50%",flexShrink:0,
+                  background:`linear-gradient(135deg,${item.accent}88,${item.accent})`,
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  fontSize:14,fontWeight:"bold",color:"#fff",fontFamily:"Georgia,serif",
+                  border:`2px solid rgba(255,255,255,0.2)`}}>
+                  {item.avatar}
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontSize:14,fontWeight:"bold",color:"#fff",fontFamily:"Georgia,serif",
+                      textShadow:"0 1px 4px rgba(0,0,0,0.8)"}}>
+                      {item.user}
+                    </span>
+                    {item.streak&&(
+                      <span style={{fontSize:9,color:T.goldMid,background:"rgba(0,0,0,0.5)",
+                        border:`1px solid rgba(196,154,40,0.4)`,borderRadius:10,
+                        padding:"2px 7px",fontFamily:"Georgia,serif",letterSpacing:0.5}}>
+                        🔥 {item.streak}d Streak
+                      </span>
+                    )}
+                  </div>
+                  <div style={{fontSize:10,color:"rgba(255,255,255,0.6)",fontFamily:"Georgia,serif",marginTop:1}}>
+                    {item.time} · {item.activity}
+                  </div>
+                </div>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2">
+                  <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
+                </svg>
+              </div>
+            </div>
+
+            {/* Card content */}
+            <div style={{padding:"12px 16px",background:"linear-gradient(170deg,#1a1208,#0f0a04)"}}>
+
+            {/* Cigar info — no thumbnail, text only */}
+            {item.cigar&&(
+              <div style={{marginBottom:10,padding:"10px 12px",
+                background:"rgba(0,0,0,0.3)",borderRadius:10,
+                border:`1px solid rgba(196,154,40,0.1)`}}>
+                <div style={{fontSize:13,fontWeight:"bold",color:T.textPrimary,
+                  fontFamily:"Georgia,serif",marginBottom:2}}>{item.cigar}</div>
+                <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",
+                  fontStyle:"italic",marginBottom:6}}>{item.vitola}</div>
+                {item.rating&&(
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <div style={{fontSize:20,fontWeight:"bold",color:T.goldMid,
+                      fontFamily:"Georgia,serif",lineHeight:1}}>{item.rating}</div>
+                    <div style={{fontSize:9,color:T.textMuted,fontFamily:"Georgia,serif",
+                      letterSpacing:1,textTransform:"uppercase"}}>Points</div>
+                    <div style={{display:"flex",gap:2,marginLeft:4}}>
+                      {[1,2,3,4,5].map(s=>(
+                        <svg key={s} width="10" height="10" viewBox="0 0 24 24"
+                          fill={s<=Math.round(item.rating!/20)?T.goldMid:"rgba(196,154,40,0.2)"}>
+                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Humidor reading card */}
+            {item.humidity&&(
+              <div style={{display:"flex",gap:10,marginBottom:10}}>
+                <div style={{flex:1,background:"rgba(42,92,56,0.15)",border:"1px solid rgba(42,92,56,0.3)",
+                  borderRadius:10,padding:"10px 14px",textAlign:"center"}}>
+                  <div style={{fontSize:22,fontWeight:"bold",color:"#4ade80",fontFamily:"Georgia,serif"}}>
+                    {item.humidity}%
+                  </div>
+                  <div style={{fontSize:9,color:T.textMuted,fontFamily:"Georgia,serif",letterSpacing:2,textTransform:"uppercase"}}>RH</div>
+                </div>
+                <div style={{flex:1,background:"rgba(196,154,40,0.08)",border:`1px solid rgba(196,154,40,0.2)`,
+                  borderRadius:10,padding:"10px 14px",textAlign:"center"}}>
+                  <div style={{fontSize:22,fontWeight:"bold",color:T.goldMid,fontFamily:"Georgia,serif"}}>
+                    {item.temp}°F
+                  </div>
+                  <div style={{fontSize:9,color:T.textMuted,fontFamily:"Georgia,serif",letterSpacing:2,textTransform:"uppercase"}}>Temp</div>
+                </div>
+              </div>
+            )}
+
+            {/* Review */}
+            {item.review&&(
+              <div style={{fontSize:13,color:T.textSecondary,fontFamily:"Georgia,serif",
+                fontStyle:"italic",lineHeight:1.6,marginBottom:10,
+                borderLeft:`2px solid rgba(196,154,40,0.3)`,paddingLeft:10}}>
+                "{item.review}"
+              </div>
+            )}
+
+            {/* Humidor count badge */}
+            {item.humidor&&(
+              <div style={{display:"inline-flex",alignItems:"center",gap:6,marginBottom:10,
+                background:"rgba(196,154,40,0.08)",border:`1px solid rgba(196,154,40,0.18)`,
+                borderRadius:20,padding:"4px 12px"}}>
+                <span style={{fontSize:11,color:T.goldMid,fontFamily:"Georgia,serif"}}>🗄 {item.humidor}</span>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div style={{display:"flex",alignItems:"center",gap:16,paddingTop:8,
+              borderTop:`1px solid rgba(196,154,40,0.06)`}}>
+              <button style={{display:"flex",alignItems:"center",gap:5,background:"none",
+                border:"none",cursor:"pointer",padding:0}}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                  stroke="rgba(196,154,40,0.4)" strokeWidth="2">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                </svg>
+                <span style={{fontSize:11,color:"rgba(196,154,40,0.4)",fontFamily:"Georgia,serif"}}>{item.likes}</span>
+              </button>
+              <button style={{display:"flex",alignItems:"center",gap:5,background:"none",
+                border:"none",cursor:"pointer",padding:0}}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                  stroke="rgba(196,154,40,0.4)" strokeWidth="2">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+                <span style={{fontSize:11,color:"rgba(196,154,40,0.4)",fontFamily:"Georgia,serif"}}>{item.comments}</span>
+              </button>
+              <button style={{display:"flex",alignItems:"center",gap:5,background:"none",
+                border:"none",cursor:"pointer",padding:0}}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                  stroke="rgba(196,154,40,0.4)" strokeWidth="2">
+                  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+                  <polyline points="16 6 12 2 8 6"/>
+                  <line x1="12" y1="2" x2="12" y2="15"/>
+                </svg>
+              </button>
+              <div style={{flex:1}}/>
+              <button style={{display:"flex",alignItems:"center",gap:5,background:"none",
+                border:"none",cursor:"pointer",padding:0}}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                  stroke="rgba(196,154,40,0.4)" strokeWidth="2">
+                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+                </svg>
+              </button>
+            </div>
+            </div>{/* end card content */}
+          </div>
+        );})}
+      </div>
     </div>
   );
 }
@@ -3395,7 +3856,7 @@ export default function MariosHumidor() {
   const [showCompose,setShowCompose]=useState(false);
   const [activeClubTab,setActiveClubTab]=useState<'feed'|'news'|'trending'|'rareFinds'|'spotlights'|'showcase'|'events'|'learn'>('feed');
 
-  const TAB_ORDER=["home","collection","mario","community","profile"];
+  const TAB_ORDER=["home","collection","mario","humidors","community","profile"];
   const touchStartX=useRef<number|null>(null);
   const touchStartY=useRef<number|null>(null);
   const [prevTab,setPrevTab]=useState<string|null>(null);
@@ -3446,6 +3907,7 @@ export default function MariosHumidor() {
       case "home":       return <HomeTab liveData={liveData} liveStatus={liveStatus} lastUpdated={lastUpdated} onRefresh={()=>fetchLive(false)}/>;
       case "collection": return <CollectionTab/>;
       case "mario":      return <AskMarioTab liveData={liveData}/>;
+      case "humidors":   return <HumidorsTab liveData={liveData} liveStatus={liveStatus} lastUpdated={lastUpdated} onRefresh={()=>fetchLive(false)}/>;
       case "community":  return <CommunityTab activeSubTab={activeClubTab} setActiveSubTab={setActiveClubTab}/>;
       case "profile":    return <ProfileTab/>;
       default:           return <HomeTab liveData={liveData} liveStatus={liveStatus} lastUpdated={lastUpdated} onRefresh={()=>fetchLive(false)}/>;
