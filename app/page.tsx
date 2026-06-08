@@ -323,9 +323,8 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
   onRefresh:()=>void;
 }) {
   type Humidor={id:number;name:string;wood:string;capacity:number;status:string;photo?:string};
-  const [humidors,setHumidors]=useState<Humidor[]>(()=>{
-    try{const s=localStorage.getItem('mh_humidors');return s?JSON.parse(s):[];}catch{return [];}
-  });
+  const [humidors,setHumidors]=useState<Humidor[]>([]);
+  const [mounted,setMounted]=useState(false);
   const [showForm,setShowForm]=useState(false);
   const [form,setForm]=useState({name:"",wood:"Spanish Cedar",capacity:"150"});
   const [selectedHumidor,setSelectedHumidor]=useState<number|null>(null);
@@ -340,8 +339,14 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
   };
 
   useEffect(()=>{
+    try{const s=localStorage.getItem('mh_humidors');if(s)setHumidors(JSON.parse(s));}catch{}
+    setMounted(true);
+  },[]);
+
+  useEffect(()=>{
+    if(!mounted) return;
     try{localStorage.setItem('mh_humidors',JSON.stringify(humidors));}catch{}
-  },[humidors]);
+  },[humidors,mounted]);
 
   const getLive=(name:string)=>liveData[name]??null;
   const connected=liveStatus==="connected";
@@ -394,14 +399,14 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
 
       {/* Humidor cards */}
       <div style={{padding:"16px 16px 0",display:"flex",flexDirection:"column",gap:16}}>
-        {humidors.length===0&&!showForm&&(
+        {(!mounted||humidors.length===0)&&!showForm&&(
           <div style={{textAlign:"center",padding:"40px 20px",color:T.textMuted,
             fontFamily:"Georgia,serif",fontStyle:"italic"}}>
-            No humidors yet — add your first one below
+            {mounted?"No humidors yet — add your first one below":"Loading…"}
           </div>
         )}
 
-        {humidors.map(h=>{
+        {mounted&&humidors.map((h,humIdx)=>{
           const live=getLive(h.name);
           const humidity=live?.humidity??null;
           const temp=live?.temperature??null;
