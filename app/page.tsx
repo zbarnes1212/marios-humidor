@@ -23,7 +23,7 @@ const LANGS:{code:LangCode;flag:string;name:string}[]=[
 const TRANSLATIONS:{[K in LangCode]:Record<string,string>}={
   en:{
     // Nav
-    nav_home:"Feed",nav_collection:"Collection",nav_mario:"Mario",nav_humidors:"Humidors",nav_community:"Social Club",nav_profile:"Profile",
+    nav_home:"Feed",nav_collection:"Collection",nav_mario:"Mario",nav_humidors:"Humidors",nav_challenges:"Challenges",nav_community:"Social Club",nav_profile:"Profile",
     // Home
     greeting_morning:"Good morning",greeting_afternoon:"Good afternoon",greeting_evening:"Good evening",
     welcome_back:"Welcome back to the lounge.",
@@ -3445,6 +3445,7 @@ const NAV=[
   {id:"collection",tk:"nav_collection"},
   {id:"humidors",tk:"nav_humidors"},
   {id:"mario",tk:"nav_mario"},
+  {id:"challenges",tk:"nav_challenges"},
   {id:"community",tk:"nav_community"},
   {id:"profile",tk:"nav_profile"},
 ];
@@ -3461,6 +3462,12 @@ function NavIcon({id,active}:{id:string,active:boolean}) {
         })}
         <line x1="11" y1="11" x2="11" y2="4.8" stroke={active?T.goldLight:T.goldMid} strokeWidth="1.4" strokeLinecap="round"/>
         <circle cx="11" cy="11" r="1.4" fill={c}/>
+      </svg>
+    ),
+    challenges:(
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <path d="M11 2l2.5 5 5.5.8-4 3.9.9 5.5L11 14.5 6.1 17.2l.9-5.5L3 7.8l5.5-.8L11 2z"
+          stroke={c} strokeWidth="1.4" strokeLinejoin="round" fill="none"/>
       </svg>
     ),
     home:(
@@ -3815,6 +3822,155 @@ function HomeTab({liveData,liveStatus,lastUpdated,onRefresh}:{
 }
 
 // ── PROFILE TAB ────────────────────────────────────────────────────────────
+// ── CHALLENGES TAB ─────────────────────────────────────────────────────────
+function ChallengesTab() {
+  const ACTIVE_CHALLENGES=[
+    {id:1,icon:"🔥",title:"Smoke 5 Different Brands",subtitle:"This Month Challenge",
+      progress:73,color:"#e05050",detail:"4 of 5 brands smoked"},
+    {id:2,icon:"🌎",title:"World Tour Challenge",subtitle:"Smoke cigars from 4 countries",
+      progress:75,color:T.goldMid,detail:"3 of 4 countries",
+      flags:["🇳🇮","🇩🇴","🇨🇺","🇭🇳"]},
+    {id:3,icon:"💧",title:"Humidor Perfection",subtitle:"Maintain 65-70% RH for 30 days",
+      progress:70,color:"#6a9fe0",detail:"21 of 30 days"},
+    {id:4,icon:"📓",title:"Tasting Notes Challenge",subtitle:"Write 10 detailed reviews",
+      progress:60,color:"#b67ee0",detail:"6 of 10 reviews"},
+    {id:5,icon:"🗄",title:"Collection Builder",subtitle:"Add 20 cigars to your collection",
+      progress:60,color:"#3dd68c",detail:"12 of 20 cigars"},
+  ];
+
+  const COMPLETED_CHALLENGES=[
+    {id:1,icon:"🏆",title:"Weekend Warrior",subtitle:"Smoke 3 cigars in a weekend",color:T.goldMid},
+    {id:2,icon:"⭐",title:"First Review",subtitle:"Write your first tasting note",color:"#3dd68c"},
+    {id:3,icon:"🔥",title:"7-Day Streak",subtitle:"Log a cigar 7 days in a row",color:"#e05050"},
+  ];
+
+  return (
+    <div style={{paddingBottom:100}}>
+      {/* Hero */}
+      <div style={{position:"relative",height:160,overflow:"hidden",
+        background:"linear-gradient(135deg,#1a0a02,#0f0600)"}}>
+        <img src="/humidor-hero.png" alt="" style={{position:"absolute",inset:0,
+          width:"100%",height:"100%",objectFit:"cover",
+          filter:"brightness(0.35) saturate(0.8)"}}
+          onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
+        <div style={{position:"absolute",inset:0,
+          background:"linear-gradient(180deg,rgba(0,0,0,0.2) 0%,rgba(18,10,2,0.9) 100%)"}}/>
+        <div style={{position:"relative",zIndex:1,padding:"28px 20px 20px",height:"100%",
+          display:"flex",flexDirection:"column",justifyContent:"flex-end"}}>
+          <div style={{fontSize:9,color:T.goldMid,letterSpacing:4,textTransform:"uppercase",
+            fontFamily:"Georgia,serif",marginBottom:6}}>Mario's Humidor</div>
+          <div style={{fontSize:26,fontWeight:"bold",color:"#fff",fontFamily:"Georgia,serif",
+            lineHeight:1.1,marginBottom:4}}>Challenges</div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,0.55)",fontFamily:"Georgia,serif",
+            fontStyle:"italic"}}>
+            Complete challenges, earn recognition, level up your cigar journey
+          </div>
+        </div>
+      </div>
+
+      {/* Active Challenges */}
+      <div style={{padding:"20px 16px 0"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+          <div style={{fontSize:9,letterSpacing:4,textTransform:"uppercase",
+            color:T.textMuted,fontFamily:"Georgia,serif"}}>Active Challenges</div>
+          <div style={{fontSize:9,color:T.goldMid,letterSpacing:2,textTransform:"uppercase",
+            fontFamily:"Georgia,serif"}}>View All</div>
+        </div>
+
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {ACTIVE_CHALLENGES.map(c=>(
+            <div key={c.id} style={{background:"linear-gradient(170deg,#1a1208,#0f0a04)",
+              borderRadius:14,border:`1px solid rgba(196,154,40,0.15)`,
+              padding:"16px",boxShadow:"0 4px 16px rgba(0,0,0,0.4)"}}>
+              <div style={{display:"flex",alignItems:"flex-start",gap:12,marginBottom:12}}>
+                {/* Icon */}
+                <div style={{width:42,height:42,borderRadius:12,flexShrink:0,
+                  background:`linear-gradient(135deg,${c.color}22,${c.color}44)`,
+                  border:`1px solid ${c.color}44`,
+                  display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>
+                  {c.icon}
+                </div>
+                {/* Info */}
+                <div style={{flex:1}}>
+                  <div style={{fontSize:14,fontWeight:"bold",color:T.textPrimary,
+                    fontFamily:"Georgia,serif",lineHeight:1.2,marginBottom:2}}>{c.title}</div>
+                  <div style={{fontSize:11,color:T.textMuted,fontFamily:"Georgia,serif",
+                    fontStyle:"italic"}}>{c.subtitle}</div>
+                  {c.flags&&(
+                    <div style={{display:"flex",gap:4,marginTop:6}}>
+                      {c.flags.map((f,i)=>(
+                        <span key={i} style={{fontSize:16,opacity:i<3?1:0.3}}>{f}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* Percentage */}
+                <div style={{textAlign:"right",flexShrink:0}}>
+                  <div style={{fontSize:18,fontWeight:"bold",color:c.color,
+                    fontFamily:"Georgia,serif",lineHeight:1}}>{c.progress}%</div>
+                  <div style={{fontSize:9,color:T.textMuted,letterSpacing:1,
+                    textTransform:"uppercase",marginTop:2,fontFamily:"Georgia,serif"}}>Done</div>
+                </div>
+              </div>
+              {/* Progress bar */}
+              <div>
+                <div style={{height:6,background:"rgba(0,0,0,0.4)",borderRadius:6,
+                  overflow:"hidden",marginBottom:6}}>
+                  <div style={{height:"100%",width:`${c.progress}%`,
+                    background:`linear-gradient(90deg,${c.color}88,${c.color})`,
+                    borderRadius:6,boxShadow:`0 0 8px ${c.color}44`,
+                    transition:"width 0.6s ease"}}/>
+                </div>
+                <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",
+                  fontStyle:"italic"}}>{c.detail}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Completed Challenges */}
+      <div style={{padding:"24px 16px 0"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+          <div style={{fontSize:9,letterSpacing:4,textTransform:"uppercase",
+            color:T.textMuted,fontFamily:"Georgia,serif"}}>Completed Challenges</div>
+          <div style={{fontSize:9,color:T.goldMid,letterSpacing:2,textTransform:"uppercase",
+            fontFamily:"Georgia,serif"}}>See All</div>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {COMPLETED_CHALLENGES.map(c=>(
+            <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,
+              background:"linear-gradient(170deg,#1a1208,#0f0a04)",
+              borderRadius:12,border:`1px solid rgba(196,154,40,0.1)`,padding:"12px 14px"}}>
+              <div style={{width:36,height:36,borderRadius:10,flexShrink:0,
+                background:`linear-gradient(135deg,${c.color}22,${c.color}33)`,
+                border:`1px solid ${c.color}33`,
+                display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>
+                {c.icon}
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:"bold",color:T.textPrimary,
+                  fontFamily:"Georgia,serif"}}>{c.title}</div>
+                <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",
+                  fontStyle:"italic"}}>{c.subtitle}</div>
+              </div>
+              <div style={{width:24,height:24,borderRadius:"50%",
+                background:"rgba(61,214,140,0.15)",
+                border:"1px solid rgba(61,214,140,0.3)",
+                display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                  stroke="#3dd68c" strokeWidth="2.5" strokeLinecap="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ProfileTab() {
   return <SettingsTab/>;
 }
@@ -3872,7 +4028,7 @@ export default function MariosHumidor() {
   const [showCompose,setShowCompose]=useState(false);
   const [activeClubTab,setActiveClubTab]=useState<'feed'|'news'|'trending'|'rareFinds'|'spotlights'|'showcase'|'events'|'learn'>('feed');
 
-  const TAB_ORDER=["home","collection","humidors","mario","community","profile"];
+  const TAB_ORDER=["home","collection","humidors","mario","challenges","community","profile"];
   const touchStartX=useRef<number|null>(null);
   const touchStartY=useRef<number|null>(null);
   const [prevTab,setPrevTab]=useState<string|null>(null);
@@ -3924,6 +4080,7 @@ export default function MariosHumidor() {
       case "collection": return <CollectionTab/>;
       case "mario":      return <AskMarioTab liveData={liveData}/>;
       case "humidors":   return <HumidorsTab liveData={liveData} liveStatus={liveStatus} lastUpdated={lastUpdated} onRefresh={()=>fetchLive(false)}/>;
+      case "challenges": return <ChallengesTab/>;
       case "community":  return <CommunityTab activeSubTab={activeClubTab} setActiveSubTab={setActiveClubTab}/>;
       case "profile":    return <ProfileTab/>;
       default:           return <HomeTab liveData={liveData} liveStatus={liveStatus} lastUpdated={lastUpdated} onRefresh={()=>fetchLive(false)}/>;
