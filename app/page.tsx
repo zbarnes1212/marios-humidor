@@ -332,6 +332,7 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
   const [selectedHumidor,setSelectedHumidor]=useState<number|null>(null);
   const [historyRange,setHistoryRange]=useState<'24H'|'7D'|'30D'|'90D'>('24H');
   const [expandedCigars,setExpandedCigars]=useState<number|null>(null);
+  const [addingToHumidor,setAddingToHumidor]=useState<number|null>(null);
   const [humidorCigars,setHumidorCigars]=useState<any[]>([]);
   const {t}=useLang();
 
@@ -389,6 +390,13 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
     const updated=humidorCigars.map((c:any)=>c.id===cigarId?{...c,humidorId:null}:c);
     setHumidorCigars(updated);
     try{localStorage.setItem('mh_cigars',JSON.stringify(updated));}catch{}
+  };
+
+  const addCigarToHumidor=(cigarId:number,humidorId:number)=>{
+    const updated=humidorCigars.map((c:any)=>c.id===cigarId?{...c,humidorId}:c);
+    setHumidorCigars(updated);
+    try{localStorage.setItem('mh_cigars',JSON.stringify(updated));}catch{}
+    setAddingToHumidor(null);
   };
 
   const handlePhotoUpload=(id:number,e:React.ChangeEvent<HTMLInputElement>)=>{
@@ -632,6 +640,60 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
                               </div>
                             </div>
                           ))}
+
+                          {/* Add Cigar button */}
+                          {addingToHumidor===h.id?(
+                            <div style={{background:"rgba(0,0,0,0.3)",borderRadius:10,
+                              border:`1px solid rgba(196,154,40,0.15)`,padding:"10px"}}>
+                              <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",
+                                letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>
+                                Select a cigar to add
+                              </div>
+                              {humidorCigars.filter((c:any)=>!c.humidorId||c.humidorId===null).length===0?(
+                                <div style={{fontSize:11,color:T.textMuted,fontFamily:"Georgia,serif",
+                                  fontStyle:"italic",textAlign:"center",padding:"8px"}}>
+                                  All cigars are already assigned to a humidor
+                                </div>
+                              ):humidorCigars.filter((c:any)=>!c.humidorId||c.humidorId===null).map((c:any)=>(
+                                <button key={c.id} onClick={()=>addCigarToHumidor(c.id,h.id)}
+                                  style={{width:"100%",display:"flex",alignItems:"center",gap:10,
+                                    background:"rgba(196,154,40,0.06)",borderRadius:8,
+                                    border:`1px solid rgba(196,154,40,0.1)`,
+                                    padding:"8px 10px",marginBottom:6,cursor:"pointer"}}>
+                                  <div style={{width:36,height:36,flexShrink:0,background:"#000",borderRadius:6,overflow:"hidden"}}>
+                                    <img src={getCigarImage(c.vitola,c.wrapper)} alt={c.line}
+                                      style={{width:"100%",height:"100%",objectFit:"cover"}}
+                                      onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
+                                  </div>
+                                  <div style={{flex:1,textAlign:"left"}}>
+                                    <div style={{fontSize:12,fontWeight:"bold",color:T.textPrimary,
+                                      fontFamily:"Georgia,serif"}}>{c.line}</div>
+                                    <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",
+                                      fontStyle:"italic"}}>{c.brand} · {c.count} left</div>
+                                  </div>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                                    stroke={T.goldMid} strokeWidth="2">
+                                    <line x1="12" y1="5" x2="12" y2="19"/>
+                                    <line x1="5" y1="12" x2="19" y2="12"/>
+                                  </svg>
+                                </button>
+                              ))}
+                              <button onClick={()=>setAddingToHumidor(null)}
+                                style={{width:"100%",padding:"8px",background:"transparent",
+                                  border:`1px solid rgba(196,154,40,0.15)`,borderRadius:8,
+                                  color:T.textMuted,fontSize:11,cursor:"pointer",fontFamily:"Georgia,serif"}}>
+                                Cancel
+                              </button>
+                            </div>
+                          ):(
+                            <button onClick={()=>setAddingToHumidor(h.id)}
+                              style={{width:"100%",padding:"10px",background:"transparent",
+                                border:`1px dashed rgba(196,154,40,0.25)`,borderRadius:10,
+                                color:T.goldMid,fontSize:11,cursor:"pointer",
+                                fontFamily:"Georgia,serif",letterSpacing:1}}>
+                              + Add Cigar to this Humidor
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1088,10 +1150,12 @@ function CollectionTab() {
   const [cigars,setCigars]=useState<CigarEntry[]>(CIGARS);
   const [mounted,setMounted]=useState(false);
   const [activeHumidor,setActiveHumidor]=useState<number|null>(null);
+  const [allHumidors,setAllHumidors]=useState<{id:number;name:string}[]>([]);
 
   useEffect(()=>{
     setMounted(true);
     try{const s=localStorage.getItem('mh_cigars');if(s)setCigars(JSON.parse(s));}catch{}
+    try{const s=localStorage.getItem('mh_humidors');if(s)setAllHumidors(JSON.parse(s));}catch{}
   },[]);
 
   useEffect(()=>{
@@ -1111,7 +1175,7 @@ function CollectionTab() {
       rating:parseInt(addForm.rating)||90,count:parseInt(addForm.count)||1,
       purchaseDate:new Date().toLocaleDateString("en-US",{month:"short",year:"numeric"}),
       bandColor:"#2a1608",
-      humidorId:activeHumidor??HUMIDORS[0].id
+      humidorId:activeHumidor??null
     };
     setCigars(prev=>[...prev,newC]);
     setAddForm({brand:"",line:"",vitola:"",origin:"",wrapper:"",count:"1",rating:"90"});
@@ -1346,7 +1410,7 @@ function CollectionTab() {
         <div style={{padding:"20px 16px 0"}}>
           <div style={{fontSize:9,letterSpacing:4,textTransform:"uppercase",color:T.textMuted,
             fontFamily:"Georgia,serif",marginBottom:16}}>My Humidors</div>
-          {HUMIDORS.map(h=>{
+          {allHumidors.map(h=>{
             const hCigars=cigars.filter(c=>c.humidorId===h.id);
             const cigarCount=hCigars.reduce((a,c)=>a+c.count,0);
             const statusColor=h.status==="optimal"?"#2a7a4a":h.status==="good"?"#7a6a1a":h.status==="no_data"?"#3a3a3a":"#7a2a2a";
@@ -1423,7 +1487,7 @@ function CollectionTab() {
             </button>
             <span style={{color:T.textMuted,fontSize:13}}>/</span>
             <span style={{color:T.textPrimary,fontFamily:"Georgia,serif",fontSize:13,fontWeight:"bold"}}>
-              {HUMIDORS.find(h=>h.id===activeHumidor)?.name}
+              {allHumidors.find(h=>h.id===activeHumidor)?.name}
             </span>
           </div>
 
@@ -1586,13 +1650,14 @@ function CollectionTab() {
             {/* Humidor selector */}
             <div style={{marginBottom:10}}>
               <div style={{fontSize:9,color:T.textMuted,letterSpacing:2,textTransform:"uppercase",marginBottom:5}}>Humidor</div>
-              <select value={activeHumidor??HUMIDORS[0].id} disabled={activeHumidor!==null}
-                onChange={()=>{}}
+              <select value={activeHumidor??allHumidors[0]?.id??""} disabled={activeHumidor!==null}
+                onChange={e=>setActiveHumidor(parseInt(e.target.value)||null)}
                 style={{width:"100%",background:"rgba(0,0,0,0.25)",border:`1px solid ${T.border}`,borderRadius:8,
                   padding:"10px 14px",color:T.textPrimary,fontSize:13,outline:"none",
                   boxSizing:"border-box" as const,fontFamily:"Georgia,serif",
                   opacity:activeHumidor!==null?0.6:1}}>
-                {HUMIDORS.map(h=><option key={h.id} value={h.id}>{h.name}</option>)}
+                <option value="">No Humidor</option>
+                {allHumidors.map(h=><option key={h.id} value={h.id}>{h.name}</option>)}
               </select>
             </div>
             {([["Brand *","brand","e.g. Padrón"],["Line *","line","e.g. 1964 Anniversary"],["Vitola","vitola","e.g. Robusto"],
