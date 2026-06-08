@@ -501,7 +501,9 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
 
                 {/* Cigars in this humidor */}
                 {(()=>{
-                  const hCigars=(()=>{try{const s=localStorage.getItem('mh_cigars');return s?JSON.parse(s):[];}catch{return [];}}()).filter((c:any)=>c.humidorId===h.id);
+                  let hCigars:any[]=[];
+                  try{const s=localStorage.getItem('mh_cigars');hCigars=s?JSON.parse(s):[];}catch{}
+                  hCigars=hCigars.filter((c:any)=>c.humidorId===h.id);
                   const isExpanded=expandedCigars===h.id;
                   return (
                     <div style={{marginBottom:14}}>
