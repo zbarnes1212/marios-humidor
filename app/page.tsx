@@ -23,7 +23,7 @@ const LANGS:{code:LangCode;flag:string;name:string}[]=[
 const TRANSLATIONS:{[K in LangCode]:Record<string,string>}={
   en:{
     // Nav
-    nav_home:"Feed",nav_collection:"Collection",nav_mario:"Mario",nav_humidors:"Humidors",nav_challenges:"Challenges",nav_community:"Social Club",nav_profile:"Profile",
+    nav_home:"Feed",nav_collection:"Collection",nav_mario:"Mario",nav_humidors:"Humidors",nav_challenges:"Challenges",nav_leaderboard:"Leaderboard",nav_community:"Social Club",nav_profile:"Profile",
     // Home
     greeting_morning:"Good morning",greeting_afternoon:"Good afternoon",greeting_evening:"Good evening",
     welcome_back:"Welcome back to the lounge.",
@@ -1748,6 +1748,8 @@ const QUICK_PROMPTS=[
     icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M8 22H5a2 2 0 0 1-2-2V7l3-4h8l3 4v13a2 2 0 0 1-2 2h-3"/><path d="M12 11v11"/><path d="M9 8h6"/></svg>},
   {tk:"quick_tonight",
     icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/><path d="M19 3v4"/><path d="M21 5h-4"/></svg>},
+  {label:"Find a cigar lounge near me",
+    icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>},
 ];
 
 function AskMarioTab({liveData}:{liveData:Record<string,{temperature:number|null;humidity:number|null;observedAt:string|null}>}) {
@@ -1843,20 +1845,41 @@ function AskMarioTab({liveData}:{liveData:Record<string,{temperature:number|null
 
       {/* Quick prompts — full width stacked with icons */}
       <div style={{padding:"10px 16px 6px",display:"flex",flexDirection:"column",gap:8,flexShrink:0}}>
-        {QUICK_PROMPTS.map((p)=>(
-          <button key={p.tk} onClick={()=>send(t(p.tk))}
-            style={{width:"100%",background:"linear-gradient(170deg,#1a1a1a,#111111)",
-              border:`1px solid rgba(196,154,40,0.22)`,borderRadius:12,
-              padding:"14px 18px",color:T.textPrimary,fontSize:15,cursor:"pointer",
-              fontFamily:"Georgia,serif",textAlign:"left",display:"flex",
-              alignItems:"center",justifyContent:"space-between"}}>
-            <span style={{display:"flex",alignItems:"center",gap:12}}>
-              <span style={{color:T.goldMid,flexShrink:0}}>{p.icon}</span>
-              <span>{t(p.tk)}</span>
-            </span>
-            <span style={{color:T.goldMid,fontSize:20}}>›</span>
-          </button>
-        ))}
+        {QUICK_PROMPTS.map((p,i)=>{
+          const label=p.label||(p.tk?t(p.tk as any):"");
+          const isLounge=label.includes("lounge");
+          const handleClick=()=>{
+            if(isLounge){
+              if(navigator.geolocation){
+                navigator.geolocation.getCurrentPosition(
+                  pos=>{
+                    const {latitude,longitude}=pos.coords;
+                    send(`Find me a premium cigar lounge near coordinates ${latitude.toFixed(4)}, ${longitude.toFixed(4)}. Give me the top 3 options with name, address, and what makes each one special.`);
+                  },
+                  ()=>send("Find me a premium cigar lounge near me. Give me top recommendations with what makes each one special.")
+                );
+              } else {
+                send("Find me a premium cigar lounge near me. Give me top recommendations with what makes each one special.");
+              }
+            } else {
+              send(label);
+            }
+          };
+          return (
+            <button key={i} onClick={handleClick}
+              style={{width:"100%",background:isLounge?`linear-gradient(170deg,rgba(196,154,40,0.1),rgba(196,154,40,0.05))`:"linear-gradient(170deg,#1a1a1a,#111111)",
+                border:`1px solid ${isLounge?"rgba(196,154,40,0.35)":"rgba(196,154,40,0.22)"}`,borderRadius:12,
+                padding:"14px 18px",color:T.textPrimary,fontSize:15,cursor:"pointer",
+                fontFamily:"Georgia,serif",textAlign:"left",display:"flex",
+                alignItems:"center",justifyContent:"space-between"}}>
+              <span style={{display:"flex",alignItems:"center",gap:12}}>
+                <span style={{color:T.goldMid,flexShrink:0}}>{p.icon}</span>
+                <span>{label}</span>
+              </span>
+              <span style={{color:T.goldMid,fontSize:20}}>›</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Input */}
@@ -3446,6 +3469,7 @@ const NAV=[
   {id:"humidors",tk:"nav_humidors"},
   {id:"mario",tk:"nav_mario"},
   {id:"challenges",tk:"nav_challenges"},
+  {id:"leaderboard",tk:"nav_leaderboard"},
   {id:"community",tk:"nav_community"},
   {id:"profile",tk:"nav_profile"},
 ];
@@ -3468,6 +3492,13 @@ function NavIcon({id,active}:{id:string,active:boolean}) {
       <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
         <path d="M11 2l2.5 5 5.5.8-4 3.9.9 5.5L11 14.5 6.1 17.2l.9-5.5L3 7.8l5.5-.8L11 2z"
           stroke={c} strokeWidth="1.4" strokeLinejoin="round" fill="none"/>
+      </svg>
+    ),
+    leaderboard:(
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <rect x="2" y="12" width="4" height="8" rx="1" stroke={c} strokeWidth="1.4"/>
+        <rect x="9" y="7" width="4" height="13" rx="1" stroke={c} strokeWidth="1.4"/>
+        <rect x="16" y="3" width="4" height="17" rx="1" stroke={c} strokeWidth="1.4"/>
       </svg>
     ),
     home:(
@@ -3971,6 +4002,230 @@ function ChallengesTab() {
   );
 }
 
+// ── LEADERBOARD TAB ────────────────────────────────────────────────────────
+function LeaderboardTab() {
+  const [category,setCategory]=useState<'reviewer'|'streak'|'notes'|'explorer'|'guardian'|'ambassador'>('reviewer');
+
+  const CATEGORIES=[
+    {id:'reviewer',icon:'⭐',label:'Top Reviewer'},
+    {id:'streak',icon:'🔥',label:'Smoke Streak'},
+    {id:'notes',icon:'📓',label:'Tasting Notes'},
+    {id:'explorer',icon:'🌎',label:'Explorer'},
+    {id:'guardian',icon:'💧',label:'Humidor Guardian'},
+    {id:'ambassador',icon:'👑',label:'Ambassador'},
+  ];
+
+  const LEADERBOARD_DATA:{[key:string]:{rank:number;name:string;avatar:string;score:number;detail:string;trend:'up'|'down'|'same'}[]}={
+    reviewer:[
+      {rank:1,name:"Michael",avatar:"M",score:1247,detail:"1,247 Points",trend:"same"},
+      {rank:2,name:"Sarah",avatar:"S",score:1183,detail:"1,183 Points",trend:"up"},
+      {rank:3,name:"James",avatar:"J",score:1071,detail:"1,071 Points",trend:"down"},
+      {rank:4,name:"Robert",avatar:"R",score:982,detail:"982 Points",trend:"up"},
+      {rank:5,name:"Carlos",avatar:"C",score:914,detail:"914 Points",trend:"down"},
+      {rank:6,name:"David",avatar:"D",score:876,detail:"876 Points",trend:"up"},
+      {rank:7,name:"Linda",avatar:"L",score:823,detail:"823 Points",trend:"down"},
+      {rank:8,name:"Chris",avatar:"Ch",score:794,detail:"794 Points",trend:"same"},
+      {rank:9,name:"Anthony",avatar:"A",score:752,detail:"752 Points",trend:"up"},
+      {rank:10,name:"Mark",avatar:"Mk",score:701,detail:"701 Points",trend:"down"},
+    ],
+    streak:[
+      {rank:1,name:"Carlos",avatar:"C",score:47,detail:"47 Day Streak",trend:"up"},
+      {rank:2,name:"Michael",avatar:"M",score:31,detail:"31 Day Streak",trend:"same"},
+      {rank:3,name:"Linda",avatar:"L",score:28,detail:"28 Day Streak",trend:"up"},
+      {rank:4,name:"James",avatar:"J",score:21,detail:"21 Day Streak",trend:"down"},
+      {rank:5,name:"Sarah",avatar:"S",score:17,detail:"17 Day Streak",trend:"up"},
+    ],
+    notes:[
+      {rank:1,name:"Sarah",avatar:"S",score:89,detail:"89 Tasting Notes",trend:"up"},
+      {rank:2,name:"David",avatar:"D",score:74,detail:"74 Tasting Notes",trend:"same"},
+      {rank:3,name:"Michael",avatar:"M",score:61,detail:"61 Tasting Notes",trend:"down"},
+      {rank:4,name:"Linda",avatar:"L",score:55,detail:"55 Tasting Notes",trend:"up"},
+      {rank:5,name:"Robert",avatar:"R",score:48,detail:"48 Tasting Notes",trend:"same"},
+    ],
+    explorer:[
+      {rank:1,name:"James",avatar:"J",score:18,detail:"18 Vitolas · 12 Countries",trend:"same"},
+      {rank:2,name:"Anthony",avatar:"A",score:15,detail:"15 Vitolas · 9 Countries",trend:"up"},
+      {rank:3,name:"Carlos",avatar:"C",score:14,detail:"14 Vitolas · 8 Countries",trend:"down"},
+    ],
+    guardian:[
+      {rank:1,name:"Robert",avatar:"R",score:99,detail:"99% Optimal Days",trend:"up"},
+      {rank:2,name:"Sarah",avatar:"S",score:97,detail:"97% Optimal Days",trend:"same"},
+      {rank:3,name:"Mark",avatar:"Mk",score:94,detail:"94% Optimal Days",trend:"up"},
+    ],
+    ambassador:[
+      {rank:1,name:"Michael",avatar:"M",score:2840,detail:"2,840 Engagement Points",trend:"same"},
+      {rank:2,name:"Sarah",avatar:"S",score:2611,detail:"2,611 Engagement Points",trend:"up"},
+      {rank:3,name:"James",avatar:"J",score:2290,detail:"2,290 Engagement Points",trend:"down"},
+    ],
+  };
+
+  const data=LEADERBOARD_DATA[category]||[];
+  const top3=data.slice(0,3);
+  const rest=data.slice(3);
+  const trendColor=(t:string)=>t==="up"?"#3dd68c":t==="down"?"#e05050":T.textMuted;
+  const trendSymbol=(t:string)=>t==="up"?"▲":t==="down"?"▼":"—";
+
+  return (
+    <div style={{paddingBottom:100}}>
+      {/* Hero */}
+      <div style={{background:"linear-gradient(170deg,#1a1208,#0f0a04)",
+        padding:"24px 20px 20px",borderBottom:`1px solid ${T.border}`}}>
+        <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:6}}>
+          <div style={{fontSize:28}}>🏆</div>
+          <div>
+            <div style={{fontSize:22,fontWeight:"bold",color:T.textPrimary,
+              fontFamily:"Georgia,serif",lineHeight:1.1}}>Mario's Leaderboard</div>
+            <div style={{fontSize:11,color:T.textMuted,fontFamily:"Georgia,serif",
+              fontStyle:"italic",marginTop:3}}>
+              Recognizing the most active members of the club
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Category selector */}
+      <div style={{overflowX:"auto",scrollbarWidth:"none",
+        borderBottom:`1px solid ${T.border}`,background:"#0a0602"}}>
+        <div style={{display:"flex",padding:"10px 12px",gap:6,minWidth:"max-content"}}>
+          {CATEGORIES.map(cat=>{
+            const active=category===cat.id;
+            return (
+              <button key={cat.id} onClick={()=>setCategory(cat.id as any)}
+                style={{display:"flex",alignItems:"center",gap:5,padding:"7px 12px",
+                  background:active?`linear-gradient(135deg,${T.goldDark},${T.goldMid})`:"transparent",
+                  border:`1px solid ${active?"transparent":"rgba(196,154,40,0.2)"}`,
+                  borderRadius:20,cursor:"pointer",flexShrink:0,transition:"all 0.18s"}}>
+                <span style={{fontSize:13}}>{cat.icon}</span>
+                <span style={{fontSize:11,color:active?"#0a0a0a":T.textMuted,
+                  fontFamily:"Georgia,serif",whiteSpace:"nowrap",letterSpacing:0.3}}>
+                  {cat.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{padding:"20px 16px 0"}}>
+        {/* Podium — top 3 */}
+        {top3.length>=3&&(
+          <div style={{display:"flex",alignItems:"flex-end",justifyContent:"center",
+            gap:8,marginBottom:24,height:160}}>
+            {/* 2nd place */}
+            <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
+              <div style={{fontSize:11,color:T.textMuted,fontFamily:"Georgia,serif"}}>{top3[1].detail}</div>
+              <div style={{width:52,height:52,borderRadius:"50%",
+                background:"linear-gradient(135deg,rgba(192,192,192,0.2),rgba(192,192,192,0.4))",
+                border:"2px solid rgba(192,192,192,0.5)",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                fontSize:18,fontWeight:"bold",color:"#fff",fontFamily:"Georgia,serif"}}>
+                {top3[1].avatar}
+              </div>
+              <div style={{fontSize:13,fontWeight:"bold",color:T.textPrimary,
+                fontFamily:"Georgia,serif"}}>{top3[1].name}</div>
+              <div style={{width:"100%",background:"linear-gradient(180deg,#2a2a2a,#1a1a1a)",
+                borderRadius:"8px 8px 0 0",height:80,border:`1px solid rgba(192,192,192,0.2)`,
+                display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <div style={{fontSize:24,fontWeight:"bold",color:"rgba(192,192,192,0.8)",
+                  fontFamily:"Georgia,serif"}}>2</div>
+              </div>
+            </div>
+            {/* 1st place */}
+            <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
+              <div style={{fontSize:11,color:T.goldMid,fontFamily:"Georgia,serif"}}>{top3[0].detail}</div>
+              <div style={{position:"relative"}}>
+                <div style={{width:60,height:60,borderRadius:"50%",
+                  background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
+                  border:`3px solid ${T.goldLight}`,
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  fontSize:20,fontWeight:"bold",color:"#0a0a0a",fontFamily:"Georgia,serif",
+                  boxShadow:`0 0 20px rgba(196,154,40,0.5)`}}>
+                  {top3[0].avatar}
+                </div>
+                <div style={{position:"absolute",top:-8,left:"50%",transform:"translateX(-50%)",
+                  fontSize:16}}>👑</div>
+              </div>
+              <div style={{fontSize:14,fontWeight:"bold",color:T.goldMid,
+                fontFamily:"Georgia,serif"}}>{top3[0].name}</div>
+              <div style={{width:"100%",background:`linear-gradient(180deg,${T.goldDark}44,${T.goldDark}22)`,
+                borderRadius:"8px 8px 0 0",height:110,
+                border:`1px solid rgba(196,154,40,0.35)`,
+                display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <div style={{fontSize:28,fontWeight:"bold",color:T.goldMid,
+                  fontFamily:"Georgia,serif"}}>1</div>
+              </div>
+            </div>
+            {/* 3rd place */}
+            <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
+              <div style={{fontSize:11,color:T.textMuted,fontFamily:"Georgia,serif"}}>{top3[2].detail}</div>
+              <div style={{width:48,height:48,borderRadius:"50%",
+                background:"linear-gradient(135deg,rgba(205,127,50,0.2),rgba(205,127,50,0.4))",
+                border:"2px solid rgba(205,127,50,0.5)",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                fontSize:16,fontWeight:"bold",color:"#fff",fontFamily:"Georgia,serif"}}>
+                {top3[2].avatar}
+              </div>
+              <div style={{fontSize:12,fontWeight:"bold",color:T.textPrimary,
+                fontFamily:"Georgia,serif"}}>{top3[2].name}</div>
+              <div style={{width:"100%",background:"linear-gradient(180deg,#241a0e,#1a1208)",
+                borderRadius:"8px 8px 0 0",height:60,border:"1px solid rgba(205,127,50,0.2)",
+                display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <div style={{fontSize:20,fontWeight:"bold",color:"rgba(205,127,50,0.7)",
+                  fontFamily:"Georgia,serif"}}>3</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Ranked list */}
+        <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:20}}>
+          {rest.map(member=>(
+            <div key={member.rank} style={{display:"flex",alignItems:"center",gap:12,
+              background:"linear-gradient(170deg,#1a1208,#0f0a04)",
+              borderRadius:12,border:`1px solid rgba(196,154,40,0.1)`,
+              padding:"12px 14px"}}>
+              <div style={{width:28,textAlign:"center",flexShrink:0}}>
+                <span style={{fontSize:14,fontWeight:"bold",color:T.textMuted,
+                  fontFamily:"Georgia,serif"}}>#{member.rank}</span>
+              </div>
+              <div style={{width:36,height:36,borderRadius:"50%",flexShrink:0,
+                background:`linear-gradient(135deg,rgba(196,154,40,0.15),rgba(196,154,40,0.25))`,
+                border:`1px solid rgba(196,154,40,0.2)`,
+                display:"flex",alignItems:"center",justifyContent:"center",
+                fontSize:13,fontWeight:"bold",color:T.goldMid,fontFamily:"Georgia,serif"}}>
+                {member.avatar}
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:"bold",color:T.textPrimary,
+                  fontFamily:"Georgia,serif"}}>{member.name}</div>
+                <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",
+                  fontStyle:"italic"}}>{member.detail}</div>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:4}}>
+                <span style={{fontSize:10,color:trendColor(member.trend),
+                  fontFamily:"Georgia,serif"}}>{trendSymbol(member.trend)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* View Full Leaderboard */}
+        <button style={{width:"100%",padding:"13px",background:"transparent",
+          border:`1px solid rgba(196,154,40,0.2)`,borderRadius:12,
+          color:T.goldMid,fontSize:12,fontFamily:"Georgia,serif",cursor:"pointer",
+          letterSpacing:2,textTransform:"uppercase",display:"flex",
+          alignItems:"center",justifyContent:"center",gap:8}}>
+          View Full Leaderboard
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke={T.goldMid} strokeWidth="2">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ProfileTab() {
   return <SettingsTab/>;
 }
@@ -4028,7 +4283,7 @@ export default function MariosHumidor() {
   const [showCompose,setShowCompose]=useState(false);
   const [activeClubTab,setActiveClubTab]=useState<'feed'|'news'|'trending'|'rareFinds'|'spotlights'|'showcase'|'events'|'learn'>('feed');
 
-  const TAB_ORDER=["home","collection","humidors","mario","challenges","community","profile"];
+  const TAB_ORDER=["home","collection","humidors","mario","challenges","leaderboard","community","profile"];
   const touchStartX=useRef<number|null>(null);
   const touchStartY=useRef<number|null>(null);
   const [prevTab,setPrevTab]=useState<string|null>(null);
@@ -4081,6 +4336,7 @@ export default function MariosHumidor() {
       case "mario":      return <AskMarioTab liveData={liveData}/>;
       case "humidors":   return <HumidorsTab liveData={liveData} liveStatus={liveStatus} lastUpdated={lastUpdated} onRefresh={()=>fetchLive(false)}/>;
       case "challenges": return <ChallengesTab/>;
+      case "leaderboard": return <LeaderboardTab/>;
       case "community":  return <CommunityTab activeSubTab={activeClubTab} setActiveSubTab={setActiveClubTab}/>;
       case "profile":    return <ProfileTab/>;
       default:           return <HomeTab liveData={liveData} liveStatus={liveStatus} lastUpdated={lastUpdated} onRefresh={()=>fetchLive(false)}/>;
