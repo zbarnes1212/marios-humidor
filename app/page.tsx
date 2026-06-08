@@ -327,9 +327,12 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
   const [mounted,setMounted]=useState(false);
   const [showForm,setShowForm]=useState(false);
   const [form,setForm]=useState({name:"",wood:"Spanish Cedar",capacity:"150"});
+  const [editHumidor,setEditHumidor]=useState<Humidor|null>(null);
+  const [menuOpen,setMenuOpen]=useState<number|null>(null);
   const [selectedHumidor,setSelectedHumidor]=useState<number|null>(null);
   const [historyRange,setHistoryRange]=useState<'24H'|'7D'|'30D'|'90D'>('24H');
   const [expandedCigars,setExpandedCigars]=useState<number|null>(null);
+  const [humidorCigars,setHumidorCigars]=useState<any[]>([]);
   const {t}=useLang();
 
   const HUMIDOR_COLORS=['#3dd68c','#C49A28','#6a9fe0','#e07a5f','#b67ee0'];
@@ -349,6 +352,7 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
 
   useEffect(()=>{
     try{const s=localStorage.getItem('mh_humidors');if(s)setHumidors(JSON.parse(s));}catch{}
+    try{const s=localStorage.getItem('mh_cigars');if(s)setHumidorCigars(JSON.parse(s));}catch{}
     setMounted(true);
   },[]);
 
@@ -367,6 +371,24 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
     setHumidors(h=>[...h,newH]);
     setForm({name:"",wood:"Spanish Cedar",capacity:"150"});
     setShowForm(false);
+  };
+
+  const deleteHumidor=(id:number)=>{
+    if(window.confirm("Remove this humidor?"))
+      setHumidors(prev=>prev.filter(h=>h.id!==id));
+    setMenuOpen(null);
+  };
+
+  const saveEditHumidor=()=>{
+    if(!editHumidor) return;
+    setHumidors(prev=>prev.map(h=>h.id===editHumidor.id?editHumidor:h));
+    setEditHumidor(null);
+  };
+
+  const removeCigarFromHumidor=(cigarId:number)=>{
+    const updated=humidorCigars.map((c:any)=>c.id===cigarId?{...c,humidorId:null}:c);
+    setHumidorCigars(updated);
+    try{localStorage.setItem('mh_cigars',JSON.stringify(updated));}catch{}
   };
 
   const handlePhotoUpload=(id:number,e:React.ChangeEvent<HTMLInputElement>)=>{
@@ -465,11 +487,40 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
                     onChange={e=>handlePhotoUpload(h.id,e)}/>
                 </label>
                 {/* Name overlay */}
-                <div style={{position:"absolute",bottom:12,left:16}}>
-                  <div style={{fontSize:18,fontWeight:"bold",color:"#fff",fontFamily:"Georgia,serif",
-                    textShadow:"0 1px 6px rgba(0,0,0,0.9)"}}>{h.name}</div>
-                  <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontFamily:"Georgia,serif",
-                    fontStyle:"italic"}}>{h.wood}</div>
+                <div style={{position:"absolute",bottom:12,left:16,right:16,
+                  display:"flex",alignItems:"flex-end",justifyContent:"space-between"}}>
+                  <div>
+                    <div style={{fontSize:18,fontWeight:"bold",color:"#fff",fontFamily:"Georgia,serif",
+                      textShadow:"0 1px 6px rgba(0,0,0,0.9)"}}>{h.name}</div>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontFamily:"Georgia,serif",
+                      fontStyle:"italic"}}>{h.wood}</div>
+                  </div>
+                  {/* ⋯ menu */}
+                  <div style={{position:"relative"}}>
+                    <button onClick={e=>{e.stopPropagation();setMenuOpen(menuOpen===h.id?null:h.id);}}
+                      style={{background:"rgba(0,0,0,0.6)",border:`1px solid rgba(196,154,40,0.3)`,
+                        borderRadius:8,padding:"5px 10px",cursor:"pointer",color:T.goldMid,
+                        fontSize:16,lineHeight:1}}>⋯</button>
+                    {menuOpen===h.id&&(
+                      <div style={{position:"absolute",bottom:"100%",right:0,marginBottom:6,
+                        background:"#1a1208",border:`1px solid rgba(196,154,40,0.25)`,
+                        borderRadius:10,overflow:"hidden",zIndex:50,minWidth:120,
+                        boxShadow:"0 8px 24px rgba(0,0,0,0.7)"}}>
+                        <button onClick={()=>{setEditHumidor({...h});setMenuOpen(null);}}
+                          style={{width:"100%",padding:"10px 14px",background:"none",border:"none",
+                            cursor:"pointer",color:T.textPrimary,fontSize:13,fontFamily:"Georgia,serif",
+                            textAlign:"left",borderBottom:`1px solid rgba(196,154,40,0.1)`}}>
+                          ✏️ Edit
+                        </button>
+                        <button onClick={()=>deleteHumidor(h.id)}
+                          style={{width:"100%",padding:"10px 14px",background:"none",border:"none",
+                            cursor:"pointer",color:"#e05050",fontSize:13,fontFamily:"Georgia,serif",
+                            textAlign:"left"}}>
+                          🗑 Delete
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -516,8 +567,7 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
                 {/* Cigars in this humidor */}
                 {(()=>{
                   let hCigars:any[]=[];
-                  try{const s=localStorage.getItem('mh_cigars');hCigars=s?JSON.parse(s):[];}catch{}
-                  hCigars=hCigars.filter((c:any)=>c.humidorId===h.id);
+                  try{hCigars=humidorCigars.filter((c:any)=>c.humidorId===h.id);}catch{}
                   const isExpanded=expandedCigars===h.id;
                   return (
                     <div style={{marginBottom:14}}>
@@ -567,11 +617,18 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
                                 <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",
                                   fontStyle:"italic"}}>{c.brand} · {c.vitola}</div>
                               </div>
-                              <div style={{padding:"0 12px",textAlign:"center"}}>
+                              <div style={{padding:"0 8px",textAlign:"center",display:"flex",
+                                flexDirection:"column",alignItems:"center",gap:4}}>
                                 <div style={{fontSize:16,fontWeight:"bold",color:T.goldMid,
                                   fontFamily:"Georgia,serif"}}>{c.count}</div>
                                 <div style={{fontSize:8,color:T.textMuted,letterSpacing:1,
                                   textTransform:"uppercase"}}>Left</div>
+                                <button onClick={()=>removeCigarFromHumidor(c.id)}
+                                  style={{background:"rgba(224,80,80,0.1)",border:"1px solid rgba(224,80,80,0.25)",
+                                    borderRadius:6,padding:"2px 6px",cursor:"pointer",
+                                    color:"#e05050",fontSize:9,fontFamily:"Georgia,serif"}}>
+                                  Remove
+                                </button>
                               </div>
                             </div>
                           ))}
@@ -584,6 +641,33 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
             </div>
           );
         })}
+
+        {/* Edit Humidor Modal */}
+        {editHumidor&&(
+          <div style={{background:"linear-gradient(170deg,#1a1208,#0f0a04)",borderRadius:16,
+            border:`1px solid rgba(196,154,40,0.3)`,padding:"20px"}}>
+            <div style={{fontSize:12,color:T.goldMid,fontFamily:"Georgia,serif",letterSpacing:2,
+              textTransform:"uppercase",marginBottom:16}}>Edit Humidor</div>
+            <input value={editHumidor.name}
+              onChange={e=>setEditHumidor({...editHumidor,name:e.target.value})}
+              placeholder="Humidor name" style={fi}/>
+            <input value={editHumidor.wood}
+              onChange={e=>setEditHumidor({...editHumidor,wood:e.target.value})}
+              placeholder="Wood type" style={fi}/>
+            <input value={String(editHumidor.capacity)}
+              onChange={e=>setEditHumidor({...editHumidor,capacity:parseInt(e.target.value)||150})}
+              placeholder="Capacity" type="number" style={fi}/>
+            <div style={{display:"flex",gap:10}}>
+              <button onClick={saveEditHumidor} style={{flex:1,padding:"12px",
+                background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
+                border:"none",borderRadius:10,color:"#1a0e04",fontSize:13,
+                fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>Save</button>
+              <button onClick={()=>setEditHumidor(null)} style={{padding:"12px 20px",
+                background:"transparent",border:`1px solid rgba(160,120,40,0.22)`,
+                borderRadius:10,color:T.textMuted,fontSize:13,cursor:"pointer"}}>Cancel</button>
+            </div>
+          </div>
+        )}
 
         {/* Add Humidor Form */}
         {showForm&&(
