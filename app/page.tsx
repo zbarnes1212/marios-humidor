@@ -184,9 +184,10 @@ const LangContext=createContext<{lang:LangCode;t:(k:string)=>string;setLang:(l:L
 });
 function useLang(){return useContext(LangContext);}
 function LangProvider({children}:{children:React.ReactNode}){
-  const [lang,setLangState]=useState<LangCode>(()=>{
-    try{const s=localStorage.getItem("mh_lang");return(LANGS.find(l=>l.code===s)?s:"en") as LangCode;}catch{return "en";}
-  });
+  const [lang,setLangState]=useState<LangCode>("en");
+  useEffect(()=>{
+    try{const s=localStorage.getItem("mh_lang");if(LANGS.find(l=>l.code===s))setLangState(s as LangCode);}catch{}
+  },[]);
   const setLang=(l:LangCode)=>{
     setLangState(l);
     try{localStorage.setItem("mh_lang",l);}catch{}
@@ -258,11 +259,11 @@ function LuxuryGauge({value,size,label,subtitle,min=20,max=100}:{value:number;si
 // DATA
 const HUMIDORS=[
   {id:1,name:"Mario's Sensor",wood:"Spanish Cedar",temp:0,humidity:0,capacity:150,count:87,status:"optimal"},
-  {id:2,name:"Govee T",wood:"Spanish Cedar",temp:70,humidity:68,capacity:150,count:87,status:"optimal"},
+  {id:2,name:"Govee T",wood:"Spanish Cedar",temp:0,humidity:0,capacity:150,count:0,status:"no_data"},
   {id:3,name:"Govee M",wood:"Mahogany",temp:70,humidity:67,capacity:20,count:12,status:"good"},
   {id:4,name:"Govee B",wood:"Electronic",temp:67,humidity:70,capacity:900,count:210,status:"optimal"},
 ];
-type CigarEntry={id:number;brand:string;line:string;vitola:string;origin:string;wrapper:string;rating:number;count:number;purchaseDate:string;bandColor:string};
+type CigarEntry={id:number;brand:string;line:string;vitola:string;origin:string;wrapper:string;rating:number;count:number;purchaseDate:string;bandColor:string;humidorId:number};
 const CIGARS:CigarEntry[]=[];
 
 // Map vitola + wrapper → placeholder cigar image
@@ -811,24 +812,23 @@ function CollectionTab() {
   const [showJournal,setShowJournal]=useState(false);
   const [pendingCollection,setPendingCollection]=useState<ScanResult|null>(null);
   const [pendingJournal,setPendingJournal]=useState<ScanResult|null>(null);
-  const [cigars,setCigars]=useState<CigarEntry[]>(()=>{
-    try{const s=localStorage.getItem('mh_cigars');return s?JSON.parse(s):CIGARS;}catch{return CIGARS;}
-  });
+  const [cigars,setCigars]=useState<CigarEntry[]>(CIGARS);
+  const [mounted,setMounted]=useState(false);
+  const [activeHumidor,setActiveHumidor]=useState<number|null>(null);
 
   useEffect(()=>{
-    try{localStorage.setItem('mh_cigars',JSON.stringify(cigars));}catch{}
-  },[cigars]);
-  const [smokedToast,setSmokedToast]=useState<string|null>(null);
-  const [showAddForm,setShowAddForm]=useState(false);
-  const [addForm,setAddForm]=useState({brand:"",line:"",vitola:"",origin:"",wrapper:"",count:"1",rating:"90"});
-
-  useEffect(()=>{
-    try{const s=localStorage.getItem("mh_cigars");if(s)setCigars(JSON.parse(s));}catch{}
+    setMounted(true);
+    try{const s=localStorage.getItem('mh_cigars');if(s)setCigars(JSON.parse(s));}catch{}
   },[]);
 
   useEffect(()=>{
-    try{localStorage.setItem("mh_cigars",JSON.stringify(cigars));}catch{}
-  },[cigars]);
+    if(!mounted) return;
+    try{localStorage.setItem('mh_cigars',JSON.stringify(cigars));}catch{}
+  },[cigars,mounted]);
+
+  const [smokedToast,setSmokedToast]=useState<string|null>(null);
+  const [showAddForm,setShowAddForm]=useState(false);
+  const [addForm,setAddForm]=useState({brand:"",line:"",vitola:"",origin:"",wrapper:"",count:"1",rating:"90"});
 
   const saveNewCigar=()=>{
     if(!addForm.brand.trim()||!addForm.line.trim()) return;
@@ -837,7 +837,8 @@ function CollectionTab() {
       origin:addForm.origin,wrapper:addForm.wrapper,
       rating:parseInt(addForm.rating)||90,count:parseInt(addForm.count)||1,
       purchaseDate:new Date().toLocaleDateString("en-US",{month:"short",year:"numeric"}),
-      bandColor:"#2a1608"
+      bandColor:"#2a1608",
+      humidorId:activeHumidor??HUMIDORS[0].id
     };
     setCigars(prev=>[...prev,newC]);
     setAddForm({brand:"",line:"",vitola:"",origin:"",wrapper:"",count:"1",rating:"90"});
@@ -920,13 +921,13 @@ function CollectionTab() {
       <div style={{padding:"24px 20px 20px",borderBottom:`1px solid ${T.border}`}}>
         <div style={{display:"flex",gap:28,alignItems:"baseline"}}>
           <div>
-            <div style={{fontSize:36,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1}}>{total}</div>
+            <div style={{fontSize:36,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1}}>{mounted?total:0}</div>
             <div style={{fontSize:9,color:T.textMuted,letterSpacing:3,textTransform:"uppercase",marginTop:5}}>{t("total_cigars")}</div>
           </div>
           <div style={{width:1,height:36,background:T.border}}/>
           <div>
             <div style={{fontSize:36,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1}}>
-              {cigars.length===0?"—":(cigars.reduce((a,c)=>a+c.rating,0)/cigars.length).toFixed(1)}
+              {!mounted?"—":cigars.length===0?"—":(cigars.reduce((a,c)=>a+c.rating,0)/cigars.length).toFixed(1)}
             </div>
             <div style={{fontSize:9,color:T.textMuted,letterSpacing:3,textTransform:"uppercase",marginTop:5}}>{t("avg_rating")}</div>
           </div>
@@ -951,15 +952,117 @@ function CollectionTab() {
         </div>
       )}
 
-      {/* Cigars label */}
-      <div style={{padding:"20px 20px 12px",display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
-        <div style={{fontSize:9,letterSpacing:4,textTransform:"uppercase",color:T.textMuted,fontFamily:"Georgia,serif"}}>My Collection</div>
-        <div style={{fontSize:11,color:T.textGold,cursor:"pointer",fontFamily:"Georgia,serif"}}>Sort: Recently Added</div>
-      </div>
+      {/* ── HUMIDOR ARCHITECTURE: Level 1 = Humidor Cards, Level 2 = Cigars ── */}
 
-      {/* CIGAR BAND CARDS */}
-      <div style={{padding:"0 16px"}}>
-        {cigars.map(c=>{
+      {activeHumidor===null ? (
+        /* ── LEVEL 1: HUMIDOR CARDS ── */
+        <div style={{padding:"20px 16px 0"}}>
+          <div style={{fontSize:9,letterSpacing:4,textTransform:"uppercase",color:T.textMuted,
+            fontFamily:"Georgia,serif",marginBottom:16}}>My Humidors</div>
+          {HUMIDORS.map(h=>{
+            const hCigars=cigars.filter(c=>c.humidorId===h.id);
+            const cigarCount=hCigars.reduce((a,c)=>a+c.count,0);
+            const statusColor=h.status==="optimal"?"#2a7a4a":h.status==="good"?"#7a6a1a":h.status==="no_data"?"#3a3a3a":"#7a2a2a";
+            const statusDot=h.status==="optimal"?"#3dd68c":h.status==="good"?"#e8c84a":h.status==="no_data"?T.textMuted:"#e05050";
+            return (
+              <div key={h.id} onClick={()=>{setActiveHumidor(h.id);setSel(null);}}
+                style={{background:"linear-gradient(170deg,#1a1a1a,#0f0f0f)",borderRadius:14,
+                  marginBottom:12,cursor:"pointer",overflow:"hidden",
+                  border:`1px solid rgba(196,154,40,0.2)`,
+                  transition:"border-color 0.2s"}}
+                onMouseEnter={e=>(e.currentTarget.style.borderColor="rgba(196,154,40,0.45)")}
+                onMouseLeave={e=>(e.currentTarget.style.borderColor="rgba(196,154,40,0.2)")}>
+                {/* Humidor photo */}
+                <div style={{position:"relative",height:120,overflow:"hidden",
+                  borderBottom:`1px solid rgba(196,154,40,0.15)`}}>
+                  <img src="/humidor-hero.png" alt={h.name}
+                    style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 35%",
+                      filter:"brightness(0.55) saturate(1.1)"}}
+                    onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
+                  {/* Dark gradient overlay */}
+                  <div style={{position:"absolute",inset:0,
+                    background:"linear-gradient(to top,rgba(6,2,0,0.88) 0%,rgba(6,2,0,0.35) 55%,rgba(6,2,0,0.1) 100%)"}}/>
+                  {/* Status badge — top right */}
+                  <div style={{position:"absolute",top:10,right:10,
+                    display:"flex",alignItems:"center",gap:5,padding:"4px 10px",
+                    background:`rgba(10,5,0,0.7)`,borderRadius:20,
+                    border:`1px solid ${statusColor}60`,backdropFilter:"blur(4px)"}}>
+                    <div style={{width:6,height:6,borderRadius:"50%",background:statusDot}}/>
+                    <span style={{fontSize:10,color:statusDot,fontFamily:"Georgia,serif",
+                      textTransform:"capitalize",letterSpacing:0.5}}>{h.status==="no_data"?"No Sensor":h.status}</span>
+                  </div>
+                  {/* Name overlay — bottom left */}
+                  <div style={{position:"absolute",bottom:10,left:14,right:14}}>
+                    <div style={{fontSize:17,fontWeight:"bold",color:"#fff",fontFamily:"Georgia,serif",
+                      textShadow:"0 1px 6px rgba(0,0,0,0.9)",lineHeight:1.2}}>{h.name}</div>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontFamily:"Georgia,serif",
+                      fontStyle:"italic",marginTop:2}}>{h.wood}</div>
+                  </div>
+                </div>
+                {/* Stats row */}
+                <div style={{display:"flex",alignItems:"center",padding:"14px 16px"}}>
+                  <div style={{flex:1,display:"flex",alignItems:"center",gap:20}}>
+                    <div>
+                      <div style={{fontSize:20,fontWeight:"bold",color:T.goldLight,fontFamily:"Georgia,serif",lineHeight:1}}>{cigarCount}</div>
+                      <div style={{fontSize:9,color:T.textMuted,letterSpacing:2,textTransform:"uppercase",marginTop:2}}>Cigars</div>
+                    </div>
+                    <div style={{width:1,height:28,background:T.border}}/>
+                    <div>
+                      <div style={{fontSize:20,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1}}>{h.humidity||"—"}{h.humidity?"%":""}</div>
+                      <div style={{fontSize:9,color:T.textMuted,letterSpacing:2,textTransform:"uppercase",marginTop:2}}>Humidity</div>
+                    </div>
+                    <div style={{width:1,height:28,background:T.border}}/>
+                    <div>
+                      <div style={{fontSize:20,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1}}>{h.temp||"—"}{h.temp?"°F":""}</div>
+                      <div style={{fontSize:9,color:T.textMuted,letterSpacing:2,textTransform:"uppercase",marginTop:2}}>Temp</div>
+                    </div>
+                  </div>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.textMuted} strokeWidth="2" strokeLinecap="round">
+                    <path d="M9 18l6-6-6-6"/>
+                  </svg>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* ── LEVEL 2: CIGARS IN HUMIDOR ── */
+        <div>
+          {/* Back nav header */}
+          <div style={{display:"flex",alignItems:"center",gap:10,padding:"16px 16px 12px",
+            borderBottom:`1px solid ${T.border}`}}>
+            <button onClick={()=>{setActiveHumidor(null);setSel(null);}}
+              style={{display:"flex",alignItems:"center",gap:6,background:"none",border:"none",
+                color:T.goldMid,cursor:"pointer",fontFamily:"Georgia,serif",fontSize:13,padding:0}}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.goldMid} strokeWidth="2" strokeLinecap="round">
+                <path d="M15 18l-6-6 6-6"/>
+              </svg>
+              My Humidors
+            </button>
+            <span style={{color:T.textMuted,fontSize:13}}>/</span>
+            <span style={{color:T.textPrimary,fontFamily:"Georgia,serif",fontSize:13,fontWeight:"bold"}}>
+              {HUMIDORS.find(h=>h.id===activeHumidor)?.name}
+            </span>
+          </div>
+
+          {/* Cigar count label */}
+          <div style={{padding:"16px 20px 10px",display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
+            <div style={{fontSize:9,letterSpacing:4,textTransform:"uppercase",color:T.textMuted,fontFamily:"Georgia,serif"}}>
+              {cigars.filter(c=>c.humidorId===activeHumidor).length} Cigars
+            </div>
+            <div style={{fontSize:11,color:T.textGold,cursor:"pointer",fontFamily:"Georgia,serif"}}>Sort: Recently Added</div>
+          </div>
+
+          {/* CIGAR CARDS */}
+          <div style={{padding:"0 16px"}}>
+            {cigars.filter(c=>c.humidorId===activeHumidor).length===0 ? (
+              <div style={{textAlign:"center",padding:"40px 20px",color:T.textMuted,fontFamily:"Georgia,serif"}}>
+                <div style={{fontSize:32,marginBottom:12}}>🪵</div>
+                <div style={{fontSize:14,marginBottom:6}}>This humidor is empty</div>
+                <div style={{fontSize:12,fontStyle:"italic"}}>Add cigars with the button below</div>
+              </div>
+            ) : (
+              cigars.filter(c=>c.humidorId===activeHumidor).map(c=>{
           const isEx=sel===c.id;
           return (
             <div key={c.id} onClick={()=>setSel(isEx?null:c.id)}
@@ -1071,8 +1174,15 @@ function CollectionTab() {
               </div>
             </div>
           );
-        })}
-        <div style={{display:"flex",gap:10,marginTop:4}}>
+        })
+            )}
+        </div>
+        </div>
+      )}
+
+      {/* ── ADD / JOURNAL BUTTONS (always shown) ── */}
+      <div style={{padding:"0 16px"}}>
+        <div style={{display:"flex",gap:10,marginTop:16}}>
           <button onClick={()=>{setShowAddForm(!showAddForm);setShowJournal(false);}}
             style={{flex:1,padding:"13px",background:"transparent",border:`1px solid rgba(196,154,40,0.3)`,
             borderRadius:12,color:T.goldMid,fontSize:10,fontFamily:"Georgia,serif",
@@ -1091,6 +1201,18 @@ function CollectionTab() {
         {showAddForm&&(
           <div style={{marginTop:12,background:T.card,borderRadius:14,border:`1px solid ${T.borderGold}`,padding:"18px 16px"}}>
             <div style={{fontSize:12,color:T.goldLight,fontFamily:"Georgia,serif",fontWeight:"bold",marginBottom:14,letterSpacing:1}}>{t("add_to_collection")}</div>
+            {/* Humidor selector */}
+            <div style={{marginBottom:10}}>
+              <div style={{fontSize:9,color:T.textMuted,letterSpacing:2,textTransform:"uppercase",marginBottom:5}}>Humidor</div>
+              <select value={activeHumidor??HUMIDORS[0].id} disabled={activeHumidor!==null}
+                onChange={()=>{}}
+                style={{width:"100%",background:"rgba(0,0,0,0.25)",border:`1px solid ${T.border}`,borderRadius:8,
+                  padding:"10px 14px",color:T.textPrimary,fontSize:13,outline:"none",
+                  boxSizing:"border-box" as const,fontFamily:"Georgia,serif",
+                  opacity:activeHumidor!==null?0.6:1}}>
+                {HUMIDORS.map(h=><option key={h.id} value={h.id}>{h.name}</option>)}
+              </select>
+            </div>
             {([["Brand *","brand","e.g. Padrón"],["Line *","line","e.g. 1964 Anniversary"],["Vitola","vitola","e.g. Robusto"],
                ["Origin","origin","e.g. Nicaragua"],["Wrapper","wrapper","e.g. Natural"]] as [string,string,string][]).map(([label,key,ph])=>(
               <div key={key} style={{marginBottom:10}}>
@@ -1933,33 +2055,41 @@ function CommunityTab({activeSubTab,setActiveSubTab}:{
   const [podcastsLoading,setPodcastsLoading]=useState(false);
   const [newsSubTab,setNewsSubTab]=useState<'youtube'|'articles'|'podcasts'>('youtube');
   const [filter,setFilter]=useState<'all'|'following'|'mine'>('all');
+  const [lastFetched,setLastFetched]=useState<{news:number;videos:number;podcasts:number}>({news:0,videos:0,podcasts:0});
+  const CACHE_TTL=30*60*1000; // 30 minutes
+
+  const fetchNews=()=>{
+    setNewsLoading(true);
+    fetch('/api/news')
+      .then(r=>r.json())
+      .then(d=>{if(d.ok&&d.articles?.length>0){setLiveNews(d.articles);setLastFetched(p=>({...p,news:Date.now()}));}})
+      .catch(()=>{})
+      .finally(()=>setNewsLoading(false));
+  };
+  const fetchVideos=()=>{
+    setVideosLoading(true);
+    fetch('/api/youtube')
+      .then(r=>r.json())
+      .then(d=>{if(d.ok&&d.videos?.length>0){setVideos(d.videos);setLastFetched(p=>({...p,videos:Date.now()}));}})
+      .catch(()=>{})
+      .finally(()=>setVideosLoading(false));
+  };
+  const fetchPodcasts=()=>{
+    setPodcastsLoading(true);
+    fetch('/api/podcasts')
+      .then(r=>r.json())
+      .then(d=>{if(d.ok&&d.grouped?.length>0){setPodcastGroups(d.grouped);setLastFetched(p=>({...p,podcasts:Date.now()}));}})
+      .catch(()=>{})
+      .finally(()=>setPodcastsLoading(false));
+  };
+  const refreshAll=()=>{fetchNews();fetchVideos();fetchPodcasts();};
 
   useEffect(()=>{
     if(activeSubTab==='news'){
-      if(liveNews.length===0){
-        setNewsLoading(true);
-        fetch('/api/news')
-          .then(r=>r.json())
-          .then(d=>{if(d.ok&&d.articles?.length>0)setLiveNews(d.articles);})
-          .catch(()=>{})
-          .finally(()=>setNewsLoading(false));
-      }
-      if(videos.length===0){
-        setVideosLoading(true);
-        fetch('/api/youtube')
-          .then(r=>r.json())
-          .then(d=>{if(d.ok&&d.videos?.length>0)setVideos(d.videos);})
-          .catch(()=>{})
-          .finally(()=>setVideosLoading(false));
-      }
-      if(podcastGroups.length===0){
-        setPodcastsLoading(true);
-        fetch('/api/podcasts')
-          .then(r=>r.json())
-          .then(d=>{if(d.ok&&d.grouped?.length>0)setPodcastGroups(d.grouped);})
-          .catch(()=>{})
-          .finally(()=>setPodcastsLoading(false));
-      }
+      const now=Date.now();
+      if(liveNews.length===0||now-lastFetched.news>CACHE_TTL) fetchNews();
+      if(videos.length===0||now-lastFetched.videos>CACHE_TTL) fetchVideos();
+      if(podcastGroups.length===0||now-lastFetched.podcasts>CACHE_TTL) fetchPodcasts();
     }
   },[activeSubTab]);
 
@@ -2027,81 +2157,102 @@ function CommunityTab({activeSubTab,setActiveSubTab}:{
         <div style={{position:'absolute',top:0,left:0,right:0,height:2,
           background:`linear-gradient(90deg,transparent,${T.goldMid},transparent)`}}/>
         {/* Content */}
-        <div style={{position:'relative',zIndex:1,padding:'24px 20px 20px'}}>
-          <div style={{fontSize:10,color:T.goldMid,letterSpacing:5,textTransform:'uppercase',
-            fontFamily:'Georgia,serif',marginBottom:8}}>Members Only</div>
-          <div style={{fontSize:26,fontWeight:'bold',color:'#ffffff',
-            fontFamily:'Georgia,serif',lineHeight:1.1,marginBottom:6,
-            textShadow:'0 2px 8px rgba(0,0,0,0.8)'}}>
-            Mario's Social Club
+        <div style={{position:'relative',zIndex:1,padding:'24px 20px 20px',minHeight:160,display:'flex',flexDirection:'column'}}>
+          <div>
+            <div style={{fontSize:10,color:T.goldMid,letterSpacing:5,textTransform:'uppercase',
+              fontFamily:'Georgia,serif',marginBottom:8}}>Members Only</div>
+            <div style={{fontSize:26,fontWeight:'bold',color:'#ffffff',
+              fontFamily:'Georgia,serif',lineHeight:1.1,marginBottom:6,
+              textShadow:'0 2px 8px rgba(0,0,0,0.8)'}}>
+              Mario's Social Club
+            </div>
+            <div style={{fontSize:13,color:'rgba(255,255,255,0.75)',fontFamily:'Georgia,serif',
+              fontStyle:'italic',lineHeight:1.6,
+              textShadow:'0 1px 4px rgba(0,0,0,0.8)'}}>
+              A place for cigar enthusiasts to connect, share, learn, and celebrate the lifestyle.
+            </div>
           </div>
-          <div style={{fontSize:13,color:'rgba(255,255,255,0.75)',fontFamily:'Georgia,serif',
-            fontStyle:'italic',lineHeight:1.6,marginBottom:16,
-            textShadow:'0 1px 4px rgba(0,0,0,0.8)'}}>
-            A place for cigar enthusiasts to connect, share, learn, and celebrate the lifestyle.
-          </div>
-          <button onClick={()=>setShowCompose(true)}
-            style={{display:'flex',alignItems:'center',gap:8,padding:'10px 20px',
-              background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
-              border:'none',borderRadius:24,color:'#0a0a0a',fontSize:13,
-              fontWeight:'bold',cursor:'pointer',fontFamily:'Georgia,serif',letterSpacing:0.5}}>
-            <span style={{fontSize:16}}>✏️</span> NEW POST
-          </button>
+
         </div>
       </div>
 
-      {/* ── NEWS SUB-TAB PILLS (shown when News is active) ── */}
-      {activeSubTab==='news'&&(
-        <div style={{display:'flex',gap:10,padding:'12px 16px 0',
-          borderBottom:`1px solid rgba(196,154,40,0.1)`}}>
-          {/* YouTube pill */}
-          <button onClick={()=>setNewsSubTab('youtube')}
-            style={{display:'flex',alignItems:'center',gap:7,padding:'8px 18px',
-              borderRadius:24,cursor:'pointer',fontFamily:'Georgia,serif',fontSize:13,
-              marginBottom:12,fontWeight:newsSubTab==='youtube'?'bold':'normal',
-              background:newsSubTab==='youtube'?`linear-gradient(135deg,${T.goldDark},${T.goldMid})`:'transparent',
-              border:newsSubTab==='youtube'?'none':`1px solid rgba(196,154,40,0.25)`,
-              color:newsSubTab==='youtube'?'#0a0a0a':T.textMuted}}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill={newsSubTab==='youtube'?'#0a0a0a':'#ff4444'}>
-              <path d="M23 7s-.3-2-1.2-2.8c-1.1-1.2-2.4-1.2-3-1.3C16.6 2.8 12 2.8 12 2.8s-4.6 0-6.8.1c-.6.1-1.9.1-3 1.3C1.3 5 1 7 1 7S.7 9.1.7 11.2v2c0 2.1.3 4.2.3 4.2s.3 2 1.2 2.8c1.1 1.2 2.6 1.1 3.3 1.2C7.2 21.6 12 21.6 12 21.6s4.6 0 6.8-.2c.6-.1 1.9-.1 3-1.3.9-.8 1.2-2.8 1.2-2.8s.3-2.1.3-4.2v-2C23.3 9.1 23 7 23 7zM9.7 15.5V8.4l6.6 3.6-6.6 3.5z"/>
-            </svg>
-            YouTube
-          </button>
-          {/* Podcasts pill */}
-          <button onClick={()=>setNewsSubTab('podcasts')}
-            style={{display:'flex',alignItems:'center',gap:7,padding:'8px 18px',
-              borderRadius:24,cursor:'pointer',fontFamily:'Georgia,serif',fontSize:13,
-              marginBottom:12,fontWeight:newsSubTab==='podcasts'?'bold':'normal',
-              background:newsSubTab==='podcasts'?`linear-gradient(135deg,${T.goldDark},${T.goldMid})`:'transparent',
-              border:newsSubTab==='podcasts'?'none':`1px solid rgba(196,154,40,0.25)`,
-              color:newsSubTab==='podcasts'?'#0a0a0a':T.textMuted}}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke={newsSubTab==='podcasts'?'#0a0a0a':T.goldMid} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="11" r="4"/>
-              <path d="M12 1a3 3 0 0 0-3 3v4a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" fill={newsSubTab==='podcasts'?'#0a0a0a':'none'} stroke={newsSubTab==='podcasts'?'#0a0a0a':T.goldMid}/>
-              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-              <line x1="12" y1="19" x2="12" y2="23"/>
-              <line x1="8" y1="23" x2="16" y2="23"/>
-            </svg>
-            Podcasts
-          </button>
-          {/* News pill */}
-          <button onClick={()=>setNewsSubTab('articles')}
-            style={{display:'flex',alignItems:'center',gap:7,padding:'8px 18px',
-              borderRadius:24,cursor:'pointer',fontFamily:'Georgia,serif',fontSize:13,
-              marginBottom:12,fontWeight:newsSubTab==='articles'?'bold':'normal',
-              background:newsSubTab==='articles'?`linear-gradient(135deg,${T.goldDark},${T.goldMid})`:'transparent',
-              border:newsSubTab==='articles'?'none':`1px solid rgba(196,154,40,0.25)`,
-              color:newsSubTab==='articles'?'#0a0a0a':T.textMuted}}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke={newsSubTab==='articles'?'#0a0a0a':T.goldMid} strokeWidth="2" strokeLinecap="round">
-              <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/>
-              <line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="12" y2="15"/>
-            </svg>
-            News
-          </button>
-        </div>
-      )}
+      {/* ── CONTENT PILLS — always visible ── */}
+      <div style={{display:'flex',alignItems:'center',padding:'8px 10px 0',
+        borderBottom:`1px solid rgba(196,154,40,0.1)`}}>
+        {/* YouTube pill */}
+        <button onClick={()=>{setActiveSubTab('news' as any);setNewsSubTab('youtube');}}
+          style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'8px 4px',
+            borderRadius:24,cursor:'pointer',fontFamily:'Georgia,serif',fontSize:12,
+            marginBottom:10,fontWeight:(activeSubTab==='news'&&newsSubTab==='youtube')?'bold':'normal',
+            background:(activeSubTab==='news'&&newsSubTab==='youtube')?`linear-gradient(135deg,${T.goldDark},${T.goldMid})`:'transparent',
+            border:(activeSubTab==='news'&&newsSubTab==='youtube')?'none':`1px solid rgba(196,154,40,0.25)`,
+            color:(activeSubTab==='news'&&newsSubTab==='youtube')?'#0a0a0a':T.textMuted}}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={(activeSubTab==='news'&&newsSubTab==='youtube')?'#0a0a0a':T.goldMid} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="4" width="20" height="16" rx="3"/>
+            <polygon points="10,8 16,12 10,16" fill={(activeSubTab==='news'&&newsSubTab==='youtube')?'#0a0a0a':T.goldMid} stroke="none"/>
+          </svg>
+          YouTube
+        </button>
+        {/* Podcasts pill */}
+        <button onClick={()=>{setActiveSubTab('news' as any);setNewsSubTab('podcasts');}}
+          style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'8px 4px',
+            borderRadius:24,cursor:'pointer',fontFamily:'Georgia,serif',fontSize:12,
+            marginBottom:10,fontWeight:(activeSubTab==='news'&&newsSubTab==='podcasts')?'bold':'normal',
+            background:(activeSubTab==='news'&&newsSubTab==='podcasts')?`linear-gradient(135deg,${T.goldDark},${T.goldMid})`:'transparent',
+            border:(activeSubTab==='news'&&newsSubTab==='podcasts')?'none':`1px solid rgba(196,154,40,0.25)`,
+            color:(activeSubTab==='news'&&newsSubTab==='podcasts')?'#0a0a0a':T.textMuted}}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke={(activeSubTab==='news'&&newsSubTab==='podcasts')?'#0a0a0a':T.goldMid} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="11" r="4"/>
+            <path d="M12 1a3 3 0 0 0-3 3v4a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" fill={(activeSubTab==='news'&&newsSubTab==='podcasts')?'#0a0a0a':'none'} stroke={(activeSubTab==='news'&&newsSubTab==='podcasts')?'#0a0a0a':T.goldMid}/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="23"/>
+            <line x1="8" y1="23" x2="16" y2="23"/>
+          </svg>
+          Podcasts
+        </button>
+        {/* News pill */}
+        <button onClick={()=>{setActiveSubTab('news' as any);setNewsSubTab('articles');}}
+          style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'8px 4px',
+            borderRadius:24,cursor:'pointer',fontFamily:'Georgia,serif',fontSize:12,
+            marginBottom:10,fontWeight:(activeSubTab==='news'&&newsSubTab==='articles')?'bold':'normal',
+            background:(activeSubTab==='news'&&newsSubTab==='articles')?`linear-gradient(135deg,${T.goldDark},${T.goldMid})`:'transparent',
+            border:(activeSubTab==='news'&&newsSubTab==='articles')?'none':`1px solid rgba(196,154,40,0.25)`,
+            color:(activeSubTab==='news'&&newsSubTab==='articles')?'#0a0a0a':T.textMuted}}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke={(activeSubTab==='news'&&newsSubTab==='articles')?'#0a0a0a':T.goldMid} strokeWidth="2" strokeLinecap="round">
+            <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/>
+            <line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="12" y2="15"/>
+          </svg>
+          News
+        </button>
+        {/* REFRESH button */}
+        <button onClick={refreshAll}
+          style={{display:'flex',alignItems:'center',justifyContent:'center',
+            width:32,height:32,flexShrink:0,borderRadius:'50%',cursor:'pointer',
+            background:'transparent',border:`1px solid rgba(196,154,40,0.25)`,
+            marginBottom:10}}
+          title="Refresh feeds">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.goldMid} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="23 4 23 10 17 10"/>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+          </svg>
+        </button>
+        {/* NEW POST pill */}
+        <button onClick={()=>setShowCompose(true)}
+          style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'8px 4px',
+            marginBottom:10,
+            borderRadius:24,cursor:'pointer',fontFamily:'Georgia,serif',fontSize:12,fontWeight:'bold',
+            background:showCompose?`linear-gradient(135deg,${T.goldDark},${T.goldMid})`:'transparent',
+            border:showCompose?'none':`1px solid rgba(196,154,40,0.25)`,
+            color:showCompose?'#0a0a0a':T.textMuted,letterSpacing:0.3}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={showCompose?'#0a0a0a':T.goldMid} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          New Post
+        </button>
+      </div>
 
       {/* ── COMPOSE MODAL ───────────────────────────── */}
       {showCompose&&(
@@ -2302,7 +2453,13 @@ function CommunityTab({activeSubTab,setActiveSubTab}:{
                 </div>
               )}
               {!newsLoading&&(()=>{
-                const articles=liveNews.length>0?liveNews:NEWS;
+                const articles=liveNews;
+                if(articles.length===0) return (
+                  <div style={{textAlign:'center',padding:'40px 20px',color:T.textMuted,fontFamily:'Georgia,serif'}}>
+                    <div style={{fontSize:13,marginBottom:8}}>No articles loaded</div>
+                    <div style={{fontSize:11,fontStyle:'italic',marginBottom:16}}>Tap ↻ to refresh</div>
+                  </div>
+                );
                 // Group by source
                 const bySource:Record<string,any[]>={};
                 articles.forEach((n:any)=>{
@@ -2994,7 +3151,7 @@ const NAV=[
 ];
 
 function NavIcon({id,active}:{id:string,active:boolean}) {
-  const c=active?T.goldLight:"rgba(255,255,255,0.28)";
+  const c=active?T.goldLight:T.goldMid;
   const icons:Record<string,React.ReactNode>={
     humidors:(
       <svg width="22" height="22" viewBox="0 0 22 22" fill="none" suppressHydrationWarning>
@@ -3003,7 +3160,7 @@ function NavIcon({id,active}:{id:string,active:boolean}) {
           return <line key={i} suppressHydrationWarning x1={11+r1*Math.cos(a)} y1={11+r1*Math.sin(a)} x2={11+r2*Math.cos(a)} y2={11+r2*Math.sin(a)}
             stroke={c} strokeWidth={i%3===0?"1.2":"0.7"} opacity={i%3===0?1:0.5}/>;
         })}
-        <line x1="11" y1="11" x2="11" y2="4.8" stroke={active?"#cc0020":"rgba(150,30,30,0.5)"} strokeWidth="1.4" strokeLinecap="round"/>
+        <line x1="11" y1="11" x2="11" y2="4.8" stroke={active?T.goldLight:T.goldMid} strokeWidth="1.4" strokeLinecap="round"/>
         <circle cx="11" cy="11" r="1.4" fill={c}/>
       </svg>
     ),
@@ -3030,7 +3187,7 @@ function NavIcon({id,active}:{id:string,active:boolean}) {
       <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
         <circle cx="11" cy="8" r="3.8" stroke={c} strokeWidth="1.4" fill="none"/>
         <path d="M4 20c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke={c} strokeWidth="1.4" strokeLinecap="round"/>
-        <circle cx="11" cy="8" r="1.4" fill={c} opacity="0.45"/>
+        <circle cx="11" cy="8" r="1.4" fill={c}/>
       </svg>
     ),
     community:(
@@ -3126,11 +3283,14 @@ function AppHeader({totalCigars}:{totalCigars:number}) {
             <div style={{fontSize:9,color:T.textMuted,letterSpacing:2.5,textTransform:"uppercase",marginTop:3}}>The Cigar Lifestyle Platform</div>
           </div>
         </div>
-        <div style={{width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer"}}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke={T.goldMid} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M13.73 21a2 2 0 0 1-3.46 0" stroke={T.goldMid} strokeWidth="1.5" strokeLinecap="round"/>
-          </svg>
+        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:1}}>
+          <div style={{display:"flex",alignItems:"center",gap:5}}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill={T.goldMid}>
+              <path d="M12 2C9.38 2 7.25 4.13 7.25 6.75c0 2.57 2.01 4.66 4.63 4.74.08-.01.16-.01.24 0h.07C14.85 11.41 16.75 9.32 16.75 6.75 16.75 4.13 14.62 2 12 2zM17.08 14.15c-2.79-1.86-7.34-1.86-10.15 0-1.27.85-1.97 2-1.97 3.23s.7 2.37 1.96 3.21C8.32 21.53 10.16 22.25 12 22.25s3.68-.72 5.08-1.66c1.26-.85 1.96-1.99 1.96-3.23-.01-1.23-.7-2.37-1.96-3.21z"/>
+            </svg>
+            <span style={{fontSize:12,fontWeight:"bold",color:T.goldMid,fontFamily:"Georgia,serif",letterSpacing:0.3}}>1,247 Members</span>
+          </div>
+          <span style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",fontStyle:"italic"}}>&amp; growing</span>
         </div>
       </div>
     </div>
@@ -3150,14 +3310,15 @@ function HomeTab({liveData,liveStatus,lastUpdated,onRefresh}:{
     <div>
       {/* Greeting — full width image, text overlaid on left */}
       <div style={{borderBottom:`1px solid ${T.border}`,position:"relative",height:130,overflow:"hidden"}}>
-        {/* Full bleed humidor image */}
-        <img src="/humidor-hero.png" alt="Humidor"
+        {/* Full bleed humidor hygrometer image */}
+        <img src="/humidor-hygrometer.png" alt="Humidor"
           style={{position:"absolute",inset:0,width:"100%",height:"100%",
-            objectFit:"cover",objectPosition:"center center"}}
+            objectFit:"cover",objectPosition:"60% center",
+            filter:"brightness(0.75) saturate(1.05)"}}
           onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
-        {/* Dark overlay so text is readable */}
+        {/* Dark overlay — heavy left so text is readable, fades right to show gauge */}
         <div style={{position:"absolute",inset:0,
-          background:"linear-gradient(90deg,rgba(10,8,5,0.92) 0%,rgba(10,8,5,0.75) 50%,rgba(10,8,5,0.1) 100%)"}}/>
+          background:"linear-gradient(90deg,rgba(6,3,0,0.93) 0%,rgba(6,3,0,0.72) 40%,rgba(6,3,0,0.15) 100%)"}}/>
         {/* Text on top */}
         <div style={{position:"relative",zIndex:1,padding:"22px 18px 18px 18px",
           display:"flex",flexDirection:"column",justifyContent:"center",height:"100%"}}>
@@ -3303,23 +3464,18 @@ export default function MariosHumidor() {
         <div style={{position:"sticky",top:0,zIndex:50}}>
           <AppHeader totalCigars={0}/>
         </div>
-        {/* Sliding page container */}
+        {/* Keep all tabs mounted — show/hide with display to avoid remount stutter */}
         <div style={{position:"relative",overflow:"hidden"}}>
-          {/* Incoming page */}
-          <div key={tab} style={{
-            animation:slideDir?`slideIn${slideDir==='left'?'Right':'Left'} 0.3s cubic-bezier(0.25,0.46,0.45,0.94) forwards`:'none',
-            willChange:"transform"}}>
-            {render()}
+          <div style={{
+            animation:slideDir?`slideIn${slideDir==='left'?'Right':'Left'} 0.28s cubic-bezier(0.4,0,0.2,1) forwards`:'none',
+            willChange:slideDir?"transform":"auto",
+            backfaceVisibility:"hidden"}}>
+            {TAB_ORDER.map(t=>(
+              <div key={t} style={{display:tab===t?"block":"none"}}>
+                {renderTab(t)}
+              </div>
+            ))}
           </div>
-          {/* Outgoing page */}
-          {prevTab&&slideDir&&(
-            <div key={prevTab+"_out"} style={{
-              position:"absolute",top:0,left:0,right:0,pointerEvents:"none",
-              animation:`slideOut${slideDir==='left'?'Left':'Right'} 0.3s cubic-bezier(0.25,0.46,0.45,0.94) forwards`,
-              willChange:"transform"}}>
-              {renderTab(prevTab)}
-            </div>
-          )}
         </div>
       </div>
       <TopNav tab={tab} setTab={navigateTo}/>
