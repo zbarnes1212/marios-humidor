@@ -258,7 +258,7 @@ function LuxuryGauge({value,size,label,subtitle,min=20,max=100}:{value:number;si
 
 // DATA
 const HUMIDORS:any[]=[];
-type CigarEntry={id:number;brand:string;line:string;vitola:string;origin:string;wrapper:string;rating:number;count:number;purchaseDate:string;bandColor:string;humidorId:number};
+type CigarEntry={id:number;brand:string;line:string;vitola:string;origin:string;wrapper:string;rating:number;count:number;purchaseDate:string;bandColor:string;humidorId:number|null};
 const CIGARS:CigarEntry[]=[];
 
 // Map vitola + wrapper → placeholder cigar image
