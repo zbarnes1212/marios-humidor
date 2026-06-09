@@ -1150,7 +1150,7 @@ function CollectionTab() {
   const [cigars,setCigars]=useState<CigarEntry[]>(CIGARS);
   const [mounted,setMounted]=useState(false);
   const [activeHumidor,setActiveHumidor]=useState<number|null>(null);
-  const [allHumidors,setAllHumidors]=useState<{id:number;name:string}[]>([]);
+  const [allHumidors,setAllHumidors]=useState<{id:number;name:string;wood:string;capacity:number;status:string;photo?:string}[]>([]);
 
   useEffect(()=>{
     setMounted(true);
