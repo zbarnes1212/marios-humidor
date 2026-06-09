@@ -9,9 +9,9 @@ const FEEDS = [
 
 function extractImage(item: string): string {
   return (
-    /<media:content[^>]+url="([^"]+)"/s.exec(item)?.[1] ||
-    /<media:thumbnail[^>]+url="([^"]+)"/s.exec(item)?.[1] ||
-    /<enclosure[^>]+url="([^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/si.exec(item)?.[1] ||
+    /<media:content[^>]+url="([^"]+)"/.exec(item)?.[1] ||
+    /<media:thumbnail[^>]+url="([^"]+)"/.exec(item)?.[1] ||
+    /<enclosure[^>]+url="([^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/.exec(item)?.[1] ||
     /<content:encoded><!\[CDATA\[[\s\S]*?<img[^>]+src=["']([^"']+)["']/i.exec(item)?.[1] ||
     /<description><!\[CDATA\[[\s\S]*?<img[^>]+src=["']([^"']+)["']/i.exec(item)?.[1] ||
     ''
@@ -24,14 +24,14 @@ function parseRSS(xml: string, source: string, accent: string): any[] {
   let match;
   while ((match = itemRegex.exec(xml)) !== null) {
     const item = match[1];
-    const title = (/<title><!\[CDATA\[(.*?)\]\]><\/title>/s.exec(item) || /<title>([^<]+)<\/title>/s.exec(item))?.[1]
+    const title = (/<title><!\[CDATA\[(.*?)\]\]><\/title>/.exec(item) || /<title>([^<]+)<\/title>/.exec(item))?.[1]
       ?.replace(/&#(\d+);/g, (_, c) => String.fromCharCode(+c))
       ?.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&apos;/g, "'").trim() ?? '';
-    const link = (/<link>(https?:\/\/[^<]+)<\/link>/s.exec(item) ||
-                  /<guid[^>]*>(https?:\/\/[^<]+)<\/guid>/s.exec(item))?.[1]?.trim() ?? '';
-    const pubDate = (/<pubDate>(.*?)<\/pubDate>/s.exec(item))?.[1]?.trim() ?? '';
-    const summary = (/<description><!\[CDATA\[(.*?)\]\]><\/description>/s.exec(item) ||
-                     /<description>([^<]*)<\/description>/s.exec(item))?.[1]
+    const link = (/<link>(https?:\/\/[^<]+)<\/link>/.exec(item) ||
+                  /<guid[^>]*>(https?:\/\/[^<]+)<\/guid>/.exec(item))?.[1]?.trim() ?? '';
+    const pubDate = (/<pubDate>(.*?)<\/pubDate>/.exec(item))?.[1]?.trim() ?? '';
+    const summary = (/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>/.exec(item) ||
+                     /<description>([^<]*)<\/description>/.exec(item))?.[1]
       ?.replace(/<[^>]+>/g, '').replace(/&[a-z#0-9]+;/gi, ' ').trim().slice(0, 180) ?? '';
     const image = extractImage(item);
     if (title && link) {
