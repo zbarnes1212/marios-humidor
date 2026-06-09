@@ -23,7 +23,7 @@ const LANGS:{code:LangCode;flag:string;name:string}[]=[
 const TRANSLATIONS:{[K in LangCode]:Record<string,string>}={
   en:{
     // Nav
-    nav_home:"Feed",nav_collection:"Collection",nav_mario:"Mario",nav_humidors:"Humidors",nav_challenges:"Challenges",nav_leaderboard:"Leaderboard",nav_community:"Social Club",nav_profile:"Profile",
+    nav_home:"Feed",nav_humidors:"Humidors",nav_mario:"Mario",nav_club:"Club",nav_profile:"Profile",
     // Home
     greeting_morning:"Good morning",greeting_afternoon:"Good afternoon",greeting_evening:"Good evening",
     welcome_back:"Welcome back to the lounge.",
@@ -61,7 +61,7 @@ const TRANSLATIONS:{[K in LangCode]:Record<string,string>}={
     try_again:"Try Again",add_to_col_btn:"+ Add to Collection",
   },
   es:{
-    nav_home:"Inicio",nav_collection:"Colección",nav_mario:"Mario",nav_community:"Club Social",nav_profile:"Perfil",
+    nav_home:"Inicio",nav_humidors:"Humidores",nav_mario:"Mario",nav_club:"Club",nav_profile:"Perfil",
     greeting_morning:"Buenos días",greeting_afternoon:"Buenas tardes",greeting_evening:"Buenas noches",
     welcome_back:"Bienvenido al salón.",
     my_humidors:"Mis Humidores",sensor_offline:"Sensor desconectado",sensor_updating:"Actualizando…",
@@ -90,7 +90,7 @@ const TRANSLATIONS:{[K in LangCode]:Record<string,string>}={
     try_again:"Intentar de Nuevo",add_to_col_btn:"+ Añadir a Colección",
   },
   pt:{
-    nav_home:"Início",nav_collection:"Coleção",nav_mario:"Mario",nav_community:"Clube Social",nav_profile:"Perfil",
+    nav_home:"Início",nav_humidors:"Humidores",nav_mario:"Mario",nav_club:"Clube",nav_profile:"Perfil",
     greeting_morning:"Bom dia",greeting_afternoon:"Boa tarde",greeting_evening:"Boa noite",
     welcome_back:"Bem-vindo ao salão.",
     my_humidors:"Meus Humidores",sensor_offline:"Sensor offline",sensor_updating:"Atualizando…",
@@ -119,7 +119,7 @@ const TRANSLATIONS:{[K in LangCode]:Record<string,string>}={
     try_again:"Tentar Novamente",add_to_col_btn:"+ Adicionar à Coleção",
   },
   fr:{
-    nav_home:"Accueil",nav_collection:"Collection",nav_mario:"Mario",nav_community:"Club Social",nav_profile:"Profil",
+    nav_home:"Accueil",nav_humidors:"Humidors",nav_mario:"Mario",nav_club:"Club",nav_profile:"Profil",
     greeting_morning:"Bonjour",greeting_afternoon:"Bon après-midi",greeting_evening:"Bonsoir",
     welcome_back:"Bienvenue au salon.",
     my_humidors:"Mes Humidors",sensor_offline:"Capteur hors ligne",sensor_updating:"Mise à jour…",
@@ -148,7 +148,7 @@ const TRANSLATIONS:{[K in LangCode]:Record<string,string>}={
     try_again:"Réessayer",add_to_col_btn:"+ Ajouter à la Collection",
   },
   de:{
-    nav_home:"Start",nav_collection:"Sammlung",nav_mario:"Mario",nav_community:"Social Club",nav_profile:"Profil",
+    nav_home:"Start",nav_humidors:"Humidore",nav_mario:"Mario",nav_club:"Club",nav_profile:"Profil",
     greeting_morning:"Guten Morgen",greeting_afternoon:"Guten Tag",greeting_evening:"Guten Abend",
     welcome_back:"Willkommen in der Lounge.",
     my_humidors:"Meine Humidore",sensor_offline:"Sensor offline",sensor_updating:"Aktualisierung…",
@@ -3614,12 +3614,9 @@ function NewsTab() {
 
 const NAV=[
   {id:"home",tk:"nav_home"},
-  {id:"collection",tk:"nav_collection"},
   {id:"humidors",tk:"nav_humidors"},
   {id:"mario",tk:"nav_mario"},
-  {id:"challenges",tk:"nav_challenges"},
-  {id:"leaderboard",tk:"nav_leaderboard"},
-  {id:"community",tk:"nav_community"},
+  {id:"club",tk:"nav_club"},
   {id:"profile",tk:"nav_profile"},
 ];
 
@@ -3641,6 +3638,12 @@ function NavIcon({id,active}:{id:string,active:boolean}) {
       <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
         <path d="M11 2l2.5 5 5.5.8-4 3.9.9 5.5L11 14.5 6.1 17.2l.9-5.5L3 7.8l5.5-.8L11 2z"
           stroke={c} strokeWidth="1.4" strokeLinejoin="round" fill="none"/>
+      </svg>
+    ),
+    club:(
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <path d="M11 3l2.5 5 5.5.8-4 3.9.9 5.5L11 15.5 6.1 18.2l.9-5.5L3 8.8l5.5-.8L11 3z"
+          stroke={c} strokeWidth="1.4" strokeLinejoin="round" fill={active?c:"none"}/>
       </svg>
     ),
     leaderboard:(
@@ -4407,6 +4410,264 @@ function LeaderboardTab() {
   );
 }
 
+// ── CLUB TAB ───────────────────────────────────────────────────────────────
+function ClubTab() {
+  const [subTab,setSubTab]=useState<'rankings'|'challenges'|'achievements'>('challenges');
+
+  return (
+    <div style={{paddingBottom:100}}>
+      {/* Header */}
+      <div style={{padding:"24px 20px 0"}}>
+        <div style={{fontSize:36,fontWeight:"bold",color:T.textPrimary,
+          fontFamily:"Georgia,serif",lineHeight:1,marginBottom:4}}>Club</div>
+        <div style={{fontSize:11,color:T.goldMid,letterSpacing:4,textTransform:"uppercase",
+          fontFamily:"Georgia,serif",marginBottom:20}}>
+          {subTab.toUpperCase()}
+        </div>
+        {/* Sub-tab selector */}
+        <div style={{display:"flex",background:"rgba(0,0,0,0.4)",
+          border:`1px solid rgba(196,154,40,0.15)`,borderRadius:12,
+          padding:3,marginBottom:16,gap:2}}>
+          {(['rankings','challenges','achievements'] as const).map(st=>(
+            <button key={st} onClick={()=>setSubTab(st)}
+              style={{flex:1,padding:"10px 4px",
+                background:subTab===st?`linear-gradient(135deg,${T.goldDark},${T.goldMid})`:"transparent",
+                border:"none",borderRadius:10,cursor:"pointer",
+                color:subTab===st?"#0a0a0a":T.textMuted,
+                fontSize:11,fontFamily:"Georgia,serif",letterSpacing:1,
+                textTransform:"uppercase",transition:"all 0.2s"}}>
+              {st.charAt(0).toUpperCase()+st.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {subTab==='rankings'&&<LeaderboardTab/>}
+      {subTab==='challenges'&&<ChallengesTab/>}
+      {subTab==='achievements'&&<AchievementsTab/>}
+    </div>
+  );
+}
+
+// ── ACHIEVEMENTS TAB ───────────────────────────────────────────────────────
+function AchievementsTab() {
+  const [filter,setFilter]=useState<'all'|'milestones'|'collection'|'activity'|'community'>('all');
+  const [mounted,setMounted]=useState(false);
+  const [cigars,setCigars]=useState<any[]>([]);
+  const [notes,setNotes]=useState<any[]>([]);
+
+  useEffect(()=>{
+    try{const s=localStorage.getItem('mh_cigars');if(s)setCigars(JSON.parse(s));}catch{}
+    try{const s=localStorage.getItem('mh_notes');if(s)setNotes(JSON.parse(s));}catch{}
+    setMounted(true);
+  },[]);
+
+  const totalCigars=mounted?cigars.reduce((a:number,c:any)=>a+c.count,0):0;
+  const uniqueBrands=mounted?new Set(cigars.map((c:any)=>c.brand)).size:0;
+  const totalNotes=mounted?notes.length:0;
+  const totalPoints=(uniqueBrands*100)+(totalNotes*150)+(totalCigars*10);
+  const totalAchievements=Math.min(
+    (uniqueBrands>=1?1:0)+(totalNotes>=1?1:0)+(totalCigars>=5?1:0)+(totalCigars>=1?1:0),4
+  );
+
+  const RECENT_ACHIEVEMENTS=[
+    {id:1,icon:"🔥",title:"Smoke Streak",sub:"30 Days",pts:250,color:"#e05050"},
+    {id:2,icon:"🌎",title:"World Traveler",sub:"3 Countries",pts:200,color:T.goldMid},
+    {id:3,icon:"💧",title:"Humidor Master",sub:"30 Days RH",pts:350,color:"#6a9fe0"},
+    {id:4,icon:"📓",title:"Tasting Expert",sub:"50 Notes",pts:200,color:"#b67ee0"},
+  ];
+
+  const IN_PROGRESS=[
+    {id:1,icon:"🔥",title:"Smoke 10 Different Brands",current:uniqueBrands,goal:10,color:"#e05050"},
+    {id:2,icon:"🌎",title:"World Tour",current:new Set(cigars.filter((c:any)=>c.origin).map((c:any)=>c.origin)).size,goal:4,color:T.goldMid},
+    {id:3,icon:"💧",title:"Humidor Perfection",current:0,goal:30,color:"#6a9fe0"},
+  ];
+
+  const UNLOCKED=[
+    ...(totalCigars>=1?[{icon:"🚬",title:"First Smoke",pts:100}]:[]),
+    ...(totalNotes>=1?[{icon:"⭐",title:"5 Star Review",pts:150}]:[]),
+    ...(totalCigars>=5?[{icon:"📦",title:"Collector",pts:200}]:[]),
+    ...(uniqueBrands>=3?[{icon:"📸",title:"Photo Share",pts:100}]:[]),
+  ];
+
+  return (
+    <div style={{padding:"0 16px"}}>
+      {/* Progress card */}
+      <div style={{background:"linear-gradient(170deg,#1a1208,#0f0a04)",borderRadius:16,
+        border:`1px solid rgba(196,154,40,0.2)`,padding:"20px",marginBottom:16,
+        display:"flex",alignItems:"center",gap:16}}>
+        <div style={{position:"relative",width:72,height:72,flexShrink:0}}>
+          <svg width="72" height="72" viewBox="0 0 72 72">
+            <circle cx="36" cy="36" r="30" fill="none" stroke="rgba(196,154,40,0.15)" strokeWidth="6"/>
+            <circle cx="36" cy="36" r="30" fill="none" stroke={T.goldMid} strokeWidth="6"
+              strokeDasharray={`${2*Math.PI*30*Math.min(totalAchievements/10,1)} ${2*Math.PI*30}`}
+              strokeDashoffset={2*Math.PI*30*0.25} strokeLinecap="round"
+              style={{transform:"rotate(-90deg)",transformOrigin:"center"}}/>
+          </svg>
+          <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",
+            alignItems:"center",justifyContent:"center"}}>
+            <div style={{fontSize:18,fontWeight:"bold",color:T.goldMid,fontFamily:"Georgia,serif",lineHeight:1}}>
+              {totalAchievements}
+            </div>
+            <div style={{fontSize:8,color:T.textMuted,fontFamily:"Georgia,serif"}}>/60</div>
+          </div>
+        </div>
+        <div style={{flex:1}}>
+          <div style={{fontSize:14,fontWeight:"bold",color:T.textPrimary,
+            fontFamily:"Georgia,serif",marginBottom:2}}>Your Progress</div>
+          <div style={{fontSize:11,color:T.textMuted,fontFamily:"Georgia,serif",
+            fontStyle:"italic",marginBottom:8}}>Keep earning to reach the next level.</div>
+          <div style={{display:"flex",alignItems:"center",gap:6}}>
+            <span style={{fontSize:13}}>⭐</span>
+            <span style={{fontSize:14,fontWeight:"bold",color:T.goldMid,
+              fontFamily:"Georgia,serif"}}>{totalPoints.toLocaleString()} Points</span>
+          </div>
+        </div>
+        <div style={{textAlign:"center",flexShrink:0}}>
+          <div style={{fontSize:28}}>👑</div>
+          <div style={{fontSize:11,fontWeight:"bold",color:T.goldMid,fontFamily:"Georgia,serif"}}>
+            {totalPoints<1000?"Novice":totalPoints<5000?"Enthusiast":"Connoisseur"}
+          </div>
+          <div style={{fontSize:9,color:T.textMuted,fontFamily:"Georgia,serif"}}>
+            Next: {totalPoints<1000?"Enthusiast":totalPoints<5000?"Connoisseur":"Aficionado"}
+          </div>
+        </div>
+      </div>
+
+      {/* Filter pills */}
+      <div style={{display:"flex",gap:6,marginBottom:16,overflowX:"auto",scrollbarWidth:"none"}}>
+        {(['all','milestones','collection','activity','community'] as const).map(f=>(
+          <button key={f} onClick={()=>setFilter(f)}
+            style={{padding:"6px 14px",flexShrink:0,
+              background:filter===f?`linear-gradient(135deg,${T.goldDark},${T.goldMid})`:"transparent",
+              border:`1px solid ${filter===f?"transparent":"rgba(196,154,40,0.2)"}`,
+              borderRadius:20,color:filter===f?"#0a0a0a":T.textMuted,
+              fontSize:11,fontFamily:"Georgia,serif",cursor:"pointer",
+              textTransform:"capitalize"}}>
+            {f}
+          </button>
+        ))}
+      </div>
+
+      {/* Recently Earned */}
+      <div style={{marginBottom:20}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <div style={{fontSize:13,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif"}}>
+            Recently Earned
+          </div>
+          <div style={{fontSize:10,color:T.goldMid,fontFamily:"Georgia,serif"}}>View All ›</div>
+        </div>
+        <div style={{display:"flex",gap:10,overflowX:"auto",scrollbarWidth:"none",paddingBottom:4}}>
+          {RECENT_ACHIEVEMENTS.map(a=>(
+            <div key={a.id} style={{flexShrink:0,width:130,
+              background:"linear-gradient(170deg,#1a1208,#0f0a04)",
+              borderRadius:14,border:`1px solid rgba(196,154,40,0.15)`,
+              padding:"14px 10px",textAlign:"center"}}>
+              <div style={{fontSize:32,marginBottom:8}}>{a.icon}</div>
+              <div style={{fontSize:12,fontWeight:"bold",color:T.textPrimary,
+                fontFamily:"Georgia,serif",marginBottom:2}}>{a.title}</div>
+              <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",
+                marginBottom:8}}>{a.sub}</div>
+              <div style={{fontSize:11,color:T.goldMid,fontFamily:"Georgia,serif"}}>
+                +{a.pts} pts
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* In Progress */}
+      <div style={{marginBottom:20}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <div style={{fontSize:13,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif"}}>
+            In Progress
+          </div>
+          <div style={{fontSize:10,color:T.goldMid,fontFamily:"Georgia,serif"}}>View All ›</div>
+        </div>
+        {IN_PROGRESS.map(a=>{
+          const pct=Math.min(Math.round((a.current/a.goal)*100),100);
+          return (
+            <div key={a.id} style={{display:"flex",alignItems:"center",gap:14,
+              background:"linear-gradient(170deg,#1a1208,#0f0a04)",
+              borderRadius:12,border:`1px solid rgba(196,154,40,0.12)`,
+              padding:"14px",marginBottom:8}}>
+              <div style={{width:40,height:40,borderRadius:"50%",flexShrink:0,
+                background:`rgba(0,0,0,0.4)`,border:`1px solid ${a.color}44`,
+                display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>
+                {a.icon}
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:12,fontWeight:"bold",color:T.textPrimary,
+                  fontFamily:"Georgia,serif",marginBottom:6}}>{a.title}</div>
+                <div style={{height:4,background:"rgba(0,0,0,0.4)",borderRadius:4,overflow:"hidden",marginBottom:4}}>
+                  <div style={{height:"100%",width:`${pct}%`,
+                    background:`linear-gradient(90deg,${a.color}88,${a.color})`,borderRadius:4}}/>
+                </div>
+                <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif"}}>
+                  {a.current} / {a.goal}
+                </div>
+              </div>
+              <div style={{flexShrink:0,textAlign:"right"}}>
+                <div style={{fontSize:16,fontWeight:"bold",color:a.color,
+                  fontFamily:"Georgia,serif"}}>{pct}%</div>
+              </div>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="rgba(196,154,40,0.3)" strokeWidth="2">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Recently Unlocked */}
+      {UNLOCKED.length>0&&(
+        <div style={{marginBottom:20}}>
+          <div style={{fontSize:13,fontWeight:"bold",color:T.textPrimary,
+            fontFamily:"Georgia,serif",marginBottom:12}}>Recently Unlocked</div>
+          <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+            {UNLOCKED.map((u,i)=>(
+              <div key={i} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,
+                width:80}}>
+                <div style={{width:56,height:56,borderRadius:12,
+                  background:`linear-gradient(135deg,${T.goldDark}44,${T.goldDark}22)`,
+                  border:`1px solid rgba(196,154,40,0.3)`,
+                  display:"flex",alignItems:"center",justifyContent:"center",fontSize:24}}>
+                  {u.icon}
+                </div>
+                <div style={{fontSize:10,color:T.textPrimary,fontFamily:"Georgia,serif",
+                  textAlign:"center",lineHeight:1.2}}>{u.title}</div>
+                <div style={{fontSize:9,color:T.goldMid,fontFamily:"Georgia,serif"}}>
+                  +{u.pts} pts
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Footer banner */}
+      <div style={{background:"linear-gradient(170deg,#1a1208,#0f0a04)",borderRadius:12,
+        border:`1px solid rgba(196,154,40,0.1)`,padding:"16px",
+        display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
+        <div style={{fontSize:24}}>🏆</div>
+        <div style={{flex:1}}>
+          <div style={{fontSize:12,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif"}}>
+            Earn achievements. Unlock badges.
+          </div>
+          <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",fontStyle:"italic"}}>
+            Climb the ranks and become a true connoisseur.
+          </div>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="rgba(196,154,40,0.3)" strokeWidth="2">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </div>
+    </div>
+  );
+}
+
 function ProfileTab() {
   return <SettingsTab/>;
 }
@@ -4464,7 +4725,7 @@ export default function MariosHumidor() {
   const [showCompose,setShowCompose]=useState(false);
   const [activeClubTab,setActiveClubTab]=useState<'feed'|'news'|'trending'|'rareFinds'|'spotlights'|'showcase'|'events'|'learn'>('feed');
 
-  const TAB_ORDER=["home","collection","humidors","mario","challenges","leaderboard","community","profile"];
+  const TAB_ORDER=["home","humidors","mario","club","profile"];
   const touchStartX=useRef<number|null>(null);
   const touchStartY=useRef<number|null>(null);
   const [prevTab,setPrevTab]=useState<string|null>(null);
@@ -4513,13 +4774,14 @@ export default function MariosHumidor() {
   const renderTab=(t:string)=>{
     switch(t){
       case "home":       return <HomeTab liveData={liveData} liveStatus={liveStatus} lastUpdated={lastUpdated} onRefresh={()=>fetchLive(false)}/>;
-      case "collection": return <CollectionTab/>;
-      case "mario":      return <AskMarioTab liveData={liveData}/>;
       case "humidors":   return <HumidorsTab liveData={liveData} liveStatus={liveStatus} lastUpdated={lastUpdated} onRefresh={()=>fetchLive(false)}/>;
+      case "mario":      return <AskMarioTab liveData={liveData}/>;
+      case "club":       return <ClubTab/>;
+      case "profile":    return <ProfileTab/>;
+      case "collection": return <CollectionTab/>;
+      case "community":  return <CommunityTab activeSubTab={activeClubTab} setActiveSubTab={setActiveClubTab}/>;
       case "challenges": return <ChallengesTab/>;
       case "leaderboard": return <LeaderboardTab/>;
-      case "community":  return <CommunityTab activeSubTab={activeClubTab} setActiveSubTab={setActiveClubTab}/>;
-      case "profile":    return <ProfileTab/>;
       default:           return <HomeTab liveData={liveData} liveStatus={liveStatus} lastUpdated={lastUpdated} onRefresh={()=>fetchLive(false)}/>;
     }
   };
