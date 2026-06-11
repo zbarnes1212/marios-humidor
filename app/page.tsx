@@ -974,7 +974,7 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
             ))}
 
             {/* Want to dive deeper */}
-            <div onClick={()=>setAchMarioPrompt("Tell me about my cigar journey and what I should focus on next.")}
+            <div onClick={()=>setHumidorMarioPrompt("Tell me about my cigar journey and what I should focus on next.")}
               style={{background:"rgba(196,154,40,0.04)",borderRadius:12,
               border:`1px solid rgba(196,154,40,0.18)`,padding:"14px",
               display:"flex",alignItems:"center",gap:12,cursor:"pointer"}}>
