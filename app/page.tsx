@@ -1,5 +1,6 @@
 "use client";
 import React,{ useState, useEffect, useRef, useId, useCallback, createContext, useContext } from "react";
+import { createPortal } from "react-dom";
 import SplashScreen from "@/components/SplashScreen";
 
 const T = {
@@ -23,7 +24,7 @@ const LANGS:{code:LangCode;flag:string;name:string}[]=[
 const TRANSLATIONS:{[K in LangCode]:Record<string,string>}={
   en:{
     // Nav
-    nav_home:"Feed",nav_humidors:"Humidors",nav_mario:"Mario",nav_club:"Club",nav_profile:"Profile",
+    nav_home:"Home",nav_humidors:"Humidors",nav_mario:"Mario",nav_club:"Club",nav_profile:"Profile",
     // Home
     greeting_morning:"Good morning",greeting_afternoon:"Good afternoon",greeting_evening:"Good evening",
     welcome_back:"Welcome back to the lounge.",
@@ -208,7 +209,7 @@ function MMedallion({size=32}:{size?:number}) {
   return <div style={{width:size,height:size,borderRadius:"50%",flexShrink:0,
     background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
     display:"flex",alignItems:"center",justifyContent:"center",
-    fontSize:size*0.44,fontWeight:"bold",color:"#1a0e04",fontFamily:"Georgia,serif",
+    fontSize:size*0.44,fontWeight:"bold",color:"#111111",fontFamily:"Georgia,serif",
     boxShadow:`0 2px 10px ${T.goldDark}44`}}>M</div>;
 }
 
@@ -245,7 +246,7 @@ function LuxuryGauge({value,size,label,subtitle,min=20,max=100}:{value:number;si
       <line x1={ntp.x} y1={ntp.y} x2={np.x} y2={np.y} stroke={`url(#${uid}n)`} strokeWidth={r2(size*0.021)} strokeLinecap="round"/>
       <circle cx={cx} cy={cy} r={r2(size*0.082)} fill="#3d2a08"/>
       <circle cx={cx} cy={cy} r={r2(size*0.062)} fill={`url(#${uid}c)`}/>
-      <circle cx={cx} cy={cy} r={r2(size*0.028)} fill="#1a0e04"/>
+      <circle cx={cx} cy={cy} r={r2(size*0.028)} fill="#111111"/>
       <circle cx={cx} cy={cy} r={outerR} fill={`url(#${uid}g)`}/>
     </svg>
     {label&&<div style={{marginTop:10,textAlign:"center"}}>
@@ -334,6 +335,11 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
   const [expandedCigars,setExpandedCigars]=useState<number|null>(null);
   const [addingToHumidor,setAddingToHumidor]=useState<number|null>(null);
   const [humidorCigars,setHumidorCigars]=useState<any[]>([]);
+  const [detailHumidor,setDetailHumidor]=useState<number|null>(null);
+  const [detailTab,setDetailTab]=useState<'overview'|'inventory'|'history'|'insights'>('overview');
+  const [invSearch,setInvSearch]=useState("");
+  const [editCigar,setEditCigar]=useState<any|null>(null);
+  const [humidorMarioPrompt,setHumidorMarioPrompt]=useState<string|null>(null);
   const {t}=useLang();
 
   const HUMIDOR_COLORS=['#3dd68c','#C49A28','#6a9fe0','#e07a5f','#b67ee0'];
@@ -386,6 +392,14 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
     setEditHumidor(null);
   };
 
+  const saveCigarEdit=()=>{
+    if(!editCigar) return;
+    const updated=humidorCigars.map((c:any)=>c.id===editCigar.id?editCigar:c);
+    setHumidorCigars(updated);
+    try{localStorage.setItem('mh_cigars',JSON.stringify(updated));}catch{}
+    setEditCigar(null);
+  };
+
   const removeCigarFromHumidor=(cigarId:number)=>{
     const updated=humidorCigars.map((c:any)=>c.id===cigarId?{...c,humidorId:null}:c);
     setHumidorCigars(updated);
@@ -411,14 +425,628 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
 
   const fi:React.CSSProperties={width:"100%",background:"rgba(0,0,0,0.25)",
     border:`1px solid rgba(160,120,40,0.22)`,borderRadius:10,padding:"11px 14px",
-    color:T.textPrimary,fontSize:13,outline:"none",boxSizing:"border-box",
+    color:T.textPrimary,fontSize:17,outline:"none",boxSizing:"border-box",
     marginBottom:10,fontFamily:"Georgia,serif"};
+
+  // Collection overview stats
+  const totalCigars=mounted?humidorCigars.reduce((a:number,c:any)=>a+(c.count||0),0):0;
+  const allStatuses=mounted?humidors.map(h=>{
+    const live=getLive(h.name);
+    const humidity=live?.humidity??null;
+    const temp=live?.temperature??null;
+    const humOk=humidity!==null&&humidity>=65&&humidity<=72;
+    const tempOk=temp!==null&&temp>=65&&temp<=70;
+    const hasReading=humidity!==null||temp!==null;
+    return !hasReading?"no_sensor":humOk&&tempOk?"optimal":humOk||tempOk?"good":"warning";
+  }):[];
+  const hasWarning=allStatuses.includes("warning");
+  const healthLabel=!mounted?"—":hasWarning?"Attention Needed":allStatuses.includes("good")?"Good":"Excellent";
+  const healthColor=hasWarning?"#e05050":allStatuses.includes("good")?T.goldMid:"#3dd68c";
+
+  // ── HUMIDOR DETAIL SCREEN ──────────────────────────────────────────────
+  if(detailHumidor!==null){
+    const h=humidors.find(hh=>hh.id===detailHumidor);
+    if(!h) { setDetailHumidor(null); return null; }
+    const live=getLive(h.name);
+    const humidity=live?.humidity??null;
+    const temp=live?.temperature??null;
+    const humOk=humidity!==null&&humidity>=65&&humidity<=72;
+    const tempOk=temp!==null&&temp>=65&&temp<=70;
+    const hasReading=humidity!==null||temp!==null;
+    const calcStatus=!hasReading?"No Sensor":humOk&&tempOk?"Optimal":humOk||tempOk?"Good":"Warning";
+    const statusColor=calcStatus==="Optimal"?"#3dd68c":calcStatus==="Good"?T.goldMid:calcStatus==="No Sensor"?T.textMuted:"#e05050";
+    const hCigars=humidorCigars.filter((c:any)=>c.humidorId===h.id);
+    const filtered=hCigars.filter((c:any)=>
+      !invSearch||c.line?.toLowerCase().includes(invSearch.toLowerCase())||
+      c.brand?.toLowerCase().includes(invSearch.toLowerCase())||
+      c.vitola?.toLowerCase().includes(invSearch.toLowerCase())
+    );
+
+    return(
+      <div style={{paddingBottom:100,minHeight:"100vh"}}>
+
+        {/* ── DETAIL HEADER ── */}
+        <div style={{padding:"16px 16px 0",display:"flex",alignItems:"center",
+          justifyContent:"space-between",borderBottom:`1px solid ${T.border}`,paddingBottom:14}}>
+          <button onClick={()=>{setDetailHumidor(null);setDetailTab('overview');setInvSearch("");}}
+            style={{background:"none",border:"none",cursor:"pointer",padding:"4px 8px 4px 0",
+              display:"flex",alignItems:"center",gap:6,color:T.goldMid}}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+              stroke={T.goldMid} strokeWidth="2">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+          </button>
+          <div style={{fontSize:17,fontWeight:"bold",color:T.textPrimary,
+            fontFamily:"Georgia,serif",letterSpacing:0.5}}>{h.name}</div>
+          <button onClick={()=>setEditHumidor({...h})}
+            style={{background:"none",border:"none",cursor:"pointer",padding:"4px 0 4px 8px",
+              color:T.goldMid}}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+              stroke={T.goldMid} strokeWidth="2">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* ── SUB-TABS ── */}
+        <div style={{display:"flex",borderBottom:`1px solid ${T.border}`,
+          padding:"0 16px",gap:0}}>
+          {(['overview','inventory','history','insights'] as const).map(tab=>(
+            <button key={tab} onClick={()=>setDetailTab(tab)}
+              style={{flex:1,padding:"12px 4px",background:"none",border:"none",
+                cursor:"pointer",fontFamily:"Georgia,serif",fontSize:11,
+                letterSpacing:1.5,textTransform:"uppercase",
+                color:detailTab===tab?T.goldMid:T.textMuted,
+                borderBottom:detailTab===tab?`2px solid ${T.goldMid}`:"2px solid transparent",
+                marginBottom:-1}}>
+              {tab.charAt(0).toUpperCase()+tab.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        {/* ── OVERVIEW TAB ── */}
+        {detailTab==='overview'&&(
+          <div style={{padding:"16px"}}>
+
+            {/* Hero photo */}
+            <div style={{position:"relative",height:180,borderRadius:14,overflow:"hidden",
+              marginBottom:16,background:"#000"}}>
+              <img src={h.photo||"/humidor-hero.png"} alt={h.name}
+                style={{width:"100%",height:"100%",objectFit:"cover",
+                  objectPosition:"center",filter:"brightness(0.75)"}}
+                onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
+              <div style={{position:"absolute",inset:0,
+                background:"linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(0,0,0,0.85) 100%)"}}/>
+              <div style={{position:"absolute",bottom:14,left:16}}>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <div style={{width:8,height:8,borderRadius:"50%",background:statusColor,
+                    boxShadow:hasReading?`0 0 8px ${statusColor}88`:"none"}}/>
+                  <span style={{fontSize:13,color:statusColor,fontFamily:"Georgia,serif"}}>
+                    {calcStatus}
+                  </span>
+                </div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",fontFamily:"Georgia,serif",
+                  fontStyle:"italic",marginTop:2}}>{h.wood} · Capacity {h.capacity}</div>
+              </div>
+              {/* Last updated */}
+              {lastUpdated&&(
+                <div style={{position:"absolute",bottom:14,right:14,
+                  fontSize:10,color:"rgba(255,255,255,0.5)",fontFamily:"Georgia,serif"}}>
+                  Updated {lastUpdated}
+                </div>
+              )}
+            </div>
+
+            {/* Live readings */}
+            <div style={{display:"flex",gap:10,marginBottom:16}}>
+              <div style={{flex:1,background:"rgba(61,214,140,0.07)",
+                border:"1px solid rgba(61,214,140,0.2)",borderRadius:12,
+                padding:"16px 12px",textAlign:"center"}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="#3dd68c" opacity="0.8"
+                  style={{marginBottom:6}}>
+                  <path d="M12 2C6 10 4 14 4 17a8 8 0 0 0 16 0c0-3-2-7-8-15z"/>
+                </svg>
+                <div style={{fontSize:32,fontWeight:"bold",color:"#3dd68c",
+                  fontFamily:"Georgia,serif",lineHeight:1}}>
+                  {hasReading&&humidity!==null?`${humidity}%`:"—"}
+                </div>
+                <div style={{fontSize:9,color:T.textMuted,letterSpacing:2,
+                  textTransform:"uppercase",marginTop:4,fontFamily:"Georgia,serif"}}>
+                  Relative Humidity
+                </div>
+              </div>
+              <div style={{flex:1,background:"rgba(196,154,40,0.07)",
+                border:`1px solid rgba(196,154,40,0.2)`,borderRadius:12,
+                padding:"16px 12px",textAlign:"center"}}>
+                <svg width="14" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke={T.goldMid} strokeWidth="2" opacity="0.85"
+                  style={{marginBottom:6}}>
+                  <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
+                </svg>
+                <div style={{fontSize:32,fontWeight:"bold",color:T.goldMid,
+                  fontFamily:"Georgia,serif",lineHeight:1}}>
+                  {hasReading&&temp!==null?`${temp}°F`:"—"}
+                </div>
+                <div style={{fontSize:9,color:T.textMuted,letterSpacing:2,
+                  textTransform:"uppercase",marginTop:4,fontFamily:"Georgia,serif"}}>
+                  Temperature
+                </div>
+              </div>
+            </div>
+
+            {/* Cigar count */}
+            <div style={{background:"#111111",border:`1px solid rgba(196,154,40,0.15)`,
+              borderRadius:12,padding:"14px 16px",marginBottom:16,
+              display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke={T.goldMid} strokeWidth="1.8" opacity="0.8">
+                  <line x1="8" y1="6" x2="21" y2="6"/>
+                  <line x1="8" y1="12" x2="21" y2="12"/>
+                  <line x1="8" y1="18" x2="21" y2="18"/>
+                  <line x1="3" y1="6" x2="3.01" y2="6"/>
+                  <line x1="3" y1="12" x2="3.01" y2="12"/>
+                  <line x1="3" y1="18" x2="3.01" y2="18"/>
+                </svg>
+                <div>
+                  <div style={{fontSize:17,fontWeight:"bold",color:T.textPrimary,
+                    fontFamily:"Georgia,serif"}}>{hCigars.length} Cigars</div>
+                  <div style={{fontSize:11,color:T.textMuted,fontFamily:"Georgia,serif",marginTop:2}}>
+                    {h.capacity-hCigars.length} slots available
+                  </div>
+                </div>
+              </div>
+              <button onClick={()=>setDetailTab('inventory')}
+                style={{background:"none",border:`1px solid rgba(196,154,40,0.3)`,
+                  borderRadius:8,padding:"7px 14px",cursor:"pointer",
+                  color:T.goldMid,fontSize:12,fontFamily:"Georgia,serif"}}>
+                View All
+              </button>
+            </div>
+
+            {/* Sensor status */}
+            <div style={{background:"#111111",border:`1px solid rgba(196,154,40,0.15)`,
+              borderRadius:12,padding:"14px 16px",marginBottom:16}}>
+              <div style={{fontSize:9,color:T.textMuted,letterSpacing:2.5,
+                textTransform:"uppercase",fontFamily:"Georgia,serif",marginBottom:10}}>
+                Sensor Status
+              </div>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <div style={{width:8,height:8,borderRadius:"50%",
+                    background:hasReading?"#3dd68c":T.textMuted,
+                    boxShadow:hasReading?"0 0 8px #3dd68c88":"none"}}/>
+                  <span style={{fontSize:15,color:T.textPrimary,fontFamily:"Georgia,serif"}}>
+                    {hasReading?"Connected":"Offline"}
+                  </span>
+                </div>
+                {hasReading&&lastUpdated&&(
+                  <span style={{fontSize:12,color:T.textMuted,fontFamily:"Georgia,serif"}}>
+                    Last updated {lastUpdated}
+                  </span>
+                )}
+              </div>
+              {!hasReading&&(
+                <div style={{fontSize:13,color:T.textMuted,fontFamily:"Georgia,serif",
+                  fontStyle:"italic",marginTop:8}}>
+                  ESP32 sensor integration coming soon
+                </div>
+              )}
+            </div>
+
+            {/* Quick alerts */}
+            <div style={{background:"#111111",border:`1px solid rgba(196,154,40,0.15)`,
+              borderRadius:12,padding:"14px 16px"}}>
+              <div style={{fontSize:9,color:T.textMuted,letterSpacing:2.5,
+                textTransform:"uppercase",fontFamily:"Georgia,serif",marginBottom:10}}>
+                Quick Alerts
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <div style={{width:36,height:36,borderRadius:"50%",flexShrink:0,
+                  background:calcStatus==="Warning"?"rgba(224,80,80,0.1)":"rgba(61,214,140,0.1)",
+                  border:`1px solid ${calcStatus==="Warning"?"rgba(224,80,80,0.3)":"rgba(61,214,140,0.3)"}`,
+                  display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <span style={{fontSize:18}}>
+                    {calcStatus==="Warning"?"⚠️":"✓"}
+                  </span>
+                </div>
+                <div>
+                  <div style={{fontSize:15,fontWeight:"bold",color:T.textPrimary,
+                    fontFamily:"Georgia,serif"}}>
+                    {calcStatus==="Warning"?"Conditions need attention":"All systems normal"}
+                  </div>
+                  <div style={{fontSize:13,color:T.textMuted,fontFamily:"Georgia,serif",marginTop:2}}>
+                    {calcStatus==="Warning"
+                      ?"Check humidity and temperature readings."
+                      :"Your humidor is in optimal condition."}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── INVENTORY TAB ── */}
+        {detailTab==='inventory'&&(
+          <div style={{padding:"16px"}}>
+
+            {/* Search + Add */}
+            <div style={{display:"flex",gap:10,marginBottom:14}}>
+              <div style={{flex:1,position:"relative"}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke={T.textMuted} strokeWidth="2"
+                  style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)"}}>
+                  <circle cx="11" cy="11" r="8"/>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input value={invSearch} onChange={e=>setInvSearch(e.target.value)}
+                  placeholder="Search cigars..."
+                  style={{width:"100%",background:"#111111",border:`1px solid rgba(196,154,40,0.2)`,
+                    borderRadius:24,padding:"11px 16px 11px 36px",color:T.textPrimary,
+                    fontSize:15,fontFamily:"Georgia,serif",outline:"none",boxSizing:"border-box"}}/>
+              </div>
+              <button onClick={()=>setAddingToHumidor(h.id)}
+                style={{flexShrink:0,background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
+                  border:"none",borderRadius:24,padding:"11px 16px",cursor:"pointer",
+                  color:"#0a0a0a",fontSize:13,fontWeight:"bold",fontFamily:"Georgia,serif",
+                  display:"flex",alignItems:"center",gap:6}}>
+                <span style={{fontSize:16,lineHeight:1}}>+</span>
+                <span>Add</span>
+              </button>
+            </div>
+
+            {/* Cigar count */}
+            <div style={{fontSize:12,color:T.textMuted,fontFamily:"Georgia,serif",
+              marginBottom:12,letterSpacing:0.5}}>
+              {filtered.length} cigar{filtered.length!==1?"s":""} in this humidor
+            </div>
+
+            {/* Cigar list */}
+            {filtered.length===0?(
+              <div style={{textAlign:"center",padding:"40px 20px",
+                color:T.textMuted,fontFamily:"Georgia,serif",fontStyle:"italic"}}>
+                {invSearch?"No cigars match your search":"No cigars in this humidor yet"}
+              </div>
+            ):filtered.map((c:any)=>(
+              <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,
+                background:"#111111",borderRadius:12,overflow:"hidden",
+                border:`1px solid rgba(196,154,40,0.12)`,marginBottom:10}}>
+                <div style={{width:56,height:56,flexShrink:0,background:"#000"}}>
+                  <img src={getCigarImage(c.vitola,c.wrapper)} alt={c.line}
+                    style={{width:"100%",height:"100%",objectFit:"cover"}}
+                    onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
+                </div>
+                <div style={{flex:1,padding:"8px 0"}}>
+                  <div style={{fontSize:15,fontWeight:"bold",color:T.textPrimary,
+                    fontFamily:"Georgia,serif",marginBottom:2}}>{c.line}</div>
+                  <div style={{fontSize:12,color:T.textMuted,fontFamily:"Georgia,serif",
+                    fontStyle:"italic"}}>{c.brand}</div>
+                  <div style={{fontSize:11,color:T.textMuted,fontFamily:"Georgia,serif",
+                    marginTop:2}}>{c.vitola}{c.wrapper?` · ${c.wrapper}`:""}</div>
+                </div>
+                <div style={{padding:"0 10px",textAlign:"center"}}>
+                  <div style={{fontSize:22,fontWeight:"bold",color:T.goldMid,
+                    fontFamily:"Georgia,serif",lineHeight:1}}>{c.count}</div>
+                  <div style={{fontSize:9,color:T.textMuted,letterSpacing:1.5,
+                    textTransform:"uppercase",marginTop:3}}>Qty</div>
+                </div>
+                <div style={{padding:"0 12px 0 0",display:"flex",flexDirection:"column",gap:6}}>
+                  <button onClick={e=>{e.stopPropagation();setEditCigar({...c});}}
+                    style={{background:"rgba(196,154,40,0.08)",
+                      border:`1px solid rgba(196,154,40,0.2)`,
+                      borderRadius:6,padding:"4px 10px",cursor:"pointer",
+                      color:T.goldMid,fontSize:11,fontFamily:"Georgia,serif"}}>
+                    Edit
+                  </button>
+                  <button onClick={e=>{e.stopPropagation();removeCigarFromHumidor(c.id);}}
+                    style={{background:"rgba(224,80,80,0.08)",
+                      border:"1px solid rgba(224,80,80,0.2)",
+                      borderRadius:6,padding:"4px 10px",cursor:"pointer",
+                      color:"#e05050",fontSize:11,fontFamily:"Georgia,serif"}}>
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {/* ── EDIT CIGAR BOTTOM SHEET ── */}
+            {editCigar&&(
+              <div style={{position:"fixed",inset:0,zIndex:200,
+                background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"flex-end"}}
+                onClick={()=>setEditCigar(null)}>
+                {/* Sheet — flex column, max 80vh, never goes below nav */}
+                <div style={{width:"100%",maxWidth:480,margin:"0 auto",
+                  background:"#111111",borderRadius:"20px 20px 0 0",
+                  border:`1px solid rgba(196,154,40,0.25)`,
+                  display:"flex",flexDirection:"column",
+                  maxHeight:"80vh",marginBottom:90}}
+                  onClick={e=>e.stopPropagation()}>
+
+                  {/* Header — fixed inside sheet */}
+                  <div style={{flexShrink:0,padding:"16px 20px 12px",
+                    borderBottom:`1px solid rgba(196,154,40,0.1)`}}>
+                    <div style={{width:40,height:4,borderRadius:2,
+                      background:"rgba(196,154,40,0.25)",margin:"0 auto 14px"}}/>
+                    <div style={{fontSize:11,color:T.goldMid,fontFamily:"Georgia,serif",
+                      letterSpacing:2,textTransform:"uppercase"}}>Edit Cigar</div>
+                  </div>
+
+                  {/* Scrollable fields */}
+                  <div style={{flex:1,overflowY:"auto",padding:"14px 20px"}}>
+                    <input value={editCigar.brand||""} onChange={e=>setEditCigar({...editCigar,brand:e.target.value})}
+                      placeholder="Brand" style={fi}/>
+                    <input value={editCigar.line||""} onChange={e=>setEditCigar({...editCigar,line:e.target.value})}
+                      placeholder="Line / Name" style={fi}/>
+                    <input value={editCigar.vitola||""} onChange={e=>setEditCigar({...editCigar,vitola:e.target.value})}
+                      placeholder="Vitola (e.g. Robusto)" style={fi}/>
+                    <input value={editCigar.wrapper||""} onChange={e=>setEditCigar({...editCigar,wrapper:e.target.value})}
+                      placeholder="Wrapper (e.g. Maduro)" style={fi}/>
+                    <input value={editCigar.origin||""} onChange={e=>setEditCigar({...editCigar,origin:e.target.value})}
+                      placeholder="Origin (e.g. Nicaragua)" style={fi}/>
+                    <input value={editCigar.count||""} onChange={e=>setEditCigar({...editCigar,count:parseInt(e.target.value)||0})}
+                      placeholder="Quantity" type="number" style={fi}/>
+                  </div>
+
+                  {/* Buttons — always visible at bottom of sheet */}
+                  <div style={{flexShrink:0,padding:"12px 20px 20px",
+                    borderTop:`1px solid rgba(196,154,40,0.1)`,
+                    display:"flex",gap:10}}>
+                    <button onClick={saveCigarEdit}
+                      style={{flex:1,padding:"15px",
+                        background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
+                        border:"none",borderRadius:10,color:"#0a0a0a",fontSize:15,
+                        fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>
+                      Save Changes
+                    </button>
+                    <button onClick={()=>setEditCigar(null)}
+                      style={{padding:"15px 20px",background:"transparent",
+                        border:`1px solid rgba(160,120,40,0.22)`,
+                        borderRadius:10,color:T.textMuted,fontSize:15,cursor:"pointer"}}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Add cigar panel */}
+            {addingToHumidor===h.id&&(
+              <div style={{background:"#111111",borderRadius:12,
+                border:`1px solid rgba(196,154,40,0.2)`,padding:"14px",marginTop:8}}>
+                <div style={{fontSize:11,color:T.textMuted,fontFamily:"Georgia,serif",
+                  letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>
+                  Select a cigar to add
+                </div>
+                {humidorCigars.filter((c:any)=>!c.humidorId||c.humidorId===null).length===0?(
+                  <div style={{fontSize:13,color:T.textMuted,fontFamily:"Georgia,serif",
+                    fontStyle:"italic",textAlign:"center",padding:"12px"}}>
+                    All cigars are already assigned to a humidor
+                  </div>
+                ):humidorCigars.filter((c:any)=>!c.humidorId||c.humidorId===null).map((c:any)=>(
+                  <button key={c.id} onClick={()=>addCigarToHumidor(c.id,h.id)}
+                    style={{width:"100%",display:"flex",alignItems:"center",gap:10,
+                      background:"rgba(196,154,40,0.05)",borderRadius:10,
+                      border:`1px solid rgba(196,154,40,0.12)`,
+                      padding:"10px 12px",marginBottom:8,cursor:"pointer"}}>
+                    <div style={{width:40,height:40,flexShrink:0,background:"#000",
+                      borderRadius:8,overflow:"hidden"}}>
+                      <img src={getCigarImage(c.vitola,c.wrapper)} alt={c.line}
+                        style={{width:"100%",height:"100%",objectFit:"cover"}}
+                        onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
+                    </div>
+                    <div style={{flex:1,textAlign:"left"}}>
+                      <div style={{fontSize:15,fontWeight:"bold",color:T.textPrimary,
+                        fontFamily:"Georgia,serif"}}>{c.line}</div>
+                      <div style={{fontSize:12,color:T.textMuted,fontFamily:"Georgia,serif",
+                        fontStyle:"italic"}}>{c.brand} · {c.count} left</div>
+                    </div>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                      stroke={T.goldMid} strokeWidth="2">
+                      <line x1="12" y1="5" x2="12" y2="19"/>
+                      <line x1="5" y1="12" x2="19" y2="12"/>
+                    </svg>
+                  </button>
+                ))}
+                <button onClick={()=>setAddingToHumidor(null)}
+                  style={{width:"100%",padding:"10px",background:"transparent",
+                    border:`1px solid rgba(196,154,40,0.15)`,borderRadius:10,
+                    color:T.textMuted,fontSize:13,cursor:"pointer",fontFamily:"Georgia,serif"}}>
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── HISTORY TAB ── */}
+        {detailTab==='history'&&(
+          <div style={{padding:"16px"}}>
+            <div style={{fontSize:9,color:T.textMuted,letterSpacing:2.5,
+              textTransform:"uppercase",fontFamily:"Georgia,serif",marginBottom:14}}>
+              Recent Activity
+            </div>
+            {hCigars.length===0?(
+              <div style={{textAlign:"center",padding:"40px 20px",
+                color:T.textMuted,fontFamily:"Georgia,serif",fontStyle:"italic"}}>
+                No activity yet — add cigars to get started
+              </div>
+            ):(
+              <div style={{display:"flex",flexDirection:"column",gap:0}}>
+                {hCigars.slice(0,10).map((c:any,i:number)=>(
+                  <div key={c.id} style={{display:"flex",gap:14,paddingBottom:16,
+                    position:"relative"}}>
+                    {/* Timeline line */}
+                    {i<hCigars.length-1&&i<9&&(
+                      <div style={{position:"absolute",left:11,top:24,bottom:0,width:1,
+                        background:"rgba(196,154,40,0.15)"}}/>
+                    )}
+                    {/* Dot */}
+                    <div style={{width:22,height:22,borderRadius:"50%",flexShrink:0,
+                      background:"rgba(196,154,40,0.1)",
+                      border:`1px solid rgba(196,154,40,0.3)`,
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      marginTop:2}}>
+                      <div style={{width:6,height:6,borderRadius:"50%",
+                        background:T.goldMid}}/>
+                    </div>
+                    {/* Content */}
+                    <div style={{flex:1,background:"#111111",borderRadius:10,
+                      border:`1px solid rgba(196,154,40,0.1)`,padding:"10px 12px"}}>
+                      <div style={{fontSize:15,fontWeight:"bold",color:T.textPrimary,
+                        fontFamily:"Georgia,serif",marginBottom:2}}>
+                        {c.line}
+                      </div>
+                      <div style={{fontSize:12,color:T.textMuted,fontFamily:"Georgia,serif",
+                        fontStyle:"italic"}}>{c.brand} · {c.count} remaining</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── INSIGHTS TAB ── */}
+        {detailTab==='insights'&&(
+          <div style={{padding:"16px"}}>
+            {/* Mario header */}
+            <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16,
+              background:"#111111",borderRadius:12,
+              border:`1px solid rgba(196,154,40,0.15)`,padding:"14px"}}>
+              <div style={{width:44,height:44,borderRadius:"50%",overflow:"hidden",flexShrink:0,
+                border:`2px solid ${T.goldMid}`}}>
+                <img src="/mario-avatar.jpg" alt="Mario"
+                  style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 50%"}}/>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:11,color:T.goldMid,letterSpacing:2,
+                  textTransform:"uppercase",fontFamily:"Georgia,serif",marginBottom:4}}>Mario</div>
+                <div style={{fontSize:15,color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1.5}}>
+                  Mario has analyzed your humidor and found these insights.
+                </div>
+              </div>
+            </div>
+
+            {/* Insight cards */}
+            {[
+              {icon:"leaf",title:"Aging Insight",
+                text:hCigars.length>0
+                  ?`You have ${hCigars.length} cigars stored. Check back regularly to monitor aging progress.`
+                  :"Add cigars to this humidor to receive aging insights.",
+                prompt:`What should I know about aging the cigars in my ${h.name}?`},
+              {icon:"drop",title:"Environment Insight",
+                text:hasReading
+                  ?calcStatus==="Optimal"
+                    ?`Your ${h.name} has maintained optimal conditions. Great work.`
+                    :"Conditions could be improved — consider adjusting your humidity source."
+                  :"Connect a sensor to receive environment insights.",
+                prompt:`How are the conditions in my ${h.name} affecting my cigars?`},
+              {icon:"box",title:"Collection Insight",
+                text:hCigars.length===0
+                  ?"This humidor is empty. Add cigars to get collection insights."
+                  :hCigars.length<5
+                    ?`Your ${h.name} has ${hCigars.length} cigars. Consider adding more variety.`
+                    :`Your ${h.name} has a solid collection of ${hCigars.length} cigars.`,
+                prompt:`Give me insights about the collection in my ${h.name}.`},
+            ].map((ins,i)=>(
+              <div key={i} style={{background:"#111111",borderRadius:12,
+                border:`1px solid rgba(196,154,40,0.12)`,padding:"14px",marginBottom:12,
+                display:"flex",gap:12,alignItems:"flex-start"}}>
+                <div style={{width:40,height:40,borderRadius:10,flexShrink:0,
+                  background:"rgba(196,154,40,0.08)",
+                  border:`1px solid rgba(196,154,40,0.15)`,
+                  display:"flex",alignItems:"center",justifyContent:"center"}}><SvgIcon id={ins.icon} size={20}/>
+                </div>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,fontWeight:"bold",color:T.textPrimary,
+                    fontFamily:"Georgia,serif",marginBottom:4}}>{ins.title}</div>
+                  <div style={{fontSize:13,color:T.textSecondary,fontFamily:"Georgia,serif",
+                    lineHeight:1.5,marginBottom:10}}>{ins.text}</div>
+                  <button onClick={()=>setHumidorMarioPrompt(ins.prompt)}
+                    style={{background:"none",border:`1px solid rgba(196,154,40,0.3)`,
+                    borderRadius:8,padding:"6px 14px",cursor:"pointer",
+                    color:T.goldMid,fontSize:12,fontFamily:"Georgia,serif"}}>
+                    Ask Mario
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {/* Want to dive deeper */}
+            <div onClick={()=>setAchMarioPrompt("Tell me about my cigar journey and what I should focus on next.")}
+              style={{background:"rgba(196,154,40,0.04)",borderRadius:12,
+              border:`1px solid rgba(196,154,40,0.18)`,padding:"14px",
+              display:"flex",alignItems:"center",gap:12,cursor:"pointer"}}>
+              <div style={{width:44,height:44,borderRadius:"50%",overflow:"hidden",flexShrink:0,
+                border:`1.5px solid ${T.goldDark}`}}>
+                <img src="/mario-avatar.jpg" alt="Mario"
+                  style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 50%"}}/>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:15,fontWeight:"bold",color:T.textPrimary,
+                  fontFamily:"Georgia,serif",marginBottom:2}}>Want to dive deeper?</div>
+                <div style={{fontSize:13,color:T.textMuted,fontFamily:"Georgia,serif"}}>
+                  Ask me anything about your humidor or collection.
+                </div>
+              </div>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke={T.goldMid} strokeWidth="2">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </div>
+          </div>
+        )}
+
+        {/* Mario Modal for Insights */}
+        {humidorMarioPrompt!==null&&(
+          <MarioModal
+            initialPrompt={humidorMarioPrompt}
+            onClose={()=>setHumidorMarioPrompt(null)}
+            liveData={liveData||{}}
+            lang="en"/>
+        )}
+
+        {/* Edit Humidor Modal (reused) */}
+        {editHumidor&&editHumidor.id===h.id&&(
+          <div style={{position:"fixed",inset:0,zIndex:100,
+            background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"flex-end"}}>
+            <div style={{width:"100%",maxWidth:480,margin:"0 auto",
+              background:"#111111",borderRadius:"20px 20px 0 0",
+              border:`1px solid rgba(196,154,40,0.25)`,padding:"24px 20px 40px"}}>
+              <div style={{fontSize:11,color:T.goldMid,fontFamily:"Georgia,serif",letterSpacing:2,
+                textTransform:"uppercase",marginBottom:16}}>Edit Humidor</div>
+              <input value={editHumidor.name}
+                onChange={e=>setEditHumidor({...editHumidor,name:e.target.value})}
+                placeholder="Humidor name" style={fi}/>
+              <input value={editHumidor.wood}
+                onChange={e=>setEditHumidor({...editHumidor,wood:e.target.value})}
+                placeholder="Wood type" style={fi}/>
+              <input value={String(editHumidor.capacity)}
+                onChange={e=>setEditHumidor({...editHumidor,capacity:parseInt(e.target.value)||150})}
+                placeholder="Capacity" type="number" style={fi}/>
+              <div style={{display:"flex",gap:10,marginTop:4}}>
+                <button onClick={saveEditHumidor} style={{flex:1,padding:"14px",
+                  background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
+                  border:"none",borderRadius:10,color:"#0a0a0a",fontSize:15,
+                  fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>Save</button>
+                <button onClick={()=>setEditHumidor(null)} style={{padding:"14px 20px",
+                  background:"transparent",border:`1px solid rgba(160,120,40,0.22)`,
+                  borderRadius:10,color:T.textMuted,fontSize:15,cursor:"pointer"}}>Cancel</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div style={{paddingBottom:100}}>
-      {/* Header */}
-      <div style={{padding:"20px 16px 16px",borderBottom:`1px solid ${T.border}`}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
+
+      {/* ── HEADER ──────────────────────────────────────────────────────── */}
+      <div style={{padding:"20px 16px 14px",borderBottom:`1px solid ${T.border}`}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
           <div style={{fontSize:22,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif"}}>
             My Humidors
           </div>
@@ -436,8 +1064,66 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
         </div>
       </div>
 
-      {/* Humidor cards */}
-      <div style={{padding:"16px 16px 0",display:"flex",flexDirection:"column",gap:16}}>
+      {/* ── COLLECTION OVERVIEW ─────────────────────────────────────────── */}
+      {mounted&&(
+        <div style={{padding:"14px 16px 0"}}>
+
+          {/* Stats row */}
+          <div style={{display:"flex",gap:8,marginBottom:12}}>
+            <div style={{flex:1,background:"linear-gradient(160deg,#111111,#0a0a0a)",
+              border:`1px solid rgba(196,154,40,0.18)`,borderRadius:12,padding:"12px 10px",
+              textAlign:"center"}}>
+              <div style={{fontSize:24,fontWeight:"bold",color:T.textPrimary,
+                fontFamily:"Georgia,serif",lineHeight:1}}>{totalCigars}</div>
+              <div style={{fontSize:9,color:T.textMuted,letterSpacing:2,textTransform:"uppercase",
+                fontFamily:"Georgia,serif",marginTop:4}}>Cigars</div>
+            </div>
+            <div style={{flex:1,background:"linear-gradient(160deg,#111111,#0a0a0a)",
+              border:`1px solid rgba(196,154,40,0.18)`,borderRadius:12,padding:"12px 10px",
+              textAlign:"center"}}>
+              <div style={{fontSize:24,fontWeight:"bold",color:T.textPrimary,
+                fontFamily:"Georgia,serif",lineHeight:1}}>{humidors.length}</div>
+              <div style={{fontSize:9,color:T.textMuted,letterSpacing:2,textTransform:"uppercase",
+                fontFamily:"Georgia,serif",marginTop:4}}>Humidors</div>
+            </div>
+            <div style={{flex:1,background:"linear-gradient(160deg,#111111,#0a0a0a)",
+              border:`1px solid rgba(196,154,40,0.18)`,borderRadius:12,padding:"12px 10px",
+              textAlign:"center"}}>
+              <div style={{fontSize:15,fontWeight:"bold",color:healthColor,
+                fontFamily:"Georgia,serif",lineHeight:1.2}}>{healthLabel}</div>
+              <div style={{fontSize:9,color:T.textMuted,letterSpacing:2,textTransform:"uppercase",
+                fontFamily:"Georgia,serif",marginTop:4}}>Health</div>
+            </div>
+          </div>
+
+          {/* Mario Summary Card */}
+          <div style={{background:"rgba(15,15,15,0.8)",borderRadius:12,
+            border:`1px solid rgba(196,154,40,0.2)`,
+            padding:"12px 14px",marginBottom:4,
+            display:"flex",alignItems:"center",gap:12}}>
+            <div style={{width:32,height:32,borderRadius:"50%",overflow:"hidden",flexShrink:0,
+              border:`1.5px solid ${T.goldDark}`}}>
+              <img src="/mario-avatar.jpg" alt="Mario"
+                style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 50%"}}/>
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:9,color:T.goldMid,letterSpacing:2,textTransform:"uppercase",
+                fontFamily:"Georgia,serif",marginBottom:4}}>Mario</div>
+              <div style={{fontSize:15,color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1.45}}>
+                {!mounted?"Loading collection…"
+                  :humidors.length===0?"Add your first humidor to get started."
+                  :hasWarning?"One of your humidors needs attention — check conditions below."
+                  :totalCigars===0?"Your humidors are set up. Add cigars to get started."
+                  :"Your collection looks great. All humidors are stable."}
+              </div>
+            </div>
+            <span style={{color:T.goldMid,fontSize:20,flexShrink:0}}>›</span>
+          </div>
+        </div>
+      )}
+
+      {/* ── HUMIDOR CARDS ───────────────────────────────────────────────── */}
+      <div style={{padding:"14px 16px 0",display:"flex",flexDirection:"column",gap:14}}>
         {(!mounted||humidors.length===0)&&!showForm&&(
           <div style={{textAlign:"center",padding:"40px 20px",color:T.textMuted,
             fontFamily:"Georgia,serif",fontStyle:"italic"}}>
@@ -454,155 +1140,148 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
           const hasReading=humidity!==null||temp!==null;
           const calcStatus=!hasReading?"No Sensor":humOk&&tempOk?"Optimal":humOk||tempOk?"Good":"Warning";
           const statusColor=calcStatus==="Optimal"?"#3dd68c":calcStatus==="Good"?T.goldMid:calcStatus==="No Sensor"?T.textMuted:"#e05050";
-          const isSelected=selectedHumidor===h.id;
+          const hCigarsCount=humidorCigars.filter((c:any)=>c.humidorId===h.id).length;
 
           return (
-            <div key={h.id} style={{background:"linear-gradient(170deg,#1a1208,#0f0a04)",
-              borderRadius:16,border:`1px solid rgba(196,154,40,0.2)`,overflow:"hidden",
-              boxShadow:"0 8px 24px rgba(0,0,0,0.5)"}}>
+            <div key={h.id} onClick={()=>{setDetailHumidor(h.id);setDetailTab('overview');}}
+              style={{background:"#111111",cursor:"pointer",
+                borderRadius:16,border:`1px solid rgba(196,154,40,0.2)`,overflow:"hidden",
+                boxShadow:"0 6px 20px rgba(0,0,0,0.6)"}}>
 
-              {/* Humidor photo */}
-              <div style={{position:"relative",height:140,overflow:"hidden",background:"#0a0602",
-                borderBottom:`1px solid rgba(196,154,40,0.12)`}}>
-                <img src={h.photo||"/humidor-hero.png"} alt={h.name}
-                  style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center",
-                    filter:"brightness(0.6) saturate(1.1)"}}
-                  onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
-                <div style={{position:"absolute",inset:0,
-                  background:"linear-gradient(180deg,rgba(0,0,0,0.1) 0%,rgba(18,10,2,0.75) 100%)"}}/>
-                {/* Status badge */}
-                <div style={{position:"absolute",top:10,right:10,
-                  display:"flex",alignItems:"center",gap:5,padding:"4px 10px",
-                  background:"rgba(10,5,0,0.75)",borderRadius:20,
-                  border:`1px solid ${statusColor}44`,backdropFilter:"blur(4px)"}}>
-                  <div style={{width:6,height:6,borderRadius:"50%",background:statusColor,
-                    boxShadow:hasReading?`0 0 6px ${statusColor}88`:"none"}}/>
-                  <span style={{fontSize:9,color:statusColor,fontFamily:"Georgia,serif",letterSpacing:1}}>
-                    {calcStatus}
-                  </span>
+              {/* ── CARD: photo left, info right ── */}
+              <div style={{display:"flex",alignItems:"stretch",minHeight:150}}>
+
+                {/* LEFT — humidor photo */}
+                <div style={{width:130,flexShrink:0,position:"relative",overflow:"hidden",
+                  background:"#000"}}>
+                  <img src={h.photo||"/humidor-hero.png"} alt={h.name}
+                    style={{width:"100%",height:"100%",objectFit:"cover",
+                      objectPosition:"center",display:"block",
+                      filter:"brightness(0.8) saturate(1.1)"}}
+                    onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
+                  {/* Right fade into card */}
+                  <div style={{position:"absolute",top:0,right:0,bottom:0,width:28,
+                    background:"linear-gradient(90deg,rgba(0,0,0,0),rgba(17,17,17,0.95))"}}/>
+                  {/* Photo upload */}
+                  <label style={{position:"absolute",bottom:8,left:8,cursor:"pointer",
+                    background:"rgba(0,0,0,0.7)",border:`1px solid rgba(196,154,40,0.3)`,
+                    borderRadius:6,padding:"4px 8px",display:"flex",alignItems:"center",gap:4}}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
+                      stroke={T.goldMid} strokeWidth="2">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                      <circle cx="12" cy="13" r="4"/>
+                    </svg>
+                    <span style={{fontSize:9,color:T.goldMid,fontFamily:"Georgia,serif"}}>Photo</span>
+                    <input type="file" accept="image/*" style={{display:"none"}}
+                      onChange={e=>handlePhotoUpload(h.id,e)}/>
+                  </label>
                 </div>
-                {/* Photo upload button */}
-                <label style={{position:"absolute",top:10,left:10,cursor:"pointer",
-                  background:"rgba(0,0,0,0.6)",border:`1px solid rgba(196,154,40,0.3)`,
-                  borderRadius:8,padding:"5px 8px",display:"flex",alignItems:"center",gap:5}}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                    stroke={T.goldMid} strokeWidth="2">
-                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                    <circle cx="12" cy="13" r="4"/>
-                  </svg>
-                  <span style={{fontSize:9,color:T.goldMid,fontFamily:"Georgia,serif",letterSpacing:0.5}}>Photo</span>
-                  <input type="file" accept="image/*" style={{display:"none"}}
-                    onChange={e=>handlePhotoUpload(h.id,e)}/>
-                </label>
-                {/* Name overlay */}
-                <div style={{position:"absolute",bottom:12,left:16,right:16,
-                  display:"flex",alignItems:"flex-end",justifyContent:"space-between"}}>
-                  <div>
-                    <div style={{fontSize:18,fontWeight:"bold",color:"#fff",fontFamily:"Georgia,serif",
-                      textShadow:"0 1px 6px rgba(0,0,0,0.9)"}}>{h.name}</div>
-                    <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",fontFamily:"Georgia,serif",
-                      fontStyle:"italic"}}>{h.wood}</div>
-                  </div>
-                  {/* ⋯ menu */}
-                  <div style={{position:"relative"}}>
-                    <button onClick={e=>{e.stopPropagation();setMenuOpen(menuOpen===h.id?null:h.id);}}
-                      style={{background:"rgba(0,0,0,0.6)",border:`1px solid rgba(196,154,40,0.3)`,
-                        borderRadius:8,padding:"5px 10px",cursor:"pointer",color:T.goldMid,
-                        fontSize:16,lineHeight:1}}>⋯</button>
-                    {menuOpen===h.id&&(
-                      <div style={{position:"absolute",bottom:"100%",right:0,marginBottom:6,
-                        background:"#1a1208",border:`1px solid rgba(196,154,40,0.25)`,
-                        borderRadius:10,overflow:"hidden",zIndex:50,minWidth:120,
-                        boxShadow:"0 8px 24px rgba(0,0,0,0.7)"}}>
-                        <button onClick={()=>{setEditHumidor({...h});setMenuOpen(null);}}
-                          style={{width:"100%",padding:"10px 14px",background:"none",border:"none",
-                            cursor:"pointer",color:T.textPrimary,fontSize:13,fontFamily:"Georgia,serif",
-                            textAlign:"left",borderBottom:`1px solid rgba(196,154,40,0.1)`}}>
-                          ✏️ Edit
-                        </button>
-                        <button onClick={()=>deleteHumidor(h.id)}
-                          style={{width:"100%",padding:"10px 14px",background:"none",border:"none",
-                            cursor:"pointer",color:"#e05050",fontSize:13,fontFamily:"Georgia,serif",
-                            textAlign:"left"}}>
-                          🗑 Delete
-                        </button>
+
+                {/* RIGHT — name, status, readings, cigar count */}
+                <div style={{flex:1,padding:"14px 14px 14px 12px",display:"flex",
+                  flexDirection:"column",justifyContent:"space-between"}}>
+
+                  {/* Top: name + ⋯ */}
+                  <div style={{display:"flex",alignItems:"flex-start",
+                    justifyContent:"space-between",marginBottom:8}}>
+                    <div>
+                      <div style={{fontSize:18,fontWeight:"bold",color:T.textPrimary,
+                        fontFamily:"Georgia,serif",lineHeight:1.1,marginBottom:5}}>{h.name}</div>
+                      <div style={{display:"flex",alignItems:"center",gap:5}}>
+                        <div style={{width:7,height:7,borderRadius:"50%",background:statusColor,
+                          boxShadow:hasReading?`0 0 6px ${statusColor}88`:"none",flexShrink:0}}/>
+                        <span style={{fontSize:12,color:statusColor,fontFamily:"Georgia,serif"}}>
+                          {calcStatus}
+                        </span>
                       </div>
-                    )}
+                    </div>
+                    <div style={{position:"relative"}}>
+                      <button onClick={e=>{e.stopPropagation();setMenuOpen(menuOpen===h.id?null:h.id);}}
+                        style={{background:"rgba(196,154,40,0.08)",
+                          border:`1px solid rgba(196,154,40,0.2)`,
+                          borderRadius:8,padding:"4px 10px",cursor:"pointer",
+                          color:T.goldMid,fontSize:15,lineHeight:1}}>⋯</button>
+                      {menuOpen===h.id&&(
+                        <div style={{position:"absolute",top:"100%",right:0,marginTop:4,
+                          background:"#1a1a1a",border:`1px solid rgba(196,154,40,0.25)`,
+                          borderRadius:10,overflow:"hidden",zIndex:50,minWidth:130,
+                          boxShadow:"0 8px 24px rgba(0,0,0,0.8)"}}>
+                          <button onClick={()=>{setEditHumidor({...h});setMenuOpen(null);}}
+                            style={{width:"100%",padding:"11px 14px",background:"none",border:"none",
+                              cursor:"pointer",color:T.textPrimary,fontSize:15,fontFamily:"Georgia,serif",
+                              textAlign:"left",borderBottom:`1px solid rgba(196,154,40,0.1)`}}>
+                            ✏️ Edit
+                          </button>
+                          <button onClick={()=>deleteHumidor(h.id)}
+                            style={{width:"100%",padding:"11px 14px",background:"none",border:"none",
+                              cursor:"pointer",color:"#e05050",fontSize:15,fontFamily:"Georgia,serif",
+                              textAlign:"left"}}>
+                            🗑 Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
+
+                  {/* Middle: RH + Temp */}
+                  <div style={{marginBottom:10}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="#3dd68c" opacity="0.85">
+                        <path d="M12 2C6 10 4 14 4 17a8 8 0 0 0 16 0c0-3-2-7-8-15z"/>
+                      </svg>
+                      <span style={{fontSize:26,fontWeight:"bold",color:"#3dd68c",
+                        fontFamily:"Georgia,serif",lineHeight:1}}>
+                        {hasReading&&humidity!==null?`${humidity}%`:"—"}
+                      </span>
+                      <span style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",
+                        letterSpacing:1,textTransform:"uppercase",alignSelf:"flex-end",marginBottom:2}}>
+                        RH
+                      </span>
+                    </div>
+                    <div style={{display:"flex",alignItems:"center",gap:6}}>
+                      <svg width="10" height="12" viewBox="0 0 24 24" fill="none"
+                        stroke={T.goldMid} strokeWidth="2" opacity="0.85">
+                        <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
+                      </svg>
+                      <span style={{fontSize:20,fontWeight:"bold",color:T.goldMid,
+                        fontFamily:"Georgia,serif",lineHeight:1}}>
+                        {hasReading&&temp!==null?`${temp}°F`:"—"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Bottom: cigar count tap to expand */}
+                  <button onClick={()=>setExpandedCigars(expandedCigars===h.id?null:h.id)}
+                    style={{display:"flex",alignItems:"center",gap:6,
+                      background:"none",border:"none",cursor:"pointer",padding:0}}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+                      stroke={T.goldMid} strokeWidth="1.8" opacity="0.7">
+                      <line x1="8" y1="6" x2="21" y2="6"/>
+                      <line x1="8" y1="12" x2="21" y2="12"/>
+                      <line x1="8" y1="18" x2="21" y2="18"/>
+                      <line x1="3" y1="6" x2="3.01" y2="6"/>
+                      <line x1="3" y1="12" x2="3.01" y2="12"/>
+                      <line x1="3" y1="18" x2="3.01" y2="18"/>
+                    </svg>
+                    <span style={{fontSize:15,color:T.textSecondary,fontFamily:"Georgia,serif"}}>
+                      {hCigarsCount} Cigars
+                    </span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                      stroke={T.goldMid} strokeWidth="2" style={{marginLeft:"auto"}}>
+                      <polyline points={expandedCigars===h.id?"18 15 12 9 6 15":"9 18 15 12 9 6"}/>
+                    </svg>
+                  </button>
                 </div>
               </div>
 
-              {/* Live readings */}
-              <div style={{padding:"14px 16px 0"}}>
-                {hasReading?(
-                  <div style={{display:"flex",gap:10,marginBottom:14}}>
-                    <div style={{flex:1,background:"rgba(61,214,140,0.08)",
-                      border:"1px solid rgba(61,214,140,0.2)",borderRadius:10,
-                      padding:"10px",textAlign:"center"}}>
-                      <div style={{fontSize:28,fontWeight:"bold",color:"#3dd68c",
-                        fontFamily:"Georgia,serif",lineHeight:1}}>{humidity}</div>
-                      <div style={{fontSize:8,color:T.textMuted,letterSpacing:2,
-                        textTransform:"uppercase",marginTop:3,fontFamily:"Georgia,serif"}}>% RH</div>
-                    </div>
-                    <div style={{flex:1,background:"rgba(196,154,40,0.08)",
-                      border:`1px solid rgba(196,154,40,0.2)`,borderRadius:10,
-                      padding:"10px",textAlign:"center"}}>
-                      <div style={{fontSize:28,fontWeight:"bold",color:T.goldMid,
-                        fontFamily:"Georgia,serif",lineHeight:1}}>{temp}</div>
-                      <div style={{fontSize:8,color:T.textMuted,letterSpacing:2,
-                        textTransform:"uppercase",marginTop:3,fontFamily:"Georgia,serif"}}>°F</div>
-                    </div>
-                    <div style={{flex:1,background:"rgba(196,154,40,0.05)",
-                      border:`1px solid rgba(196,154,40,0.1)`,borderRadius:10,
-                      padding:"10px",textAlign:"center"}}>
-                      <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",
-                        marginBottom:4}}>Last Updated</div>
-                      <div style={{fontSize:11,color:T.textPrimary,fontFamily:"Georgia,serif"}}>
-                        {lastUpdated||"—"}
-                      </div>
-                    </div>
-                  </div>
-                ):(
-                  <div style={{textAlign:"center",padding:"16px",marginBottom:14,
-                    background:"rgba(196,154,40,0.04)",border:`1px solid rgba(196,154,40,0.1)`,
-                    borderRadius:10}}>
-                    <div style={{fontSize:11,color:T.textMuted,fontFamily:"Georgia,serif",fontStyle:"italic"}}>
-                      No sensor connected · ESP32 integration coming soon
-                    </div>
-                  </div>
-                )}
-
-                {/* Cigars in this humidor */}
-                {(()=>{
-                  let hCigars:any[]=[];
-                  try{hCigars=humidorCigars.filter((c:any)=>c.humidorId===h.id);}catch{}
-                  const isExpanded=expandedCigars===h.id;
-                  return (
-                    <div style={{marginBottom:14}}>
-                      <button onClick={()=>setExpandedCigars(isExpanded?null:h.id)}
-                        style={{width:"100%",display:"flex",alignItems:"center",
-                          justifyContent:"space-between",background:"rgba(196,154,40,0.06)",
-                          border:`1px solid rgba(196,154,40,0.15)`,borderRadius:10,
-                          padding:"10px 14px",cursor:"pointer"}}>
-                        <div style={{display:"flex",alignItems:"center",gap:8}}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                            stroke={T.goldMid} strokeWidth="2">
-                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                            <polyline points="9 22 9 12 15 12 15 22"/>
-                          </svg>
-                          <span style={{fontSize:12,color:T.goldMid,fontFamily:"Georgia,serif",
-                            letterSpacing:0.5}}>Cigars in this Humidor</span>
-                        </div>
-                        <div style={{display:"flex",alignItems:"center",gap:8}}>
-                          <span style={{fontSize:12,color:T.textMuted,fontFamily:"Georgia,serif"}}>
-                            {hCigars.length} / {h.capacity}
-                          </span>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                            stroke={T.textMuted} strokeWidth="2">
-                            <polyline points={isExpanded?"18 15 12 9 6 15":"6 9 12 15 18 9"}/>
-                          </svg>
-                        </div>
-                      </button>
+              {/* ── EXPANDABLE CIGAR LIST ── */}
+              {(()=>{
+                let hCigars:any[]=[];
+                try{hCigars=humidorCigars.filter((c:any)=>c.humidorId===h.id);}catch{}
+                const isExpanded=expandedCigars===h.id;
+                return (
+                  <div style={{padding:"0 14px"}}>
+                    <div style={{marginBottom:isExpanded?14:0}}>
                       {isExpanded&&(
                         <div style={{marginTop:8,display:"flex",flexDirection:"column",gap:6}}>
                           {hCigars.length===0?(
@@ -697,16 +1376,16 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
                         </div>
                       )}
                     </div>
-                  );
-                })()}
-              </div>
+                  </div>
+                );
+              })()}
             </div>
           );
         })}
 
         {/* Edit Humidor Modal */}
         {editHumidor&&(
-          <div style={{background:"linear-gradient(170deg,#1a1208,#0f0a04)",borderRadius:16,
+          <div style={{background:"linear-gradient(170deg,#111111,#0a0a0a)",borderRadius:16,
             border:`1px solid rgba(196,154,40,0.3)`,padding:"20px"}}>
             <div style={{fontSize:12,color:T.goldMid,fontFamily:"Georgia,serif",letterSpacing:2,
               textTransform:"uppercase",marginBottom:16}}>Edit Humidor</div>
@@ -722,18 +1401,18 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
             <div style={{display:"flex",gap:10}}>
               <button onClick={saveEditHumidor} style={{flex:1,padding:"12px",
                 background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
-                border:"none",borderRadius:10,color:"#1a0e04",fontSize:13,
+                border:"none",borderRadius:10,color:"#111111",fontSize:15,
                 fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>Save</button>
               <button onClick={()=>setEditHumidor(null)} style={{padding:"12px 20px",
                 background:"transparent",border:`1px solid rgba(160,120,40,0.22)`,
-                borderRadius:10,color:T.textMuted,fontSize:13,cursor:"pointer"}}>Cancel</button>
+                borderRadius:10,color:T.textMuted,fontSize:15,cursor:"pointer"}}>Cancel</button>
             </div>
           </div>
         )}
 
         {/* Add Humidor Form */}
         {showForm&&(
-          <div style={{background:"linear-gradient(170deg,#1a1208,#0f0a04)",borderRadius:16,
+          <div style={{background:"linear-gradient(170deg,#111111,#0a0a0a)",borderRadius:16,
             border:`1px solid rgba(196,154,40,0.25)`,padding:"20px"}}>
             <div style={{fontSize:12,color:T.goldMid,fontFamily:"Georgia,serif",letterSpacing:2,
               textTransform:"uppercase",marginBottom:16}}>New Humidor</div>
@@ -746,27 +1425,42 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
             <div style={{display:"flex",gap:10}}>
               <button onClick={addHumidor} style={{flex:1,padding:"12px",
                 background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
-                border:"none",borderRadius:10,color:"#1a0e04",fontSize:13,
+                border:"none",borderRadius:10,color:"#111111",fontSize:15,
                 fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>Add</button>
               <button onClick={()=>setShowForm(false)} style={{padding:"12px 20px",
                 background:"transparent",border:`1px solid rgba(160,120,40,0.22)`,
-                borderRadius:10,color:T.textMuted,fontSize:13,cursor:"pointer"}}>Cancel</button>
+                borderRadius:10,color:T.textMuted,fontSize:15,cursor:"pointer"}}>Cancel</button>
             </div>
           </div>
         )}
 
-        <button onClick={()=>setShowForm(s=>!s)} style={{width:"100%",padding:"15px",
-          background:"none",border:`1px dashed rgba(160,120,40,0.22)`,borderRadius:16,
-          color:T.textMuted,fontSize:10,fontFamily:"Georgia,serif",cursor:"pointer",
-          letterSpacing:2.5,textTransform:"uppercase"}}>
-          {showForm?"— Cancel":"+ Add Humidor"}
-        </button>
+        {/* Add Humidor button */}
+        {!showForm&&(
+          <button onClick={()=>setShowForm(true)}
+            style={{width:"100%",display:"flex",alignItems:"center",gap:14,
+              background:"rgba(196,154,40,0.04)",
+              border:`1px dashed rgba(196,154,40,0.28)`,borderRadius:16,
+              padding:"16px 18px",cursor:"pointer"}}>
+            <div style={{width:40,height:40,borderRadius:"50%",flexShrink:0,
+              background:"rgba(196,154,40,0.1)",border:`1px solid rgba(196,154,40,0.3)`,
+              display:"flex",alignItems:"center",justifyContent:"center"}}>
+              <span style={{fontSize:22,color:T.goldMid,lineHeight:1}}>+</span>
+            </div>
+            <div style={{textAlign:"left"}}>
+              <div style={{fontSize:15,fontWeight:"bold",color:T.goldMid,
+                fontFamily:"Georgia,serif"}}>Add New Humidor</div>
+              <div style={{fontSize:12,color:T.textMuted,fontFamily:"Georgia,serif",
+                fontStyle:"italic",marginTop:2}}>Connect a sensor and start monitoring</div>
+            </div>
+            <span style={{color:T.goldMid,fontSize:20,marginLeft:"auto"}}>›</span>
+          </button>
+        )}
       </div>
 
       {/* ── PERMANENT HUMIDITY CHART ── */}
       {humidors.length>0&&(
         <div style={{position:"sticky",bottom:90,left:0,right:0,zIndex:10,
-          background:"linear-gradient(170deg,#0a0602,#050300)",
+          background:"linear-gradient(170deg,#0a0a0a,#050300)",
           borderTop:`1px solid rgba(196,154,40,0.2)`,
           boxShadow:"0 -8px 24px rgba(0,0,0,0.8)"}}>
           <div style={{padding:"12px 16px 8px"}}>
@@ -901,18 +1595,18 @@ function BandScannerModal({onClose,onAddToCollection,onAddToJournal,onSmokedOne}
             <div style={{textAlign:"center",padding:"40px 20px",background:T.card,
               borderRadius:20,border:`2px dashed ${T.borderGold}`,cursor:"pointer"}}
               onClick={()=>cameraRef.current?.click()}>
-              <div style={{fontSize:48,marginBottom:16}}>🔍</div>
-              <div style={{fontSize:16,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",marginBottom:8}}>
+              <div style={{marginBottom:16}}><SvgIcon id="search" size={48}/></div>
+              <div style={{fontSize:17,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",marginBottom:8}}>
                 Photo a Cigar Band
               </div>
-              <div style={{fontSize:13,color:T.textMuted,lineHeight:1.6}}>
+              <div style={{fontSize:15,color:T.textMuted,lineHeight:1.6}}>
                 Tap to open camera or choose a photo.<br/>AI will identify brand, line, and vitola.
               </div>
             </div>
             <button onClick={()=>cameraRef.current?.click()}
               style={{width:"100%",padding:"16px",
                 background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
-                border:"none",borderRadius:14,color:"#1a0e04",fontSize:15,
+                border:"none",borderRadius:14,color:"#111111",fontSize:15,
                 fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif",letterSpacing:0.5}}>
               📷 Open Camera
             </button>
@@ -941,7 +1635,7 @@ function BandScannerModal({onClose,onAddToCollection,onAddToJournal,onSmokedOne}
                 {[0,1,2].map(i=><div key={i} style={{width:8,height:8,borderRadius:"50%",background:T.goldDark,
                   animation:`sp 1.4s ease-in-out ${i*0.28}s infinite`}}/>)}
               </div>
-              <div style={{fontSize:14,color:T.textSecondary,fontFamily:"Georgia,serif",fontStyle:"italic"}}>
+              <div style={{fontSize:17,color:T.textSecondary,fontFamily:"Georgia,serif",fontStyle:"italic"}}>
                 Mario is identifying your cigar…
               </div>
             </div>
@@ -973,7 +1667,7 @@ function BandScannerModal({onClose,onAddToCollection,onAddToJournal,onSmokedOne}
                   fontFamily:"Georgia,serif",marginBottom:4}}>{result.brand}</div>
                 <div style={{fontSize:24,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",
                   lineHeight:1.1,marginBottom:6}}>{result.line}</div>
-                <div style={{fontSize:14,color:T.textSecondary,marginBottom:16}}>{result.vitola}</div>
+                <div style={{fontSize:17,color:T.textSecondary,marginBottom:16}}>{result.vitola}</div>
 
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,
                   paddingTop:14,borderTop:`1px solid ${T.border}`}}>
@@ -989,7 +1683,7 @@ function BandScannerModal({onClose,onAddToCollection,onAddToJournal,onSmokedOne}
 
                 {result.notes && (
                   <div style={{marginTop:14,paddingTop:14,borderTop:`1px solid ${T.border}`,
-                    fontSize:13,color:T.textSecondary,fontFamily:"Georgia,serif",fontStyle:"italic",lineHeight:1.7}}>
+                    fontSize:15,color:T.textSecondary,fontFamily:"Georgia,serif",fontStyle:"italic",lineHeight:1.7}}>
                     {result.notes}
                   </div>
                 )}
@@ -1001,21 +1695,21 @@ function BandScannerModal({onClose,onAddToCollection,onAddToJournal,onSmokedOne}
               <button onClick={()=>onAddToCollection(result)}
                 style={{width:"100%",padding:"15px",
                   background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
-                  border:"none",borderRadius:12,color:"#0a0a0a",fontSize:14,
+                  border:"none",borderRadius:12,color:"#0a0a0a",fontSize:17,
                   fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>
                 {t("add_to_col_btn")}
               </button>
               <button onClick={()=>onSmokedOne(result)}
                 style={{width:"100%",padding:"15px",
                   background:"linear-gradient(135deg,#7a1212,#a01818)",
-                  border:"none",borderRadius:12,color:"#f0e8d8",fontSize:14,
+                  border:"none",borderRadius:12,color:"#f0e8d8",fontSize:17,
                   fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>
                 {t("smoked_one")}
               </button>
               <button onClick={()=>onAddToJournal(result)}
                 style={{width:"100%",padding:"15px",background:"none",
                   border:`1px solid ${T.borderGold}`,borderRadius:12,color:T.goldLight,
-                  fontSize:14,cursor:"pointer",fontFamily:"Georgia,serif",fontWeight:"bold"}}>
+                  fontSize:17,cursor:"pointer",fontFamily:"Georgia,serif",fontWeight:"bold"}}>
                 {t("log_to_journal")}
               </button>
               <button onClick={()=>{setPhase("idle");setPreview(null);setResult(null);}}
@@ -1035,13 +1729,13 @@ function BandScannerModal({onClose,onAddToCollection,onAddToJournal,onSmokedOne}
               border:`1px solid ${T.border}`,objectFit:"cover",maxHeight:200}}/>}
             <div style={{background:T.card,borderRadius:14,border:`1px solid rgba(122,18,18,0.4)`,
               padding:"20px",textAlign:"center"}}>
-              <div style={{fontSize:32,marginBottom:12}}>⚠️</div>
-              <div style={{fontSize:14,color:T.textPrimary,fontFamily:"Georgia,serif",marginBottom:6}}>{errMsg}</div>
+              <div style={{marginBottom:12}}><SvgIcon id="warning" size={32}/></div>
+              <div style={{fontSize:17,color:T.textPrimary,fontFamily:"Georgia,serif",marginBottom:6}}>{errMsg}</div>
             </div>
             <button onClick={()=>{setPhase("idle");setPreview(null);}}
               style={{width:"100%",padding:"15px",
                 background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
-                border:"none",borderRadius:12,color:"#1a0e04",fontSize:14,
+                border:"none",borderRadius:12,color:"#111111",fontSize:14,
                 fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>
               {t("try_again")}
             </button>
@@ -1055,7 +1749,7 @@ function BandScannerModal({onClose,onAddToCollection,onAddToJournal,onSmokedOne}
 // ── AD CAROUSEL ────────────────────────────────────────────────────────────
 const ADS = [
   {brand:"Davidoff",line:"Winston Churchill\nThe Late Hour",vitola:"Toro · 6 × 50",badge:"New Release",
-    bg:"linear-gradient(135deg,#1a1208,#2a1f0e,#0f0a04)",accent:"#C49A28",image:"/ad-davidoff.png"},
+    bg:"linear-gradient(135deg,#111111,#1a1a1a,#0a0a0a)",accent:"#C49A28",image:"/ad-davidoff.png"},
   {brand:"Padrón",line:"1964 Anniversary\nExclusivo Natural",vitola:"Robusto · 5 × 50",badge:"Member Favorite",
     bg:"linear-gradient(135deg,#0f1a08,#1a2a0e,#080f04)",accent:"#5a8c3a",image:"/ad-padron.png"},
   {brand:"Arturo Fuente",line:"Opus X\nAngel's Share",vitola:"Robusto · 5¼ × 50",badge:"Limited Edition",
@@ -1098,7 +1792,7 @@ function AdCarousel() {
         </div>
       </div>
       <div style={{borderRadius:14,overflow:"hidden",border:`1px solid rgba(196,154,40,0.3)`,
-        background:"linear-gradient(170deg,#1a1a1a,#0d0d0d)",
+        background:"linear-gradient(170deg,#111111,#0a0a0a)",
         opacity:fade?1:0,transition:"opacity 0.4s ease"}}>
         {/* Feature image area */}
         <div style={{position:"relative",height:180,background:ad.bg,
@@ -1250,7 +1944,7 @@ function CollectionTab() {
           border:`1px solid rgba(196,154,40,0.3)`,borderRadius:12,
           padding:"14px 20px",zIndex:9999,
           boxShadow:"0 8px 32px rgba(0,0,0,0.6)",maxWidth:340,width:"90%"}}>
-          <div style={{fontSize:14,color:"#f0e8d8",fontFamily:"Georgia,serif",textAlign:"center",lineHeight:1.5}}>{smokedToast}</div>
+          <div style={{fontSize:17,color:"#f0e8d8",fontFamily:"Georgia,serif",textAlign:"center",lineHeight:1.5}}>{smokedToast}</div>
         </div>
       )}
 
@@ -1265,7 +1959,7 @@ function CollectionTab() {
           </div>
         </div>
         {/* Stats row */}
-        <div style={{background:"linear-gradient(170deg,#1a1208,#0f0a04)",borderRadius:14,
+        <div style={{background:"linear-gradient(170deg,#111111,#0a0a0a)",borderRadius:14,
           border:`1px solid rgba(196,154,40,0.15)`,padding:"16px",marginBottom:12}}>
           <div style={{display:"flex",gap:0,alignItems:"center"}}>
             <div style={{flex:1,textAlign:"center"}}>
@@ -1317,7 +2011,7 @@ function CollectionTab() {
             ].map(s=>(
               <div key={s.label} style={{flex:1,background:"rgba(196,154,40,0.06)",
                 border:`1px solid rgba(196,154,40,0.1)`,borderRadius:10,padding:"8px 4px",textAlign:"center"}}>
-                <div style={{fontSize:16,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1}}>
+                <div style={{fontSize:17,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1}}>
                   {s.value}
                 </div>
                 <div style={{fontSize:8,color:T.textMuted,letterSpacing:1.5,textTransform:"uppercase",
@@ -1334,20 +2028,20 @@ function CollectionTab() {
           <div style={{fontSize:9,letterSpacing:4,textTransform:"uppercase",color:T.textMuted,
             fontFamily:"Georgia,serif",marginBottom:10}}>Collection Breakdown</div>
           {[
-            {label:"By Brand",value:`${new Set(cigars.map(c=>c.brand)).size} Brands`,icon:"🏷"},
-            {label:"By Country",value:`${new Set(cigars.filter(c=>c.origin).map(c=>c.origin)).size||0} Countries`,icon:"🌎"},
-            {label:"By Vitola",value:`${new Set(cigars.map(c=>c.vitola)).size} Vitolas`,icon:"🍂"},
-            {label:"By Wrapper",value:`${new Set(cigars.filter(c=>c.wrapper).map(c=>c.wrapper)).size||0} Wrapper Types`,icon:"🍃"},
-            {label:"By Strength",value:"Mild · Medium · Full",icon:"💪"},
+            {label:"By Brand",value:`${new Set(cigars.map(c=>c.brand)).size} Brands`,icon:"tag"},
+            {label:"By Country",value:`${new Set(cigars.filter(c=>c.origin).map(c=>c.origin)).size||0} Countries`,icon:"globe"},
+            {label:"By Vitola",value:`${new Set(cigars.map(c=>c.vitola)).size} Vitolas`,icon:"vitola"},
+            {label:"By Wrapper",value:`${new Set(cigars.filter(c=>c.wrapper).map(c=>c.wrapper)).size||0} Wrapper Types`,icon:"wrapper"},
+            {label:"By Strength",value:"Mild · Medium · Full",icon:"strength"},
           ].map(row=>(
             <div key={row.label} style={{display:"flex",alignItems:"center",justifyContent:"space-between",
               padding:"11px 0",borderBottom:`1px solid rgba(196,154,40,0.06)`}}>
               <div style={{display:"flex",alignItems:"center",gap:10}}>
                 <span style={{fontSize:14}}>{row.icon}</span>
-                <span style={{fontSize:13,color:T.textPrimary,fontFamily:"Georgia,serif"}}>{row.label}</span>
+                <span style={{fontSize:15,color:T.textPrimary,fontFamily:"Georgia,serif"}}>{row.label}</span>
               </div>
               <div style={{display:"flex",alignItems:"center",gap:8}}>
-                <span style={{fontSize:12,color:T.textMuted,fontFamily:"Georgia,serif",fontStyle:"italic"}}>{row.value}</span>
+                <span style={{fontSize:15,color:T.textMuted,fontFamily:"Georgia,serif",fontStyle:"italic"}}>{row.value}</span>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(196,154,40,0.3)" strokeWidth="2">
                   <polyline points="9 18 15 12 9 6"/>
                 </svg>
@@ -1417,7 +2111,7 @@ function CollectionTab() {
             const statusDot=h.status==="optimal"?"#3dd68c":h.status==="good"?"#e8c84a":h.status==="no_data"?T.textMuted:"#e05050";
             return (
               <div key={h.id} onClick={()=>{setActiveHumidor(h.id);setSel(null);}}
-                style={{background:"linear-gradient(170deg,#1a1a1a,#0f0f0f)",borderRadius:14,
+                style={{background:"linear-gradient(170deg,#111111,#0a0a0a)",borderRadius:14,
                   marginBottom:12,cursor:"pointer",overflow:"hidden",
                   border:`1px solid rgba(196,154,40,0.2)`,
                   transition:"border-color 0.2s"}}
@@ -1436,7 +2130,7 @@ function CollectionTab() {
                   {/* Status badge — top right */}
                   <div style={{position:"absolute",top:10,right:10,
                     display:"flex",alignItems:"center",gap:5,padding:"4px 10px",
-                    background:`rgba(10,5,0,0.7)`,borderRadius:20,
+                    background:`rgba(10,10,10,0.7)`,borderRadius:20,
                     border:`1px solid ${statusColor}60`,backdropFilter:"blur(4px)"}}>
                     <div style={{width:6,height:6,borderRadius:"50%",background:statusDot}}/>
                     <span style={{fontSize:10,color:statusDot,fontFamily:"Georgia,serif",
@@ -1503,8 +2197,8 @@ function CollectionTab() {
           <div style={{padding:"0 16px"}}>
             {cigars.filter(c=>c.humidorId===activeHumidor).length===0 ? (
               <div style={{textAlign:"center",padding:"40px 20px",color:T.textMuted,fontFamily:"Georgia,serif"}}>
-                <div style={{fontSize:32,marginBottom:12}}>🪵</div>
-                <div style={{fontSize:14,marginBottom:6}}>This humidor is empty</div>
+                <div style={{marginBottom:12}}><SvgIcon id="wood" size={32}/></div>
+                <div style={{fontSize:17,marginBottom:6}}>This humidor is empty</div>
                 <div style={{fontSize:12,fontStyle:"italic"}}>Add cigars with the button below</div>
               </div>
             ) : (
@@ -1512,7 +2206,7 @@ function CollectionTab() {
           const isEx=sel===c.id;
           return (
             <div key={c.id} onClick={()=>setSel(isEx?null:c.id)}
-              style={{background:"linear-gradient(170deg,#1a1a1a,#0d0d0d)",borderRadius:14,marginBottom:14,overflow:"hidden",
+              style={{background:"linear-gradient(170deg,#111111,#0a0a0a)",borderRadius:14,marginBottom:14,overflow:"hidden",
                 cursor:"pointer",border:`1px solid ${isEx?T.borderGold:T.border}`,transition:"border-color 0.2s"}}>
               <div style={{display:"flex",alignItems:"stretch",minHeight:96}}>
                 {/* Cigar image — replaces color band */}
@@ -1572,7 +2266,7 @@ function CollectionTab() {
                           <div style={{display:"flex",gap:8}}>
                             <button onClick={saveEdit}
                               style={{flex:1,padding:"10px",background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
-                                border:"none",borderRadius:8,color:"#1a0e04",fontSize:12,fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>
+                                border:"none",borderRadius:8,color:"#111111",fontSize:12,fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>
                               Save Changes
                             </button>
                             <button onClick={()=>setEditId(null)}
@@ -1589,7 +2283,7 @@ function CollectionTab() {
                             {[["Origin",c.origin],["Wrapper",c.wrapper],["Vitola",c.vitola],["Rating",`${c.rating} pts`]].map(([k,v])=>(
                               <div key={k}>
                                 <div style={{fontSize:9,color:T.textMuted,textTransform:"uppercase",letterSpacing:2,marginBottom:4}}>{k}</div>
-                                <div style={{fontSize:14,color:T.textPrimary,fontFamily:"Georgia,serif"}}>{v}</div>
+                                <div style={{fontSize:17,color:T.textPrimary,fontFamily:"Georgia,serif"}}>{v}</div>
                               </div>
                             ))}
                           </div>
@@ -1690,13 +2384,13 @@ function CollectionTab() {
             <div style={{display:"flex",gap:10}}>
               <button onClick={saveNewCigar}
                 style={{flex:1,padding:"12px",background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
-                  border:"none",borderRadius:8,color:"#1a0e04",fontSize:13,fontWeight:"bold",
+                  border:"none",borderRadius:8,color:"#111111",fontSize:13,fontWeight:"bold",
                   cursor:"pointer",fontFamily:"Georgia,serif"}}>
                 {t("save_to_collection")}
               </button>
               <button onClick={()=>setShowAddForm(false)}
                 style={{padding:"12px 16px",background:"transparent",border:`1px solid ${T.border}`,
-                  borderRadius:8,color:T.textMuted,fontSize:13,cursor:"pointer"}}>
+                  borderRadius:8,color:T.textMuted,fontSize:15,cursor:"pointer"}}>
                 {t("cancel")}
               </button>
             </div>
@@ -1779,7 +2473,7 @@ function TastingNotesSection({prefill,onPrefillUsed}:{prefill:ScanResult|null,on
         </div>
         <button onClick={()=>setShowForm(!showForm)}
           style={{background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,border:"none",
-            borderRadius:20,padding:"8px 18px",color:"#1a0e04",fontSize:12,
+            borderRadius:20,padding:"8px 18px",color:"#111111",fontSize:12,
             fontFamily:"Georgia,serif",fontWeight:"bold",cursor:"pointer"}}>
 {t("log_entry")}
         </button>
@@ -1800,8 +2494,8 @@ function TastingNotesSection({prefill,onPrefillUsed}:{prefill:ScanResult|null,on
             placeholder={t("describe_exp")} rows={4}
             style={{...fi,resize:"vertical",lineHeight:1.7}}/>
           <div style={{display:"flex",gap:10}}>
-            <button onClick={save} style={{flex:1,padding:"11px",background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,border:"none",borderRadius:8,color:"#1a0e04",fontSize:13,fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>Save Entry</button>
-            <button onClick={()=>setShowForm(false)} style={{padding:"11px 16px",background:"transparent",border:`1px solid ${T.border}`,borderRadius:8,color:T.textMuted,fontSize:13,cursor:"pointer"}}>Cancel</button>
+            <button onClick={save} style={{flex:1,padding:"11px",background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,border:"none",borderRadius:8,color:"#111111",fontSize:13,fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>Save Entry</button>
+            <button onClick={()=>setShowForm(false)} style={{padding:"11px 16px",background:"transparent",border:`1px solid ${T.border}`,borderRadius:8,color:T.textMuted,fontSize:15,cursor:"pointer"}}>Cancel</button>
           </div>
         </div>
       )}
@@ -1961,7 +2655,7 @@ function AskMarioTab({liveData}:{liveData:Record<string,{temperature:number|null
           <div key={i} style={{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start"}}>
             {m.role==="ai" ? (
               <div style={{maxWidth:"92%",
-                background:"linear-gradient(155deg,#1a1a1a 0%,#111111 60%,#0d0d0d 100%)",
+                background:"linear-gradient(155deg,#1a1a1a 0%,#111111 60%,#0a0a0a 100%)",
                 border:`1px solid rgba(196,154,40,0.22)`,borderRadius:"3px 16px 16px 16px",
                 padding:"16px 18px",boxShadow:"0 4px 20px rgba(0,0,0,0.5)"}}>
                 <div style={{fontSize:9,color:T.goldMid,letterSpacing:2,textTransform:"uppercase",
@@ -1971,12 +2665,12 @@ function AskMarioTab({liveData}:{liveData:Record<string,{temperature:number|null
                   </div>
                   <span>Mario</span>
                 </div>
-                <div style={{fontSize:15,color:T.textPrimary,lineHeight:1.85,fontFamily:"Georgia,serif",whiteSpace:"pre-line"}}>{m.text}</div>
+                <div style={{fontSize:17,color:T.textPrimary,lineHeight:1.85,fontFamily:"Georgia,serif",whiteSpace:"pre-line"}}>{m.text}</div>
               </div>
             ) : (
               <div style={{maxWidth:"80%",background:"rgba(196,154,40,0.08)",border:`1px solid rgba(196,154,40,0.2)`,
                 borderRadius:"16px 3px 16px 16px",padding:"12px 16px"}}>
-                <div style={{fontSize:14,color:T.textPrimary,lineHeight:1.7,fontFamily:"Georgia,serif"}}>{m.text}</div>
+                <div style={{fontSize:17,color:T.textPrimary,lineHeight:1.7,fontFamily:"Georgia,serif"}}>{m.text}</div>
               </div>
             )}
           </div>
@@ -2016,7 +2710,7 @@ function AskMarioTab({liveData}:{liveData:Record<string,{temperature:number|null
           };
           return (
             <button key={i} onClick={handleClick}
-              style={{width:"100%",background:isLounge?`linear-gradient(170deg,rgba(196,154,40,0.1),rgba(196,154,40,0.05))`:"linear-gradient(170deg,#1a1a1a,#111111)",
+              style={{width:"100%",background:isLounge?`linear-gradient(170deg,rgba(196,154,40,0.1),rgba(196,154,40,0.05))`:"linear-gradient(170deg,#111111,#0a0a0a)",
                 border:`1px solid ${isLounge?"rgba(196,154,40,0.35)":"rgba(196,154,40,0.22)"}`,borderRadius:12,
                 padding:"14px 18px",color:T.textPrimary,fontSize:15,cursor:"pointer",
                 fontFamily:"Georgia,serif",textAlign:"left",display:"flex",
@@ -2036,7 +2730,7 @@ function AskMarioTab({liveData}:{liveData:Record<string,{temperature:number|null
         <input value={input} onChange={e=>setInput(e.target.value)}
           onKeyDown={e=>{if(e.key==="Enter")send(input);}}
           placeholder={t("ask_placeholder")}
-          style={{flex:1,background:"linear-gradient(170deg,#1a1a1a,#111111)",border:`1px solid rgba(196,154,40,0.22)`,
+          style={{flex:1,background:"linear-gradient(170deg,#111111,#0a0a0a)",border:`1px solid rgba(196,154,40,0.22)`,
             borderRadius:24,padding:"12px 18px",color:T.textPrimary,fontSize:13,
             fontFamily:"Georgia,serif",outline:"none"}}/>
         <button onClick={()=>send(input)}
@@ -2053,7 +2747,7 @@ function AskMarioTab({liveData}:{liveData:Record<string,{temperature:number|null
 function NewsCard({n}:{n:any}) {
   const [showTake,setShowTake]=useState(false);
   return (
-    <div style={{background:"linear-gradient(170deg,#1a1a1a,#0d0d0d)",borderRadius:16,border:`1px solid rgba(196,154,40,0.18)`,overflow:"hidden"}}>
+    <div style={{background:"linear-gradient(170deg,#111111,#0a0a0a)",borderRadius:16,border:`1px solid rgba(196,154,40,0.18)`,overflow:"hidden"}}>
       {n.image&&(
         <div style={{width:"100%",height:190,overflow:"hidden",position:"relative"}}>
           <img src={n.image} alt={n.title}
@@ -2073,7 +2767,7 @@ function NewsCard({n}:{n:any}) {
           <div style={{fontSize:11,color:T.textSecondary,marginLeft:"auto"}}>{n.date}</div>
         </div>
         <div style={{fontSize:19,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1.3,marginBottom:10}}>{n.title}</div>
-        <div style={{fontSize:14,color:T.textSecondary,lineHeight:1.7,fontFamily:"Georgia,serif"}}>{n.summary}</div>
+        <div style={{fontSize:17,color:T.textSecondary,lineHeight:1.7,fontFamily:"Georgia,serif"}}>{n.summary}</div>
         {showTake&&n.marioTake&&(
           <div style={{marginTop:12,padding:"14px 16px",
             background:"linear-gradient(155deg,#1a1a1a,#0d0d0d)",
@@ -2376,7 +3070,7 @@ function TobaccoMap() {
 
       {/* Region info panel */}
       {selected ? (
-        <div style={{background:"linear-gradient(160deg,#1a1206,#0f0a02)",
+        <div style={{background:"linear-gradient(160deg,#1a1206,#0a0a0a)",
           borderRadius:14,border:`1px solid ${selected.color}44`,overflow:"hidden",marginBottom:16}}>
           <div style={{height:3,background:`linear-gradient(90deg,${selected.color},${T.goldMid})`}}/>
           <div style={{padding:"16px 18px"}}>
@@ -2622,7 +3316,7 @@ function CommunityTab({activeSubTab,setActiveSubTab}:{
             objectFit:'cover',objectPosition:'center 40%',opacity:1}}/>
         {/* Dark overlay gradient */}
         <div style={{position:'absolute',inset:0,
-          background:'linear-gradient(160deg,rgba(10,5,0,0.1) 0%,rgba(10,5,0,0.05) 50%,rgba(10,5,0,0.2) 100%)'}}/>
+          background:'linear-gradient(160deg,rgba(10,10,10,0.1) 0%,rgba(10,10,10,0.05) 50%,rgba(10,10,10,0.2) 100%)'}}/>
         {/* Gold top line */}
         <div style={{position:'absolute',top:0,left:0,right:0,height:2,
           background:`linear-gradient(90deg,transparent,${T.goldMid},transparent)`}}/>
@@ -2827,13 +3521,13 @@ function CommunityTab({activeSubTab,setActiveSubTab}:{
                   <button onClick={()=>setPosts(posts.map(p=>p.id===post.id?{...p,likes:p.liked?p.likes-1:p.likes+1,liked:!p.liked}:p))}
                     style={{background:'none',border:'none',cursor:'pointer',
                       color:post.liked?T.goldLight:T.textMuted,
-                      fontFamily:'Georgia,serif',fontSize:14,display:'flex',alignItems:'center',gap:6}}>
-                    {post.liked?'♥':'♡'} {post.likes}
+                      fontFamily:'Georgia,serif',fontSize:17,display:'flex',alignItems:'center',gap:6}}>
+                    <svg width='13' height='13' viewBox='0 0 24 24' fill={post.liked?T.goldMid:'none'} stroke={T.goldMid} strokeWidth='1.8'><path d='M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z'/></svg> {post.likes}
                   </button>
                   <span style={{color:T.textMuted,fontSize:14,display:'flex',alignItems:'center',gap:6}}>
-                    💬 {post.comments} replies
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.goldMid} strokeWidth="1.8" style={{display:"inline",marginRight:3}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>{post.comments} replies
                   </span>
-                  <span style={{marginLeft:'auto',color:T.textMuted,fontSize:14,cursor:'pointer'}}>🔖</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.textMuted} strokeWidth="1.8" style={{marginLeft:"auto",cursor:"pointer"}}><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
                 </div>
               </div>
             ))}
@@ -2863,7 +3557,7 @@ function CommunityTab({activeSubTab,setActiveSubTab}:{
               {videos.map(v=>(
                 <a key={v.id} href={v.url} target="_blank" rel="noopener noreferrer"
                   style={{textDecoration:'none',display:'block',
-                    background:'linear-gradient(170deg,#1a1a1a,#0d0d0d)',
+                    background:'linear-gradient(170deg,#111111,#0a0a0a)',
                     borderRadius:16,border:`1px solid rgba(196,154,40,0.18)`,
                     overflow:'hidden',cursor:'pointer'}}>
                   {/* Full-width thumbnail */}
@@ -2991,7 +3685,7 @@ function CommunityTab({activeSubTab,setActiveSubTab}:{
                   ):group.videos.map((v:any)=>(
                     <a key={v.id} href={v.url} target="_blank" rel="noopener noreferrer"
                       style={{textDecoration:'none',display:'block',marginBottom:10,
-                        background:'linear-gradient(170deg,#1a1a1a,#0d0d0d)',
+                        background:'linear-gradient(170deg,#111111,#0a0a0a)',
                         borderRadius:16,border:`1px solid rgba(196,154,40,0.18)`,
                         overflow:'hidden',cursor:'pointer'}}>
                       {/* Full-width thumbnail */}
@@ -3067,13 +3761,13 @@ function CommunityTab({activeSubTab,setActiveSubTab}:{
             </div>
             <div style={{display:'flex',alignItems:'center',gap:5,background:'rgba(196,154,40,0.1)',
               border:`1px solid rgba(196,154,40,0.3)`,borderRadius:20,padding:'5px 12px'}}>
-              <span style={{fontSize:11}}>🔥</span>
+              <SvgIcon id="fire" size={11}/>
               <span style={{fontSize:10,color:T.goldMid,letterSpacing:2,fontFamily:'Georgia,serif',fontWeight:'bold'}}>LIVE</span>
             </div>
           </div>
           {TRENDING.map((t,i)=>(
             <div key={i} style={{
-              background:'linear-gradient(170deg,#1a1a1a,#0d0d0d)',
+              background:'linear-gradient(170deg,#111111,#0a0a0a)',
               borderRadius:14,border:`1px solid ${t.hot?'rgba(196,154,40,0.3)':'rgba(196,154,40,0.12)'}`,
               marginBottom:10,overflow:'hidden',cursor:'pointer',
               boxShadow:t.hot?'0 4px 20px rgba(196,154,40,0.08)':'none'}}>
@@ -3091,13 +3785,13 @@ function CommunityTab({activeSubTab,setActiveSubTab}:{
                 </div>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4}}>
-                    {t.hot&&<span style={{fontSize:12}}>🔥</span>}
+                    {t.hot&&<SvgIcon id="fire" size={12}/>}
                     <div style={{fontSize:16,fontWeight:'bold',color:T.textPrimary,fontFamily:'Georgia,serif',lineHeight:1.2}}>{t.title}</div>
                   </div>
                   <div style={{fontSize:12,color:T.textSecondary,fontFamily:'Georgia,serif',fontStyle:'italic',marginBottom:8,lineHeight:1.4}}>{t.sub}</div>
                   <div style={{display:'flex',alignItems:'center',gap:12}}>
-                    <span style={{fontSize:12,color:T.goldMid}}>💬 {t.comments}</span>
-                    <span style={{fontSize:12,color:T.textMuted}}>👁 {(t.views/1000).toFixed(1)}K</span>
+                    <span style={{fontSize:12,color:T.goldMid,display:"flex",alignItems:"center",gap:3}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.goldMid} strokeWidth="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>{t.comments}</span>
+                    <span style={{fontSize:12,color:T.textMuted,display:"flex",alignItems:"center",gap:3}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.textMuted} strokeWidth="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>{(t.views/1000).toFixed(1)}K</span>
                     <span style={{fontSize:11,color:T.textMuted,fontFamily:'Georgia,serif',marginLeft:'auto'}}>{t.time}</span>
                   </div>
                 </div>
@@ -3124,7 +3818,7 @@ function CommunityTab({activeSubTab,setActiveSubTab}:{
             {name:'SlowBurn_Mike',badge:'Rare Finder',avatar:'S',cigars:312,notes:121,joined:'Jun 2021',
               fav:'Arturo Fuente Opus X BBMF',bio:'Estate sale hunter and limited edition tracker. If it\'s rare, I\'ve smoked it.'},
           ].map(m=>(
-            <div key={m.name} style={{background:'linear-gradient(170deg,#1a1a1a,#0d0d0d)',
+            <div key={m.name} style={{background:'linear-gradient(170deg,#111111,#0a0a0a)',
               borderRadius:14,border:`1px solid rgba(196,154,40,0.22)`,marginBottom:14,overflow:'hidden'}}>
               <div style={{height:2,background:`linear-gradient(90deg,${T.goldDark},${T.goldMid})`}}/>
               <div style={{padding:'16px 16px'}}>
@@ -3186,7 +3880,7 @@ function CommunityTab({activeSubTab,setActiveSubTab}:{
               year:'2018',origin:'Dominican Republic',note:'My tobacconist got an allocation of 12 and held one back for me. Waiting for the right moment.',
               rarity:'Regional',likes:22,wants:31},
           ].map((r,i)=>(
-            <div key={i} style={{background:'linear-gradient(170deg,#1a1a1a,#0d0d0d)',
+            <div key={i} style={{background:'linear-gradient(170deg,#111111,#0a0a0a)',
               borderRadius:14,border:`1px solid rgba(196,154,40,0.22)`,marginBottom:14,overflow:'hidden'}}>
               <div style={{background:`linear-gradient(90deg,${T.goldDark}22,transparent)`,
                 padding:'10px 16px',borderBottom:`1px solid rgba(196,154,40,0.1)`,
@@ -3208,8 +3902,8 @@ function CommunityTab({activeSubTab,setActiveSubTab}:{
                 <div style={{fontSize:11,color:T.goldMid,marginBottom:10}}>{r.year} · {r.origin}</div>
                 <div style={{fontSize:13,color:T.textSecondary,fontFamily:'Georgia,serif',fontStyle:'italic',lineHeight:1.7,marginBottom:12}}>{r.note}</div>
                 <div style={{display:'flex',gap:16,paddingTop:10,borderTop:`1px solid rgba(196,154,40,0.08)`}}>
-                  <span style={{fontSize:13,color:T.textMuted}}>♡ {r.likes}</span>
-                  <span style={{fontSize:13,color:T.goldMid}}>⭐ {r.wants} want this</span>
+                  <span style={{fontSize:13,color:T.textMuted,display:"flex",alignItems:"center",gap:3}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={T.textMuted} strokeWidth="1.8"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>{r.likes}</span>
+                  <span style={{fontSize:13,color:T.goldMid,display:"flex",alignItems:"center",gap:3}}><SvgIcon id="star" size={13}/>{r.wants} want this</span>
                 </div>
               </div>
             </div>
@@ -3242,7 +3936,7 @@ function CommunityTab({activeSubTab,setActiveSubTab}:{
               location:'South Lake Tahoe, CA',desc:'Morning hike followed by a sunset smoke session. Bring your favorite outdoor cigar.',
               attending:6,cap:12,type:'Meetup'},
           ].map(e=>(
-            <div key={e.id} style={{background:'linear-gradient(170deg,#1a1a1a,#0d0d0d)',
+            <div key={e.id} style={{background:'linear-gradient(170deg,#111111,#0a0a0a)',
               borderRadius:14,border:`1px solid rgba(196,154,40,0.22)`,marginBottom:14,overflow:'hidden'}}>
               <div style={{height:3,background:`linear-gradient(90deg,${T.goldDark},${T.goldMid})`}}/>
               <div style={{padding:'14px 16px'}}>
@@ -3256,9 +3950,9 @@ function CommunityTab({activeSubTab,setActiveSubTab}:{
                     letterSpacing:1,flexShrink:0}}>{e.type}</span>
                 </div>
                 <div style={{display:'flex',gap:16,marginBottom:10}}>
-                  <div style={{fontSize:12,color:T.textSecondary}}>📅 {e.date} · {e.time}</div>
+                  <div style={{fontSize:12,color:T.textSecondary,display:"flex",alignItems:"center",gap:4}}><SvgIcon id="calendar" size={12}/>{e.date} · {e.time}</div>
                 </div>
-                <div style={{fontSize:12,color:T.textSecondary,marginBottom:10}}>📍 {e.location}</div>
+                <div style={{fontSize:12,color:T.textSecondary,marginBottom:10,display:"flex",alignItems:"center",gap:4}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.textSecondary} strokeWidth="1.8"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>{e.location}</div>
                 <div style={{fontSize:13,color:T.textSecondary,fontFamily:'Georgia,serif',fontStyle:'italic',lineHeight:1.7,marginBottom:12}}>{e.desc}</div>
                 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',
                   paddingTop:10,borderTop:`1px solid rgba(196,154,40,0.08)`}}>
@@ -3306,7 +4000,7 @@ function CommunityTab({activeSubTab,setActiveSubTab}:{
                 </div>
                 <div style={{flex:1}}>
                   <div style={{display:'flex',alignItems:'center',gap:8}}>
-                    <span style={{fontWeight:'bold',color:T.textPrimary,fontFamily:'Georgia,serif',fontSize:14}}>{r.user}</span>
+                    <span style={{fontWeight:'bold',color:T.textPrimary,fontFamily:'Georgia,serif',fontSize:17}}>{r.user}</span>
                     {r.badge&&<span style={{fontSize:9,color:T.goldMid,background:'rgba(196,154,40,0.12)',
                       padding:'2px 8px',borderRadius:20,letterSpacing:1,border:`1px solid rgba(196,154,40,0.2)`}}>{r.badge}</span>}
                   </div>
@@ -3324,8 +4018,8 @@ function CommunityTab({activeSubTab,setActiveSubTab}:{
                   ))}
                 </div>
                 <div style={{display:'flex',gap:16,paddingTop:10,borderTop:`1px solid rgba(196,154,40,0.08)`}}>
-                  <span style={{fontSize:13,color:T.textMuted}}>♡ {r.likes}</span>
-                  <span style={{fontSize:13,color:T.textMuted}}>⭐ {r.wants} want this</span>
+                  <span style={{fontSize:13,color:T.textMuted,display:"flex",alignItems:"center",gap:3}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={T.textMuted} strokeWidth="1.8"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>{r.likes}</span>
+                  <span style={{fontSize:13,color:T.goldMid,display:"flex",alignItems:"center",gap:3}}><SvgIcon id="star" size={13}/>{r.wants} want this</span>
                 </div>
               </div>
             </div>
@@ -3363,7 +4057,7 @@ function TastingNotesTab() {
         </div>
         <button onClick={()=>setShowForm(!showForm)}
           style={{background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,border:"none",
-            borderRadius:20,padding:"8px 18px",color:"#1a0e04",fontSize:12,
+            borderRadius:20,padding:"8px 18px",color:"#111111",fontSize:12,
             fontFamily:"Georgia,serif",fontWeight:"bold",cursor:"pointer"}}>
 {t("log_entry")}
         </button>
@@ -3384,8 +4078,8 @@ function TastingNotesTab() {
             placeholder={t("describe_exp")} rows={4}
             style={{...fi,resize:"vertical",lineHeight:1.7}}/>
           <div style={{display:"flex",gap:10}}>
-            <button onClick={save} style={{flex:1,padding:"11px",background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,border:"none",borderRadius:8,color:"#1a0e04",fontSize:13,fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>Save Entry</button>
-            <button onClick={()=>setShowForm(false)} style={{padding:"11px 16px",background:"transparent",border:`1px solid ${T.border}`,borderRadius:8,color:T.textMuted,fontSize:13,cursor:"pointer"}}>Cancel</button>
+            <button onClick={save} style={{flex:1,padding:"11px",background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,border:"none",borderRadius:8,color:"#111111",fontSize:13,fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>Save Entry</button>
+            <button onClick={()=>setShowForm(false)} style={{padding:"11px 16px",background:"transparent",border:`1px solid ${T.border}`,borderRadius:8,color:T.textMuted,fontSize:15,cursor:"pointer"}}>Cancel</button>
           </div>
         </div>
       )}
@@ -3456,7 +4150,7 @@ function SettingsTab() {
     <div onClick={()=>set(!val)} style={{width:44,height:26,borderRadius:13,cursor:"pointer",
       background:val?T.goldMid:"rgba(255,255,255,0.07)",position:"relative",transition:"background 0.2s",flexShrink:0}}>
       <div style={{position:"absolute",top:3,left:val?22:3,width:20,height:20,borderRadius:"50%",
-        background:val?"#1a0e04":"rgba(255,255,255,0.25)",transition:"left 0.2s"}}/>
+        background:val?"#111111":"rgba(255,255,255,0.25)",transition:"left 0.2s"}}/>
     </div>
   );
   const Group=({title,children}:{title:string,children:React.ReactNode})=>(
@@ -3470,7 +4164,7 @@ function SettingsTab() {
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
       padding:"15px 16px",borderBottom:last?"none":`1px solid ${T.border}`}}>
       <div>
-        <div style={{fontSize:14,color:T.textPrimary,fontFamily:"Georgia,serif",marginBottom:sub?2:0}}>{label}</div>
+        <div style={{fontSize:17,color:T.textPrimary,fontFamily:"Georgia,serif",marginBottom:sub?2:0}}>{label}</div>
         {sub&&<div style={{fontSize:11,color:T.textMuted}}>{sub}</div>}
       </div>
       {right}
@@ -3485,7 +4179,7 @@ function SettingsTab() {
       {/* Account */}
       <Group title={t("account")}>
         <Row label="Mario's Humidor" sub="v1.0.0 · The Cigar Lifestyle Platform"
-          right={<div style={{width:32,height:32,borderRadius:8,background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:"bold",color:"#1a0e04",fontFamily:"Georgia,serif"}}>M</div>}/>
+          right={<div style={{width:32,height:32,borderRadius:8,background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:"bold",color:"#111111",fontFamily:"Georgia,serif"}}>M</div>}/>
       </Group>
 
       {/* Language */}
@@ -3500,7 +4194,7 @@ function SettingsTab() {
                   border:`1px solid ${lang===l.code?T.goldMid:T.border}`,
                   borderRadius:10,cursor:"pointer",width:"100%",textAlign:"left"}}>
                 <span style={{fontSize:22,lineHeight:1}}>{l.flag}</span>
-                <span style={{fontSize:14,color:lang===l.code?T.goldLight:T.textPrimary,fontFamily:"Georgia,serif",flex:1}}>{l.name}</span>
+                <span style={{fontSize:17,color:lang===l.code?T.goldLight:T.textPrimary,fontFamily:"Georgia,serif",flex:1}}>{l.name}</span>
                 {lang===l.code&&<span style={{fontSize:16,color:T.goldMid}}>✓</span>}
               </button>
             ))}
@@ -3517,7 +4211,7 @@ function SettingsTab() {
                 <button key={u} onClick={()=>setTempUnit(u)}
                   style={{padding:"4px 14px",borderRadius:6,cursor:"pointer",border:"none",
                     background:tempUnit===u?`linear-gradient(135deg,${T.goldDark},${T.goldMid})`:"transparent",
-                    color:tempUnit===u?"#1a0e04":T.textMuted,fontSize:12,fontFamily:"Georgia,serif"}}>
+                    color:tempUnit===u?"#111111":T.textMuted,fontSize:12,fontFamily:"Georgia,serif"}}>
                   °{u}
                 </button>
               ))}
@@ -3528,7 +4222,7 @@ function SettingsTab() {
       {/* API */}
       <Group title={t("api_s")}>
         <div style={{padding:"16px"}}>
-          <div style={{fontSize:14,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",marginBottom:4}}>{t("api_key_title")}</div>
+          <div style={{fontSize:17,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",marginBottom:4}}>{t("api_key_title")}</div>
           <div style={{fontSize:12,color:T.textMuted,lineHeight:1.65,marginBottom:12}}>{t("api_key_sub")}</div>
           {apiKeySaved ? (
             <div>
@@ -3548,7 +4242,7 @@ function SettingsTab() {
                   borderRadius:8,padding:"10px 14px",color:T.textPrimary,fontSize:13,outline:"none",marginBottom:10,fontFamily:"Georgia,serif"}}/>
               <button onClick={()=>{if(!apiKeyInput.startsWith("sk-"))return;setApiKeySaved(true);}}
                 style={{width:"100%",padding:"11px",background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
-                  border:"none",borderRadius:8,color:"#1a0e04",fontSize:13,fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>
+                  border:"none",borderRadius:8,color:"#111111",fontSize:13,fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>
                 {t("save_key")}
               </button>
               <div style={{fontSize:11,color:T.textMuted,marginTop:8,textAlign:"center"}}>console.anthropic.com</div>
@@ -3595,7 +4289,7 @@ function NewsTab() {
                 <div style={{fontSize:10,color:T.textMuted}}>{n.date}</div>
               </div>
               <div style={{fontSize:19,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1.3,marginBottom:10}}>{n.title}</div>
-              <div style={{fontSize:14,color:T.textSecondary,lineHeight:1.7,fontFamily:"Georgia,serif"}}>{n.summary}</div>
+              <div style={{fontSize:17,color:T.textSecondary,lineHeight:1.7,fontFamily:"Georgia,serif"}}>{n.summary}</div>
               <div style={{marginTop:14,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <button style={{background:"none",border:`1px solid ${n.accent}44`,borderRadius:20,
                   padding:"5px 14px",fontSize:11,color:n.accent,cursor:"pointer",fontFamily:"Georgia,serif",letterSpacing:0.5}}>
@@ -3612,10 +4306,39 @@ function NewsTab() {
 }
 
 
+function SvgIcon({id,size=18,color}:{id:string,size?:number,color?:string}) {
+  const c=color||T.goldMid;
+  const s={width:size,height:size};
+  const icons:Record<string,React.ReactNode>={
+    fire:(<svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 17h2a2.5 2.5 0 0 0 0-5H7c0-4 3-7 7-7 1 2 2 3 2 5 0 2.5-1.5 4-3 5.5"/><path d="M12 22v-1"/></svg>),
+    globe:(<svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>),
+    drop:(<svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><path d="M12 2C6 10 4 14 4 17a8 8 0 0 0 16 0c0-3-2-7-8-15z"/></svg>),
+    notes:(<svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>),
+    trophy:(<svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>),
+    crown:(<svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><path d="M2 20h20M4 20l2-8 6 4 6-4 2 8"/><circle cx="12" cy="8" r="2"/></svg>),
+    cigar:(<svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><line x1="2" y1="12" x2="22" y2="12"/><path d="M17 8c0 2.5-1 4-5 4M7 8c0 2.5 1 4 5 4"/></svg>),
+    box:(<svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>),
+    users:(<svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>),
+    star:(<svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>),
+    calendar:(<svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>),
+    leaf:(<svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>),
+    camera:(<svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>),
+    hundred:(<svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><circle cx="12" cy="12" r="10"/><path d="M8 12l2 2 4-4"/></svg>),
+    tag:(<svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>),
+    vitola:(<svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><rect x="3" y="8" width="18" height="8" rx="4"/><line x1="3" y1="12" x2="21" y2="12"/></svg>),
+    wrapper:(<svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M12 2c2.76 3.62 4 7.28 4 10s-1.24 6.38-4 10"/><path d="M12 2c-2.76 3.62-4 7.28-4 10s1.24 6.38 4 10"/></svg>),
+    strength:(<svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>),
+    pin:(<svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>),
+    search:(<svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>),
+    warning:(<svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>),
+    wood:(<svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V8z"/><line x1="6" y1="2" x2="6" y2="8"/><line x1="10" y1="2" x2="10" y2="8"/><line x1="14" y1="2" x2="14" y2="8"/></svg>),
+  };
+  return <>{icons[id]||<svg {...s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8"><circle cx="12" cy="12" r="10"/></svg>}</>;
+}
+
 const NAV=[
   {id:"home",tk:"nav_home"},
   {id:"humidors",tk:"nav_humidors"},
-  {id:"mario",tk:"nav_mario"},
   {id:"club",tk:"nav_club"},
   {id:"profile",tk:"nav_profile"},
 ];
@@ -3718,8 +4441,8 @@ function TopNav({tab,setTab}:{tab:string,setTab:(t:string)=>void}) {
   return (
     <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",
       width:"100%",maxWidth:480,zIndex:100,
-      backgroundImage:"url('/leather-nav.png')",
-      backgroundSize:"cover",backgroundPosition:"center",
+      background:"rgba(10,8,4,0.82)",
+      backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
       borderTop:`1px solid rgba(160,120,40,0.35)`,
       display:"flex",justifyContent:"space-around",padding:"6px 0 0",
       paddingBottom:"calc(env(safe-area-inset-bottom, 12px) + 6px)",
@@ -3788,217 +4511,539 @@ function AppHeader({totalCigars}:{totalCigars:number}) {
 
 
 // ── HOME TAB ───────────────────────────────────────────────────────────────
-function HomeTab({liveData,liveStatus,lastUpdated,onRefresh}:{
+// ── HOME TAB QUICK PROMPTS ──────────────────────────────────────────────────
+const HOME_QUICK_PROMPTS=[
+  {label:"What do you recommend tonight?",icon:"✦"},
+  {label:"What pairs well with this cigar?",icon:"🥃"},
+  {label:"Recommend from my humidor",icon:"🗄"},
+  {label:"What should I age longer?",icon:"⏳"},
+  {label:"Help me choose between two cigars",icon:"⚖️"},
+  {label:"Find a cigar lounge near me",icon:"pin",isLounge:true},
+  {label:"What events are coming up?",icon:"calendar"},
+  {label:"Teach me something new",icon:"📖"},
+];
+
+// ── HOME GROUP CHALLENGE TICKER ITEMS (Phase 2 placeholders) ────────────────
+const HOME_TICKER_ITEMS=[
+  {icon:"⛳",text:"Friday Foursome Challenge — 4/6 members completed"},
+  {icon:"🔥",text:"Brotherhood Challenge — 11/12 members, 7 days remaining"},
+  {icon:"🥃",text:"Friday Night Lounge Crew — 5/8 visited 3 lounges"},
+  {icon:"🏆",text:"Mike R. completed Smoke 5 Different Padrón Cigars"},
+];
+
+// ── HOME MARIO CONVERSATION MODAL ──────────────────────────────────────────
+function MarioModal({initialPrompt,onClose,liveData,lang}:{
+  initialPrompt:string;onClose:()=>void;
+  liveData:Record<string,{temperature:number|null;humidity:number|null;observedAt:string|null}>;
+  lang:string;
+}) {
+  const langName=LANGS.find(l=>l.code===lang)?.name||"English";
+  const sensors=Object.values(liveData).filter(s=>s.humidity&&s.humidity>0);
+  const bestSensor=sensors[0];
+  const humLine=bestSensor?.humidity
+    ?` Humidor reading: ${bestSensor.humidity.toFixed(0)}% RH.`:"";
+  const systemPrompt=`You are Mario, a warm, deeply knowledgeable private cigar concierge. Speak like a trusted friend at a private lounge. Be specific and personal.${humLine} Sign responses with '— Mario'. Under 120 words. Always respond in ${langName}.`;
+
+  const [messages,setMessages]=useState<{role:string;text:string}[]>([]);
+  const [input,setInput]=useState("");
+  const [loading,setLoading]=useState(false);
+  const bottomRef=useRef<HTMLDivElement>(null);
+  const inputRef=useRef<HTMLInputElement>(null);
+  const sentInitial=useRef(false);
+
+  useEffect(()=>{bottomRef.current?.scrollIntoView({behavior:"smooth"});},[messages]);
+
+  const send=useCallback(async(text:string)=>{
+    if(!text.trim()||loading) return;
+    const userMsg={role:"user",text};
+    setMessages(m=>[...m,userMsg]);
+    setInput("");
+    setLoading(true);
+    try{
+      const allMsgs=[...messages,userMsg];
+      const res=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({system:systemPrompt,
+          messages:allMsgs.map(m=>({role:m.role==="ai"?"assistant":"user",content:m.text}))})});
+      const data=await res.json();
+      const reply=data.content?.find((b:{type:string;text?:string})=>b.type==="text")?.text||"Please try again.";
+      setMessages(m=>[...m,{role:"ai",text:reply}]);
+    }catch{setMessages(m=>[...m,{role:"ai",text:"A momentary connection issue.\n\n— Mario"}]);}
+    setLoading(false);
+  },[messages,loading,systemPrompt]);
+
+  // Send initial prompt once on mount
+  useEffect(()=>{
+    if(!sentInitial.current&&initialPrompt){
+      sentInitial.current=true;
+      send(initialPrompt);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[]);
+
+  const [mountedPortal,setMountedPortal]=useState(false);
+  useEffect(()=>{setMountedPortal(true);},[]);
+  if(!mountedPortal) return null;
+
+  return createPortal(
+    <div style={{position:"fixed",inset:0,height:"100dvh",zIndex:300,display:"flex",flexDirection:"column",
+      background:T.bg,overflow:"hidden"}}>
+      {/* Modal header */}
+      <div style={{flexShrink:0,padding:"14px 16px 12px",borderBottom:`1px solid rgba(196,154,40,0.15)`,
+        display:"flex",alignItems:"center",gap:12,background:"#0a0a0a"}}>
+        <div style={{width:44,height:44,borderRadius:"50%",flexShrink:0,
+          border:`2px solid ${T.goldMid}`,overflow:"hidden",
+          boxShadow:`0 0 0 2px #0a0a0a,0 0 0 4px ${T.goldDark}44`}}>
+          <img src="/mario-avatar.jpg" alt="Mario" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 50%"}}/>
+        </div>
+        <div style={{flex:1}}>
+          <div style={{fontSize:16,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif"}}>Mario</div>
+          <div style={{fontSize:9,color:T.goldMid,letterSpacing:2,textTransform:"uppercase",marginTop:2}}>Master Cigar Sommelier</div>
+        </div>
+        <button onClick={onClose}
+          style={{width:34,height:34,borderRadius:"50%",background:"rgba(196,154,40,0.08)",
+            border:`1px solid rgba(196,154,40,0.2)`,cursor:"pointer",color:T.goldMid,
+            fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>×</button>
+      </div>
+
+      {/* Messages — sole scroll container */}
+      <div style={{flex:"1 1 0",minHeight:0,overflowY:"auto",WebkitOverflowScrolling:"touch",
+        padding:"16px 16px 0",display:"flex",flexDirection:"column",gap:14}}>
+        {/* Initial prompt bubble */}
+        {initialPrompt&&(
+          <div style={{display:"flex",justifyContent:"flex-end"}}>
+            <div style={{maxWidth:"80%",background:"rgba(196,154,40,0.08)",
+              border:`1px solid rgba(196,154,40,0.2)`,borderRadius:"16px 3px 16px 16px",padding:"12px 16px"}}>
+              <div style={{fontSize:14,color:T.textPrimary,lineHeight:1.7,fontFamily:"Georgia,serif"}}>{initialPrompt}</div>
+            </div>
+          </div>
+        )}
+        {/* Full conversation in order — skip first user msg (already shown as initialPrompt) */}
+        {messages.map((m,i)=>{
+          if(m.role==="user"&&i===0) return null;
+          return(
+            <div key={i} style={{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start"}}>
+              {m.role==="ai"?(
+                <div style={{maxWidth:"92%",
+                  background:"linear-gradient(155deg,#1a1a1a 0%,#111111 60%,#0a0a0a 100%)",
+                  border:`1px solid rgba(196,154,40,0.22)`,borderRadius:"3px 16px 16px 16px",
+                  padding:"16px 18px",boxShadow:"0 4px 20px rgba(0,0,0,0.5)"}}>
+                  <div style={{fontSize:9,color:T.goldMid,letterSpacing:2,textTransform:"uppercase",
+                    marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
+                    <div style={{width:18,height:18,borderRadius:"50%",overflow:"hidden",border:`1px solid ${T.goldDark}`,flexShrink:0}}>
+                      <img src="/mario-avatar.jpg" alt="Mario" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 50%"}}/>
+                    </div>
+                    <span>Mario</span>
+                  </div>
+                  <div style={{fontSize:17,color:T.textPrimary,lineHeight:1.85,fontFamily:"Georgia,serif",whiteSpace:"pre-line"}}>{m.text}</div>
+                </div>
+              ):(
+                <div style={{maxWidth:"80%",background:"rgba(196,154,40,0.08)",
+                  border:`1px solid rgba(196,154,40,0.2)`,borderRadius:"16px 3px 16px 16px",padding:"12px 16px"}}>
+                  <div style={{fontSize:17,color:T.textPrimary,lineHeight:1.7,fontFamily:"Georgia,serif"}}>{m.text}</div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {loading&&(
+          <div style={{display:"flex",justifyContent:"flex-start"}}>
+            <div style={{background:"linear-gradient(155deg,#1a1a1a,#111111)",border:`1px solid rgba(196,154,40,0.22)`,
+              borderRadius:"3px 16px 16px 16px",padding:"16px 20px"}}>
+              <div style={{display:"flex",gap:5}}>{[0,1,2].map(i=><div key={i} style={{width:7,height:7,borderRadius:"50%",background:T.goldMid,animation:`mT 1.2s ease-in-out ${i*0.2}s infinite`}}/>)}</div>
+            </div>
+          </div>
+        )}
+
+        {/* Input — flows directly under the last message */}
+        <div style={{padding:"10px 0 28px",
+          display:"flex",gap:10,alignItems:"center",flexShrink:0}}>
+          <input ref={inputRef} value={input} onChange={e=>setInput(e.target.value)}
+            onKeyDown={e=>{if(e.key==="Enter")send(input);}}
+            placeholder="Ask Mario anything..."
+            style={{flex:1,background:"linear-gradient(170deg,#111111,#0a0a0a)",
+              border:`1px solid rgba(196,154,40,0.22)`,borderRadius:24,
+              padding:"12px 18px",color:T.textPrimary,fontSize:13,
+              fontFamily:"Georgia,serif",outline:"none"}}/>
+          <button onClick={()=>send(input)}
+            style={{width:44,height:44,borderRadius:"50%",flexShrink:0,
+              background:`linear-gradient(135deg,${T.goldMid},${T.goldDark})`,
+              border:"none",cursor:"pointer",color:"#0a0a0a",fontSize:22,fontWeight:"bold",
+              display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>›</button>
+        </div>
+
+        <div ref={bottomRef}/>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+function HomeTab({liveData,liveStatus,lastUpdated,onRefresh,onNavigate}:{
   liveData:Record<string,{temperature:number|null;humidity:number|null;observedAt:string|null}>;
   liveStatus:"idle"|"loading"|"connected"|"error";lastUpdated:string|null;onRefresh:()=>void;
+  onNavigate:(t:string)=>void;
 }) {
-  const h=new Date().getHours();
-  const timeStr=h<12?"Good Morning":h<17?"Good Afternoon":"Good Evening";
+  const {lang}=useLang();
+  const hr=new Date().getHours();
+  const greeting=hr<12?"Good Morning":hr<17?"Good Afternoon":"Good Evening";
 
-  const FEED_ITEMS=[
-    {id:1,user:"Mario",avatar:"M",time:"2h ago",streak:17,
-      activity:"Smoked",cigar:"Padrón 1964 Exclusivo",vitola:"Robusto · Nicaragua",
-      rating:94,review:"Tons of cocoa and espresso. Incredible burn and construction.",
-      likes:24,comments:7,image:"/cigar-colorado-robusto.png",accent:T.goldMid},
-    {id:2,user:"James",avatar:"J",time:"5h ago",streak:null,
-      activity:"Added 12 Cigars",cigar:"My Father Le Bijou 1922",vitola:"Torpedo · Nicaragua",
-      rating:null,review:null,humidor:"Humidor Count: 327",
-      likes:18,comments:3,image:"/cigar-maduro-robusto.png",accent:"#8B6914"},
-    {id:3,user:"Sarah",avatar:"S",time:"8h ago",streak:null,
-      activity:"Humidor Stable",cigar:null,vitola:null,rating:null,review:null,
-      humidity:69,temp:68,likes:12,comments:2,image:null,accent:"#2a5c38"},
-    {id:4,user:"Carlos",avatar:"C",time:"12h ago",streak:9,
-      activity:"Smoked",cigar:"Arturo Fuente Opus X",vitola:"Robusto · Dominican Republic",
-      rating:96,review:"Perfect draw, incredible complexity. A true masterpiece.",
-      likes:31,comments:9,image:"/cigar-colorado-claro-robusto.png",accent:"#7a1212"},
-    {id:5,user:"Linda",avatar:"L",time:"1d ago",streak:null,
-      activity:"Added Tasting Note",cigar:"Cohiba Behike BHK 54",vitola:"BHK 54 · Cuba",
-      rating:97,review:"Creamy cedar and leather with a flawless retrohale. Exceptional.",
-      likes:44,comments:11,image:"/cigar-oscuro-robusto.png",accent:"#4a6a9a"},
-  ];
+  // Session flag: has the user opened the app before?
+  const [isReturning,setIsReturning]=useState(false);
+  const [modalPrompt,setModalPrompt]=useState<string|null>(null);
+  const [freeInput,setFreeInput]=useState("");
+  const [mounted,setMounted]=useState(false);
 
-  return (
-    <div style={{paddingBottom:8}}>
-      {/* Header */}
-      <div style={{padding:"18px 16px 12px",borderBottom:`1px solid ${T.border}`,
-        background:"linear-gradient(180deg,rgba(18,10,2,0.98),rgba(18,10,2,0.92))"}}>
-        <div style={{fontSize:9,color:T.textMuted,letterSpacing:4,textTransform:"uppercase",
-          fontFamily:"Georgia,serif",marginBottom:4}}>{timeStr}</div>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <div style={{fontSize:24,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif"}}>
-            Feed
+  // Hero recommendation state
+  type HeroRec={cigar:string;vitola:string;why:string}|null;
+  const [heroRec,setHeroRec]=useState<HeroRec>(null);
+  const [heroLoading,setHeroLoading]=useState(true);
+
+  // "Your Journey" stats
+  const [journeyCigars,setJourneyCigars]=useState<any[]>([]);
+  const [journeyNotes,setJourneyNotes]=useState<any[]>([]);
+
+  useEffect(()=>{
+    try{
+      const seen=localStorage.getItem("mh_home_seen");
+      if(seen) setIsReturning(true);
+      else localStorage.setItem("mh_home_seen","1");
+    }catch{}
+    try{const s=localStorage.getItem('mh_cigars');if(s)setJourneyCigars(JSON.parse(s));}catch{}
+    try{const s=localStorage.getItem('mh_notes');if(s)setJourneyNotes(JSON.parse(s));}catch{}
+    setMounted(true);
+  },[]);
+
+  // Fetch Mario's recommendation on mount
+  useEffect(()=>{
+    let cancelled=false;
+    const timeOfDay=hr<12?"morning":hr<17?"afternoon":hr<21?"evening":"night";
+    fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        system:"You are Mario, a private cigar sommelier. Respond ONLY in this exact format. Line 1: Cigar: [full cigar name]. Line 2: Vitola: [vitola · country of origin]. Line 3: Why: [one sentence max 18 words why this cigar suits the moment]",
+        messages:[{role:"user",content:"Recommend one specific premium cigar for "+timeOfDay+". Use the exact format specified."}]
+      })})
+    .then(r=>r.json())
+    .then(data=>{
+      if(cancelled) return;
+      const text:string=data.content?.find((b:{type:string;text?:string})=>b.type==="text")?.text||"";
+      const cm=text.match(/Cigar:\s*(.+)/);
+      const vm=text.match(/Vitola:\s*(.+)/);
+      const wm=text.match(/Why:\s*(.+)/);
+      if(cm&&vm&&wm) setHeroRec({cigar:cm[1].trim(),vitola:vm[1].trim(),why:wm[1].trim()});
+      setHeroLoading(false);
+    })
+    .catch(()=>{if(!cancelled) setHeroLoading(false);});
+    return()=>{cancelled=true;};
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[]);
+
+  const openModal=(prompt:string)=>{
+    if(!prompt.trim()) return;
+    setModalPrompt(prompt);
+  };
+
+  const handleLounge=(label:string)=>{
+    if(navigator.geolocation){
+      navigator.geolocation.getCurrentPosition(
+        pos=>{const{latitude,longitude}=pos.coords;
+          openModal(`Find me a premium cigar lounge near coordinates ${latitude.toFixed(4)}, ${longitude.toFixed(4)}. Give me the top 3 options with name, address, and what makes each one special.`);},
+        ()=>openModal("Find me a premium cigar lounge near me. Give me top recommendations with what makes each one special.")
+      );
+    } else {
+      openModal("Find me a premium cigar lounge near me. Give me top recommendations with what makes each one special.");
+    }
+  };
+
+  // Insight cards — only render when real data exists; for now we show none (empty state)
+  // These will populate when Supabase user data comes online
+  const insights:Array<{label:string;icon:string;text:string;prompt:string}>=[];
+  // Future: derive from collection, smoking history, journal data
+
+  // Your Journey stat values
+  const journeyTotalCigars=mounted?journeyCigars.reduce((a:number,c:any)=>a+(c.count||0),0):0;
+  const journeyUniqueBrands=mounted?new Set(journeyCigars.map((c:any)=>c.brand)).size:0;
+
+  return(
+    <div style={{paddingBottom:24,position:"relative",minHeight:"100vh"}}>
+
+      {/* ── FULL-BLEED MARIO BACKGROUND ────────────────────────────────── */}
+      <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",
+        width:"100%",maxWidth:480,height:"100vh",zIndex:0,overflow:"hidden",background:T.bg}}>
+        <div style={{position:"absolute",top:0,left:0,right:0,height:340,overflow:"hidden",
+          display:"flex",alignItems:"flex-end",justifyContent:"flex-end"}}>
+          <img src="/mario-avatar.jpg" alt=""
+            style={{width:"auto",height:"75%",maxWidth:"none",
+              objectFit:"contain",display:"block"}}/>
+          {/* Gradient overlay for legibility, fading to solid bg at bottom of image zone */}
+          <div style={{position:"absolute",inset:0,
+            background:"linear-gradient(180deg, rgba(10,8,4,0.45) 0%, rgba(10,8,4,0.35) 40%, rgba(10,8,4,0.85) 85%, "+T.bg+" 100%)"}}/>
+        </div>
+      </div>
+
+      {/* ── CONTENT (floating over background) ─────────────────────────── */}
+      <div style={{position:"relative",zIndex:1}}>
+
+      {/* ── 1. ASK MARIO TITLE (over background, no card) ──────────────── */}
+      <div style={{padding:"28px 16px 16px"}}>
+        <div style={{fontSize:9,color:"#ffffff",letterSpacing:3,
+          textTransform:"uppercase",fontFamily:"Georgia,serif",marginBottom:6,
+          textShadow:"0 2px 12px rgba(0,0,0,0.9)"}}>
+          {greeting}
+        </div>
+        <div style={{fontSize:34,fontWeight:"bold",color:"#ffffff",
+          fontFamily:"Georgia,serif",lineHeight:1.05,marginBottom:6,
+          textShadow:"0 2px 16px rgba(0,0,0,0.9)"}}>
+          Ask Mario
+        </div>
+        <div style={{fontSize:9,color:"#ffffff",letterSpacing:2.5,
+          textTransform:"uppercase",fontFamily:"Georgia,serif",
+          textShadow:"0 1px 8px rgba(0,0,0,0.9)"}}>
+          Master Cigar Sommelier
+        </div>
+      </div>
+
+      {/* ── 2/4. ASK MARIO CARD (title, input, 5 quick prompts) ─────────── */}
+      <div style={{padding:"40px 16px 0"}}>
+        <div style={{borderRadius:14,
+          border:`1px solid rgba(196,154,40,0.18)`,
+          background:"rgba(15,15,15,0.72)",
+          backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",
+          padding:"12px 14px"}}>
+
+          {/* Title */}
+          <div style={{marginBottom:10}}>
+            <div style={{fontSize:17,fontWeight:"bold",color:"#ffffff",
+              fontFamily:"Georgia,serif",marginBottom:4}}>Ask Mario</div>
+            <div style={{fontSize:13,color:"#ffffff",fontFamily:"Georgia,serif"}}>
+              What would you like to know?
+            </div>
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:6,
-            background:"rgba(196,154,40,0.1)",border:`1px solid rgba(196,154,40,0.25)`,
-            borderRadius:20,padding:"5px 12px"}}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill={T.goldMid}>
-              <path d="M12 2C9.243 2 7 4.243 7 7c0 3.866 5 13 5 13s5-9.134 5-13c0-2.757-2.243-5-5-5zm0 8c-1.657 0-3-1.343-3-3s1.343-3 3-3 3 1.343 3 3-1.343 3-3 3z"/>
-            </svg>
-            <span style={{fontSize:10,color:T.goldMid,fontFamily:"Georgia,serif",letterSpacing:1}}>
-              🔥 17 Day Streak
-            </span>
+
+          {/* Input */}
+          <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:10}}>
+            <div style={{flex:1,position:"relative"}}>
+              <input value={freeInput} onChange={e=>setFreeInput(e.target.value)}
+                onKeyDown={e=>{if(e.key==="Enter")openModal(freeInput);}}
+                placeholder="Ask anything about cigars…"
+                style={{width:"100%",background:"rgba(0,0,0,0.35)",
+                  border:`1px solid rgba(196,154,40,0.28)`,borderRadius:24,
+                  padding:"12px 50px 12px 18px",color:"#ffffff",fontSize:17,
+                  fontFamily:"Georgia,serif",outline:"none",boxSizing:"border-box"}}/>
+              <button style={{position:"absolute",right:14,top:"50%",transform:"translateY(-50%)",
+                background:"none",border:"none",cursor:"pointer",padding:0,
+                color:"#ffffff",opacity:0.7,display:"flex",alignItems:"center"}}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <rect x="9" y="2" width="6" height="11" rx="3"/>
+                  <path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="22"/>
+                  <line x1="8" y1="22" x2="16" y2="22"/>
+                </svg>
+              </button>
+            </div>
+            <button onClick={()=>openModal(freeInput)}
+              style={{width:38,height:38,borderRadius:"50%",flexShrink:0,
+                background:`linear-gradient(135deg,${T.goldMid},${T.goldDark})`,
+                border:"none",cursor:"pointer",color:"#0a0a0a",fontSize:22,fontWeight:"bold",
+                display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>›</button>
+          </div>
+
+          {/* 5 Quick Prompts */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8}}>
+            {[
+              {icon:"🍂",label:"What Should I Smoke?",prompt:"What should I smoke today?"},
+              {icon:"🥃",label:"Pair this Cigar",prompt:"What pairs well with this cigar?"},
+              {icon:"📍",label:"Find a lounge near me",prompt:"lounge",isLounge:true},
+              {icon:"⏳",label:"What's aging well?",prompt:"What's aging well in my humidor?"},
+              {icon:"📅",label:"Upcoming events",prompt:"What events are coming up?"},
+            ].map((p,i)=>(
+              <button key={i}
+                onClick={()=>p.isLounge?handleLounge(p.prompt):openModal(p.prompt)}
+                style={{background:"rgba(0,0,0,0.35)",
+                  border:`1px solid rgba(196,154,40,0.18)`,borderRadius:12,
+                  padding:"8px 4px",cursor:"pointer",textAlign:"center",
+                  display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
+                <span style={{fontSize:18}}>{p.icon}</span>
+                <span style={{fontSize:9,color:"#ffffff",fontFamily:"Georgia,serif",
+                  lineHeight:1.25}}>{p.label}</span>
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Feed items */}
-      <div style={{display:"flex",flexDirection:"column",gap:1}}>
-        {FEED_ITEMS.map((item,idx)=>{
-          const heroImg=idx%2===0?"/club-hero.jpg":"/humidor-hero.png";
-          return (
-          <div key={item.id} style={{
-            borderBottom:`1px solid rgba(196,154,40,0.08)`}}>
+      {/* ── 4b. TODAY'S RECOMMENDATION ──────────────────────────────────── */}
+      <div style={{padding:"14px 16px 0"}}>
+        <div onClick={()=>{
+            if(heroLoading) return;
+            openModal(
+              heroRec
+                ?`Tell me more about the ${heroRec.cigar} (${heroRec.vitola}) — why is it a good choice right now? You mentioned: "${heroRec.why}"`
+                :isReturning?"What do you recommend for me today?":"Let me tell you about cigars I enjoy."
+            );
+          }}
+          style={{borderRadius:14,overflow:"hidden",
+          border:`1px solid rgba(196,154,40,0.18)`,
+          background:"rgba(15,15,15,0.72)",
+          backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",
+          cursor:heroLoading?"default":"pointer",
+          display:"flex",alignItems:"stretch",gap:0,minHeight:140}}>
 
-            {/* Hero image — alternating */}
-            <div style={{position:"relative",height:160,overflow:"hidden"}}>
-              <img src={heroImg} alt=""
-                style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center",
-                  filter:"brightness(0.55) saturate(0.9)"}}/>
-              <div style={{position:"absolute",inset:0,
-                background:"linear-gradient(180deg,rgba(18,10,2,0.85) 0%,rgba(0,0,0,0.2) 100%)"}}/>
-              {/* User row overlaid on TOP of image */}
-              <div style={{position:"absolute",top:12,left:16,right:16,
-                display:"flex",alignItems:"center",gap:10}}>
-                <div style={{width:38,height:38,borderRadius:"50%",flexShrink:0,
-                  background:`linear-gradient(135deg,${item.accent}88,${item.accent})`,
-                  display:"flex",alignItems:"center",justifyContent:"center",
-                  fontSize:14,fontWeight:"bold",color:"#fff",fontFamily:"Georgia,serif",
-                  border:`2px solid rgba(255,255,255,0.2)`}}>
-                  {item.avatar}
-                </div>
-                <div style={{flex:1}}>
-                  <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    <span style={{fontSize:14,fontWeight:"bold",color:"#fff",fontFamily:"Georgia,serif",
-                      textShadow:"0 1px 4px rgba(0,0,0,0.8)"}}>
-                      {item.user}
-                    </span>
-                    {item.streak&&(
-                      <span style={{fontSize:9,color:T.goldMid,background:"rgba(0,0,0,0.5)",
-                        border:`1px solid rgba(196,154,40,0.4)`,borderRadius:10,
-                        padding:"2px 7px",fontFamily:"Georgia,serif",letterSpacing:0.5}}>
-                        🔥 {item.streak}d Streak
-                      </span>
-                    )}
-                  </div>
-                  <div style={{fontSize:10,color:"rgba(255,255,255,0.6)",fontFamily:"Georgia,serif",marginTop:1}}>
-                    {item.time} · {item.activity}
-                  </div>
-                </div>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2">
-                  <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
-                </svg>
-              </div>
-            </div>
-
-            {/* Card content */}
-            <div style={{padding:"12px 16px",background:"linear-gradient(170deg,#1a1208,#0f0a04)"}}>
-
-            {/* Cigar info — no thumbnail, text only */}
-            {item.cigar&&(
-              <div style={{marginBottom:10,padding:"10px 12px",
-                background:"rgba(0,0,0,0.3)",borderRadius:10,
-                border:`1px solid rgba(196,154,40,0.1)`}}>
-                <div style={{fontSize:13,fontWeight:"bold",color:T.textPrimary,
-                  fontFamily:"Georgia,serif",marginBottom:2}}>{item.cigar}</div>
-                <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",
-                  fontStyle:"italic",marginBottom:6}}>{item.vitola}</div>
-                {item.rating&&(
-                  <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <div style={{fontSize:20,fontWeight:"bold",color:T.goldMid,
-                      fontFamily:"Georgia,serif",lineHeight:1}}>{item.rating}</div>
-                    <div style={{fontSize:9,color:T.textMuted,fontFamily:"Georgia,serif",
-                      letterSpacing:1,textTransform:"uppercase"}}>Points</div>
-                    <div style={{display:"flex",gap:2,marginLeft:4}}>
-                      {[1,2,3,4,5].map(s=>(
-                        <svg key={s} width="10" height="10" viewBox="0 0 24 24"
-                          fill={s<=Math.round(item.rating!/20)?T.goldMid:"rgba(196,154,40,0.2)"}>
-                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                        </svg>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Humidor reading card */}
-            {item.humidity&&(
-              <div style={{display:"flex",gap:10,marginBottom:10}}>
-                <div style={{flex:1,background:"rgba(42,92,56,0.15)",border:"1px solid rgba(42,92,56,0.3)",
-                  borderRadius:10,padding:"10px 14px",textAlign:"center"}}>
-                  <div style={{fontSize:22,fontWeight:"bold",color:"#4ade80",fontFamily:"Georgia,serif"}}>
-                    {item.humidity}%
-                  </div>
-                  <div style={{fontSize:9,color:T.textMuted,fontFamily:"Georgia,serif",letterSpacing:2,textTransform:"uppercase"}}>RH</div>
-                </div>
-                <div style={{flex:1,background:"rgba(196,154,40,0.08)",border:`1px solid rgba(196,154,40,0.2)`,
-                  borderRadius:10,padding:"10px 14px",textAlign:"center"}}>
-                  <div style={{fontSize:22,fontWeight:"bold",color:T.goldMid,fontFamily:"Georgia,serif"}}>
-                    {item.temp}°F
-                  </div>
-                  <div style={{fontSize:9,color:T.textMuted,fontFamily:"Georgia,serif",letterSpacing:2,textTransform:"uppercase"}}>Temp</div>
-                </div>
-              </div>
-            )}
-
-            {/* Review */}
-            {item.review&&(
-              <div style={{fontSize:13,color:T.textSecondary,fontFamily:"Georgia,serif",
-                fontStyle:"italic",lineHeight:1.6,marginBottom:10,
-                borderLeft:`2px solid rgba(196,154,40,0.3)`,paddingLeft:10}}>
-                "{item.review}"
-              </div>
-            )}
-
-            {/* Humidor count badge */}
-            {item.humidor&&(
-              <div style={{display:"inline-flex",alignItems:"center",gap:6,marginBottom:10,
-                background:"rgba(196,154,40,0.08)",border:`1px solid rgba(196,154,40,0.18)`,
-                borderRadius:20,padding:"4px 12px"}}>
-                <span style={{fontSize:11,color:T.goldMid,fontFamily:"Georgia,serif"}}>🗄 {item.humidor}</span>
-              </div>
-            )}
-
-            {/* Actions */}
-            <div style={{display:"flex",alignItems:"center",gap:16,paddingTop:8,
-              borderTop:`1px solid rgba(196,154,40,0.06)`}}>
-              <button style={{display:"flex",alignItems:"center",gap:5,background:"none",
-                border:"none",cursor:"pointer",padding:0}}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                  stroke="rgba(196,154,40,0.4)" strokeWidth="2">
-                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-                </svg>
-                <span style={{fontSize:11,color:"rgba(196,154,40,0.4)",fontFamily:"Georgia,serif"}}>{item.likes}</span>
-              </button>
-              <button style={{display:"flex",alignItems:"center",gap:5,background:"none",
-                border:"none",cursor:"pointer",padding:0}}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                  stroke="rgba(196,154,40,0.4)" strokeWidth="2">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                </svg>
-                <span style={{fontSize:11,color:"rgba(196,154,40,0.4)",fontFamily:"Georgia,serif"}}>{item.comments}</span>
-              </button>
-              <button style={{display:"flex",alignItems:"center",gap:5,background:"none",
-                border:"none",cursor:"pointer",padding:0}}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                  stroke="rgba(196,154,40,0.4)" strokeWidth="2">
-                  <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-                  <polyline points="16 6 12 2 8 6"/>
-                  <line x1="12" y1="2" x2="12" y2="15"/>
-                </svg>
-              </button>
-              <div style={{flex:1}}/>
-              <button style={{display:"flex",alignItems:"center",gap:5,background:"none",
-                border:"none",cursor:"pointer",padding:0}}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
-                  stroke="rgba(196,154,40,0.4)" strokeWidth="2">
-                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
-                </svg>
-              </button>
-            </div>
-            </div>{/* end card content */}
+          {/* Cigar image */}
+          <div style={{width:110,flexShrink:0,background:"rgba(0,0,0,0.4)",
+            display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden"}}>
+            <img src="/cigar-recommendation-placeholder.png" alt=""
+              style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center"}}
+              onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
           </div>
-        );})}
+
+          {/* Text + CTA */}
+          <div style={{flex:1,minWidth:0,padding:"14px 16px",
+            display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
+            <div>
+              <div style={{fontSize:11,color:"#ffffff",letterSpacing:2,textTransform:"uppercase",
+                fontFamily:"Georgia,serif",marginBottom:6,opacity:0.7}}>Today's Recommendation</div>
+              {heroLoading&&(
+                <div>
+                  <div style={{height:15,borderRadius:6,marginBottom:6,width:"75%",
+                    background:"linear-gradient(90deg,rgba(196,154,40,0.06),rgba(196,154,40,0.14),rgba(196,154,40,0.06))",
+                    backgroundSize:"200% 100%",animation:"shimmer 1.6s ease-in-out infinite"}}/>
+                  <div style={{height:11,borderRadius:6,width:"45%",
+                    background:"linear-gradient(90deg,rgba(196,154,40,0.04),rgba(196,154,40,0.10),rgba(196,154,40,0.04))",
+                    backgroundSize:"200% 100%",animation:"shimmer 1.6s ease-in-out 0.2s infinite"}}/>
+                </div>
+              )}
+              {!heroLoading&&heroRec&&(
+                <>
+                  <div style={{fontSize:18,fontWeight:"bold",color:"#ffffff",
+                    fontFamily:"Georgia,serif",lineHeight:1.2,marginBottom:3}}>
+                    {heroRec.cigar}
+                  </div>
+                  <div style={{fontSize:13,color:"#ffffff",fontFamily:"Georgia,serif",
+                    fontStyle:"italic",letterSpacing:0.5,opacity:0.75,marginBottom:8}}>
+                    {heroRec.vitola}
+                  </div>
+                  <div style={{fontSize:13,color:"#ffffff",fontFamily:"Georgia,serif",
+                    fontStyle:"italic",lineHeight:1.5,opacity:0.85,
+                    display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",
+                    overflow:"hidden"}}>
+                    {heroRec.why}
+                  </div>
+                </>
+              )}
+              {!heroLoading&&!heroRec&&(
+                <div style={{fontSize:13,color:"#ffffff",fontFamily:"Georgia,serif",fontStyle:"italic"}}>
+                  Add cigars to your humidor for a recommendation.
+                </div>
+              )}
+            </div>
+            {/* CTA pill */}
+            <div style={{alignSelf:"flex-start",background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
+              borderRadius:8,padding:"8px 18px",marginTop:10,
+              color:"#0a0a0a",fontSize:13,fontWeight:"bold",fontFamily:"Georgia,serif",
+              letterSpacing:0.5,whiteSpace:"nowrap"}}>
+              {heroRec?"Tell Me More":isReturning?"Ask Mario":"Get Started"}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── 5. YOUR JOURNEY ─────────────────────────────────────────────── */}
+      <div style={{padding:"14px 16px 0"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+          <div style={{fontSize:12,fontWeight:"bold",color:"#ffffff",
+            fontFamily:"Georgia,serif",letterSpacing:0.5,
+            textShadow:"0 2px 10px rgba(0,0,0,0.8)"}}>
+            Your Journey
+          </div>
+          <button onClick={()=>onNavigate('profile')}
+            style={{background:"transparent",border:"none",cursor:"pointer",
+              display:"flex",alignItems:"center",gap:4,
+              color:"#ffffff",fontSize:12,fontFamily:"Georgia,serif",letterSpacing:0.5}}>
+            View Profile
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.goldMid} strokeWidth="2">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </button>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+          {[
+            {val:journeyTotalCigars,label:"Cigars Logged"},
+            {val:journeyUniqueBrands,label:"Brands Explored"},
+            {val:0,label:"Day Streak"},
+          ].map((s,i)=>(
+            <div key={i} style={{textAlign:"center",
+              background:"rgba(15,15,15,0.72)",backdropFilter:"blur(12px)",
+              WebkitBackdropFilter:"blur(12px)",
+              borderRadius:14,border:`1px solid rgba(196,154,40,0.18)`,
+              padding:"14px 6px"}}>
+              <div style={{fontSize:24,fontWeight:"bold",color:"#ffffff",
+                fontFamily:"Georgia,serif",lineHeight:1,marginBottom:5}}>{s.val}</div>
+              <div style={{fontSize:10,color:"#ffffff",fontFamily:"Georgia,serif",
+                lineHeight:1.2}}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── 6. GROUP CHALLENGE TICKER (fixed above bottom nav) ──────────── */}
+      <div style={{height:60}}/> {/* spacer so content isn't hidden behind fixed ticker+nav */}
+      <div style={{position:"fixed",bottom:64,left:"50%",transform:"translateX(-50%)",
+        width:"100%",maxWidth:480,zIndex:99,padding:"0 16px"}}>
+        <div style={{width:"100%",background:"rgba(15,15,15,0.85)",
+          backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",
+          border:`1px solid rgba(196,154,40,0.18)`,borderRadius:12,
+          padding:"10px 0",overflow:"hidden",position:"relative"}}>
+          <div style={{display:"flex",whiteSpace:"nowrap",
+            animation:"ticker-scroll 32s linear infinite"}}>
+            {[...HOME_TICKER_ITEMS,...HOME_TICKER_ITEMS].map((item,i)=>(
+              <span key={i} style={{display:"inline-flex",alignItems:"center",gap:8,
+                padding:"0 28px",fontSize:13,color:"#ffffff",
+                fontFamily:"Georgia,serif"}}>
+                <span style={{fontSize:14}}>{item.icon}</span>
+                {item.text}
+                <span style={{color:"rgba(255,255,255,0.35)",marginLeft:20}}>•</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ── 6. PERSONALIZED INSIGHTS ───────────────────────────────────── */}
+      {insights.length>0&&(
+        <div style={{padding:"14px 16px 0"}}>
+          <div style={{fontSize:8,color:"#ffffff",letterSpacing:3,textTransform:"uppercase",
+            fontFamily:"Georgia,serif",marginBottom:10}}>What Mario Noticed</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {insights.map((ins,i)=>(
+              <div key={i} style={{background:"linear-gradient(170deg,#111111,#0a0a0a)",
+                border:`1px solid rgba(196,154,40,0.15)`,borderRadius:12,padding:"13px 15px",
+                display:"flex",alignItems:"center",gap:12}}>
+                <span style={{fontSize:18,flexShrink:0}}>{ins.icon}</span>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:8,color:"#ffffff",letterSpacing:2.5,textTransform:"uppercase",
+                    fontFamily:"Georgia,serif",marginBottom:3}}>{ins.label}</div>
+                  <div style={{fontSize:12,color:"#ffffff",fontFamily:"Georgia,serif",lineHeight:1.4}}>{ins.text}</div>
+                </div>
+                <button onClick={()=>openModal(ins.prompt)}
+                  style={{background:"none",border:`1px solid rgba(196,154,40,0.3)`,borderRadius:8,
+                    padding:"5px 11px",cursor:"pointer",color:"#ffffff",
+                    fontSize:11,fontFamily:"Georgia,serif",flexShrink:0,letterSpacing:0.5}}>
+                  Ask Mario
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── CONVERSATION MODAL ─────────────────────────────────────────── */}
+      {modalPrompt!==null&&(
+        <MarioModal
+          initialPrompt={modalPrompt}
+          onClose={()=>setModalPrompt(null)}
+          liveData={liveData}
+          lang={lang}
+        />
+      )}
       </div>
     </div>
   );
@@ -4017,169 +5062,137 @@ function ChallengesTab() {
     setMounted(true);
   },[]);
 
-  // Auto-calculated challenge progress
-  const totalCigars=mounted?cigars.reduce((a:number,c:any)=>a+c.count,0):0;
   const uniqueBrands=mounted?new Set(cigars.map((c:any)=>c.brand)).size:0;
   const uniqueCountries=mounted?new Set(cigars.filter((c:any)=>c.origin).map((c:any)=>c.origin)).size:0;
   const totalNotes=mounted?notes.length:0;
+  const totalCigars=mounted?cigars.reduce((a:number,c:any)=>a+(c.count||0),0):0;
 
-  const GOAL_BRANDS=5;
-  const GOAL_COUNTRIES=4;
-  const GOAL_NOTES=10;
-  const GOAL_CIGARS=20;
-
-  const ACTIVE_CHALLENGES=[
-    {id:1,icon:"🔥",title:"Smoke 5 Different Brands",subtitle:"This Month Challenge",
-      progress:Math.min(Math.round((uniqueBrands/GOAL_BRANDS)*100),100),
-      color:"#e05050",detail:`${uniqueBrands} of ${GOAL_BRANDS} brands`},
-    {id:2,icon:"🌎",title:"World Tour Challenge",subtitle:"Smoke cigars from 4 countries",
-      progress:Math.min(Math.round((uniqueCountries/GOAL_COUNTRIES)*100),100),
-      color:T.goldMid,detail:`${uniqueCountries} of ${GOAL_COUNTRIES} countries`,
-      flags:["🇳🇮","🇩🇴","🇨🇺","🇭🇳"]},
-    {id:3,icon:"💧",title:"Humidor Perfection",subtitle:"Maintain 65–70% RH for 30 days",
-      progress:0,color:"#6a9fe0",detail:"Requires sensor connection",locked:true},
-    {id:4,icon:"📓",title:"Tasting Notes Challenge",subtitle:"Write 10 detailed reviews",
-      progress:Math.min(Math.round((totalNotes/GOAL_NOTES)*100),100),
-      color:"#b67ee0",detail:`${totalNotes} of ${GOAL_NOTES} reviews`},
-    {id:5,icon:"🗄",title:"Collection Builder",subtitle:"Add 20 cigars to your collection",
-      progress:Math.min(Math.round((totalCigars/GOAL_CIGARS)*100),100),
-      color:"#3dd68c",detail:`${totalCigars} of ${GOAL_CIGARS} cigars`},
+  const CHALLENGES=[
+    {id:1,img:"/Smoke%2010%20Different%20Brands.png",icon:"fire",title:"Smoke 10 Different Brands",
+      desc:"Expand your palate and try 10 unique cigar brands.",
+      pts:250,current:uniqueBrands,goal:10,color:T.goldMid},
+    {id:2,img:"/World_Traveler_V1.png",icon:"globe",title:"World Tour",
+      desc:"Smoke cigars from 4 different countries.",
+      pts:300,current:uniqueCountries,goal:4,color:T.goldMid},
+    {id:3,img:"/Humidor_Perfection_V1.png",icon:"drop",title:"Humidor Perfection",
+      desc:"Keep your humidor in the ideal range for 30 days.",
+      pts:350,current:0,goal:30,color:"#3dd68c"},
+    {id:4,img:"/Tasting_Notes.png",icon:"notes",title:"Tasting Notes Challenge",
+      desc:"Log 20 tasting notes with ratings.",
+      pts:200,current:totalNotes,goal:20,color:T.goldMid},
+    {id:5,img:"/Smoke_5_Liga_Privadas.png",icon:"trophy",title:"Smoke 5 Liga Privadas",
+      desc:"Experience 5 different Liga Privada cigars.",
+      pts:400,current:0,goal:5,color:T.goldMid},
   ];
 
-  // Auto-detect completed challenges
-  const COMPLETED_CHALLENGES=[
-    ...(uniqueBrands>=1?[{id:'first_brand',icon:"🏷",title:"First Brand",subtitle:"Added your first cigar brand",color:T.goldMid}]:[]),
-    ...(totalNotes>=1?[{id:'first_note',icon:"⭐",title:"First Review",subtitle:"Wrote your first tasting note",color:"#3dd68c"}]:[]),
-    ...(totalCigars>=5?[{id:'collector',icon:"🗄",title:"Budding Collector",subtitle:"Added 5 cigars to your collection",color:"#b67ee0"}]:[]),
-  ];
+  // Circular progress ring helper
+  const Ring=({pct,color,size=52}:{pct:number;color:string;size?:number})=>{
+    const r=size/2-5;const circ=2*Math.PI*r;
+    return(
+      <svg width={size} height={size} style={{transform:"rotate(-90deg)"}}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none"
+          stroke="rgba(255,255,255,0.08)" strokeWidth="4"/>
+        <circle cx={size/2} cy={size/2} r={r} fill="none"
+          stroke={color} strokeWidth="4" strokeLinecap="round"
+          strokeDasharray={`${circ*pct/100} ${circ}`}/>
+      </svg>
+    );
+  };
 
-  return (
-    <div style={{paddingBottom:100}}>
-      {/* Hero */}
-      <div style={{position:"relative",height:160,overflow:"hidden",
-        background:"linear-gradient(135deg,#1a0a02,#0f0600)"}}>
-        <img src="/humidor-hero.png" alt="" style={{position:"absolute",inset:0,
-          width:"100%",height:"100%",objectFit:"cover",
-          filter:"brightness(0.35) saturate(0.8)"}}
-          onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
-        <div style={{position:"absolute",inset:0,
-          background:"linear-gradient(180deg,rgba(0,0,0,0.2) 0%,rgba(18,10,2,0.9) 100%)"}}/>
-        <div style={{position:"relative",zIndex:1,padding:"28px 20px 20px",height:"100%",
-          display:"flex",flexDirection:"column",justifyContent:"flex-end"}}>
-          <div style={{fontSize:9,color:T.goldMid,letterSpacing:4,textTransform:"uppercase",
-            fontFamily:"Georgia,serif",marginBottom:6}}>Mario's Humidor</div>
-          <div style={{fontSize:26,fontWeight:"bold",color:"#fff",fontFamily:"Georgia,serif",
-            lineHeight:1.1,marginBottom:4}}>Challenges</div>
-          <div style={{fontSize:12,color:"rgba(255,255,255,0.55)",fontFamily:"Georgia,serif",
-            fontStyle:"italic"}}>
-            Complete challenges, earn recognition, level up your cigar journey
-          </div>
-        </div>
+  return(
+    <div style={{padding:"0 16px 24px"}}>
+      {/* Subtitle */}
+      <div style={{fontSize:15,color:T.textSecondary,fontFamily:"Georgia,serif",
+        marginBottom:20,lineHeight:1.5}}>
+        Complete challenges, earn points, and level up your cigar journey.
       </div>
 
-      {/* Active Challenges */}
-      <div style={{padding:"20px 16px 0"}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-          <div style={{fontSize:9,letterSpacing:4,textTransform:"uppercase",
-            color:T.textMuted,fontFamily:"Georgia,serif"}}>Active Challenges</div>
-          <div style={{fontSize:9,color:T.goldMid,letterSpacing:2,textTransform:"uppercase",
-            fontFamily:"Georgia,serif"}}>View All</div>
-        </div>
+      {/* Challenge cards */}
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        {CHALLENGES.map(c=>{
+          const pct=Math.min(Math.round((c.current/c.goal)*100),100);
+          return(
+            <div key={c.id} style={{background:"#111111",borderRadius:16,
+              border:`1px solid rgba(196,154,40,0.15)`,padding:"18px 16px",
+              display:"flex",alignItems:"center",gap:16}}>
 
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          {ACTIVE_CHALLENGES.map(c=>(
-            <div key={c.id} style={{background:"linear-gradient(170deg,#1a1208,#0f0a04)",
-              borderRadius:14,border:`1px solid ${(c as any).locked?"rgba(196,154,40,0.08)":"rgba(196,154,40,0.15)"}`,
-              padding:"16px",boxShadow:"0 4px 16px rgba(0,0,0,0.4)",
-              opacity:(c as any).locked?0.6:1}}>
-              <div style={{display:"flex",alignItems:"flex-start",gap:12,marginBottom:12}}>
-                {/* Icon */}
-                <div style={{width:42,height:42,borderRadius:12,flexShrink:0,
-                  background:`linear-gradient(135deg,${c.color}22,${c.color}44)`,
-                  border:`1px solid ${c.color}44`,
-                  display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>
-                  {c.icon}
-                </div>
-                {/* Info */}
-                <div style={{flex:1}}>
-                  <div style={{fontSize:14,fontWeight:"bold",color:T.textPrimary,
-                    fontFamily:"Georgia,serif",lineHeight:1.2,marginBottom:2}}>{c.title}</div>
-                  <div style={{fontSize:11,color:T.textMuted,fontFamily:"Georgia,serif",
-                    fontStyle:"italic"}}>{c.subtitle}</div>
-                  {c.flags&&(
-                    <div style={{display:"flex",gap:4,marginTop:6}}>
-                      {c.flags.map((f,i)=>(
-                        <span key={i} style={{fontSize:16,opacity:i<3?1:0.3}}>{f}</span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {/* Percentage */}
-                <div style={{textAlign:"right",flexShrink:0}}>
-                  <div style={{fontSize:18,fontWeight:"bold",color:c.color,
-                    fontFamily:"Georgia,serif",lineHeight:1}}>{c.progress}%</div>
-                  <div style={{fontSize:9,color:T.textMuted,letterSpacing:1,
-                    textTransform:"uppercase",marginTop:2,fontFamily:"Georgia,serif"}}>Done</div>
-                </div>
+              {/* Badge icon */}
+              <div style={{width:60,height:60,borderRadius:"50%",flexShrink:0,
+                background:"rgba(196,154,40,0.08)",
+                border:`1px solid rgba(196,154,40,0.2)`,
+                overflow:"hidden",display:"flex",alignItems:"center",
+                justifyContent:"center"}}>
+                <img src={c.img} alt={c.title}
+                  style={{width:"100%",height:"100%",objectFit:"cover"}}
+                  onError={e=>{
+                    const t=e.target as HTMLImageElement;
+                    t.style.display="none";
+                    (t.parentElement as HTMLElement).innerHTML=`<svg width='26' height='26' viewBox='0 0 24 24' fill='none' stroke='${T.goldMid}' stroke-width='1.8'><circle cx='12' cy='12' r='10'/></svg>`;
+                  }}/>
               </div>
-              {/* Progress bar */}
-              <div>
-                <div style={{height:6,background:"rgba(0,0,0,0.4)",borderRadius:6,
-                  overflow:"hidden",marginBottom:6}}>
-                  <div style={{height:"100%",width:`${c.progress}%`,
-                    background:`linear-gradient(90deg,${c.color}88,${c.color})`,
-                    borderRadius:6,boxShadow:`0 0 8px ${c.color}44`,
-                    transition:"width 0.6s ease"}}/>
-                </div>
-                <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",
-                  fontStyle:"italic"}}>{c.detail}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Completed Challenges */}
-      <div style={{padding:"24px 16px 0"}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-          <div style={{fontSize:9,letterSpacing:4,textTransform:"uppercase",
-            color:T.textMuted,fontFamily:"Georgia,serif"}}>Completed Challenges</div>
-          <div style={{fontSize:9,color:T.goldMid,letterSpacing:2,textTransform:"uppercase",
-            fontFamily:"Georgia,serif"}}>See All</div>
-        </div>
-        <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {COMPLETED_CHALLENGES.length===0?(
-            <div style={{textAlign:"center",padding:"20px",color:T.textMuted,
-              fontFamily:"Georgia,serif",fontStyle:"italic",fontSize:12}}>
-              Complete challenges to earn recognition here
-            </div>
-          ):COMPLETED_CHALLENGES.map(c=>(
-            <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,
-              background:"linear-gradient(170deg,#1a1208,#0f0a04)",
-              borderRadius:12,border:`1px solid rgba(196,154,40,0.1)`,padding:"12px 14px"}}>
-              <div style={{width:36,height:36,borderRadius:10,flexShrink:0,
-                background:`linear-gradient(135deg,${c.color}22,${c.color}33)`,
-                border:`1px solid ${c.color}33`,
-                display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>
-                {c.icon}
+              {/* Info */}
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:17,fontWeight:"bold",color:T.textPrimary,
+                  fontFamily:"Georgia,serif",lineHeight:1.2,marginBottom:4}}>
+                  {c.title}
+                </div>
+                <div style={{fontSize:13,color:T.textMuted,fontFamily:"Georgia,serif",
+                  lineHeight:1.4,marginBottom:8}}>{c.desc}</div>
+                <div style={{display:"flex",alignItems:"center",gap:5}}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+                    stroke={T.goldMid} strokeWidth="2">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                  </svg>
+                  <span style={{fontSize:13,color:T.goldMid,fontFamily:"Georgia,serif",
+                    fontWeight:"bold"}}>{c.pts} Points</span>
+                </div>
               </div>
-              <div style={{flex:1}}>
-                <div style={{fontSize:13,fontWeight:"bold",color:T.textPrimary,
-                  fontFamily:"Georgia,serif"}}>{c.title}</div>
-                <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",
-                  fontStyle:"italic"}}>{c.subtitle}</div>
-              </div>
-              <div style={{width:24,height:24,borderRadius:"50%",
-                background:"rgba(61,214,140,0.15)",
-                border:"1px solid rgba(61,214,140,0.3)",
-                display:"flex",alignItems:"center",justifyContent:"center"}}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-                  stroke="#3dd68c" strokeWidth="2.5" strokeLinecap="round">
-                  <polyline points="20 6 9 17 4 12"/>
+
+              {/* Ring + arrow */}
+              <div style={{flexShrink:0,display:"flex",alignItems:"center",gap:8}}>
+                <div style={{position:"relative",width:60,height:60}}>
+                  <Ring pct={pct} color={c.color} size={60}/>
+                  <div style={{position:"absolute",inset:0,display:"flex",
+                    flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+                    <div style={{fontSize:15,fontWeight:"bold",color:"#fff",
+                      fontFamily:"Georgia,serif",lineHeight:1}}>{pct}%</div>
+                    <div style={{fontSize:9,color:T.textMuted,fontFamily:"Georgia,serif",
+                      marginTop:1}}>{c.current}/{c.goal}</div>
+                  </div>
+                </div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="rgba(196,154,40,0.4)" strokeWidth="2">
+                  <polyline points="9 18 15 12 9 6"/>
                 </svg>
               </div>
             </div>
-          ))}
+          );
+        })}
+      </div>
+
+      {/* Footer banner */}
+      <div style={{marginTop:20,background:"#111111",borderRadius:14,
+        border:`1px solid rgba(196,154,40,0.12)`,padding:"16px",
+        display:"flex",alignItems:"center",gap:14}}>
+        <div style={{width:40,height:40,borderRadius:"50%",flexShrink:0,
+          background:"rgba(196,154,40,0.08)",border:`1px solid rgba(196,154,40,0.2)`,
+          display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={T.goldMid} strokeWidth="1.8">
+            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+            <path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+            <path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/>
+          </svg>
+        </div>
+        <div style={{flex:1}}>
+          <div style={{fontSize:15,fontWeight:"bold",color:T.textPrimary,
+            fontFamily:"Georgia,serif",marginBottom:3}}>
+            Complete challenges to earn points and climb the rankings.
+          </div>
+          <div style={{fontSize:13,color:T.textMuted,fontFamily:"Georgia,serif"}}>
+            New challenges added monthly!
+          </div>
         </div>
       </div>
     </div>
@@ -4188,273 +5201,569 @@ function ChallengesTab() {
 
 // ── LEADERBOARD TAB ────────────────────────────────────────────────────────
 function LeaderboardTab() {
-  const [category,setCategory]=useState<'reviewer'|'streak'|'notes'|'explorer'|'guardian'|'ambassador'>('reviewer');
-
-  const CATEGORIES=[
-    {id:'reviewer',icon:'⭐',label:'Top Reviewer'},
-    {id:'streak',icon:'🔥',label:'Smoke Streak'},
-    {id:'notes',icon:'📓',label:'Tasting Notes'},
-    {id:'explorer',icon:'🌎',label:'Explorer'},
-    {id:'guardian',icon:'💧',label:'Humidor Guardian'},
-    {id:'ambassador',icon:'👑',label:'Ambassador'},
+  const TOP3=[
+    {rank:1,name:"Alex M.",title:"Cigar Connoisseur",pts:2450,img:"/ad-davidoff.png",color:T.goldMid},
+    {rank:2,name:"Michael D.",title:"Aficionado",pts:2150,img:"/ad-fuente.png",color:"rgba(192,192,192,0.7)"},
+    {rank:3,name:"David L.",title:"Cigar Enthusiast",pts:1890,img:"/ad-myfather.png",color:"rgba(205,127,50,0.7)"},
   ];
+  const REST=[
+    {rank:4,name:"James P.",title:"Aficionado",pts:1720},
+    {rank:5,name:"Brian T.",title:"Cigar Explorer",pts:1560},
+    {rank:6,name:"Robert K.",title:"Cigar Enthusiast",pts:1350},
+    {rank:7,name:"Thomas G.",title:"Cigar Lover",pts:1120},
+    {rank:8,name:"Mark S.",title:"Cigar Explorer",pts:980},
+  ];
+  const YOU={rank:23,name:"You",title:"Cigar Enthusiast",pts:620};
 
-  const LEADERBOARD_DATA:{[key:string]:{rank:number;name:string;avatar:string;score:number;detail:string;trend:'up'|'down'|'same'}[]}={
-    reviewer:[
-      {rank:1,name:"Michael",avatar:"M",score:1247,detail:"1,247 Points",trend:"same"},
-      {rank:2,name:"Sarah",avatar:"S",score:1183,detail:"1,183 Points",trend:"up"},
-      {rank:3,name:"James",avatar:"J",score:1071,detail:"1,071 Points",trend:"down"},
-      {rank:4,name:"Robert",avatar:"R",score:982,detail:"982 Points",trend:"up"},
-      {rank:5,name:"Carlos",avatar:"C",score:914,detail:"914 Points",trend:"down"},
-      {rank:6,name:"David",avatar:"D",score:876,detail:"876 Points",trend:"up"},
-      {rank:7,name:"Linda",avatar:"L",score:823,detail:"823 Points",trend:"down"},
-      {rank:8,name:"Chris",avatar:"Ch",score:794,detail:"794 Points",trend:"same"},
-      {rank:9,name:"Anthony",avatar:"A",score:752,detail:"752 Points",trend:"up"},
-      {rank:10,name:"Mark",avatar:"Mk",score:701,detail:"701 Points",trend:"down"},
-    ],
-    streak:[
-      {rank:1,name:"Carlos",avatar:"C",score:47,detail:"47 Day Streak",trend:"up"},
-      {rank:2,name:"Michael",avatar:"M",score:31,detail:"31 Day Streak",trend:"same"},
-      {rank:3,name:"Linda",avatar:"L",score:28,detail:"28 Day Streak",trend:"up"},
-      {rank:4,name:"James",avatar:"J",score:21,detail:"21 Day Streak",trend:"down"},
-      {rank:5,name:"Sarah",avatar:"S",score:17,detail:"17 Day Streak",trend:"up"},
-    ],
-    notes:[
-      {rank:1,name:"Sarah",avatar:"S",score:89,detail:"89 Tasting Notes",trend:"up"},
-      {rank:2,name:"David",avatar:"D",score:74,detail:"74 Tasting Notes",trend:"same"},
-      {rank:3,name:"Michael",avatar:"M",score:61,detail:"61 Tasting Notes",trend:"down"},
-      {rank:4,name:"Linda",avatar:"L",score:55,detail:"55 Tasting Notes",trend:"up"},
-      {rank:5,name:"Robert",avatar:"R",score:48,detail:"48 Tasting Notes",trend:"same"},
-    ],
-    explorer:[
-      {rank:1,name:"James",avatar:"J",score:18,detail:"18 Vitolas · 12 Countries",trend:"same"},
-      {rank:2,name:"Anthony",avatar:"A",score:15,detail:"15 Vitolas · 9 Countries",trend:"up"},
-      {rank:3,name:"Carlos",avatar:"C",score:14,detail:"14 Vitolas · 8 Countries",trend:"down"},
-    ],
-    guardian:[
-      {rank:1,name:"Robert",avatar:"R",score:99,detail:"99% Optimal Days",trend:"up"},
-      {rank:2,name:"Sarah",avatar:"S",score:97,detail:"97% Optimal Days",trend:"same"},
-      {rank:3,name:"Mark",avatar:"Mk",score:94,detail:"94% Optimal Days",trend:"up"},
-    ],
-    ambassador:[
-      {rank:1,name:"Michael",avatar:"M",score:2840,detail:"2,840 Engagement Points",trend:"same"},
-      {rank:2,name:"Sarah",avatar:"S",score:2611,detail:"2,611 Engagement Points",trend:"up"},
-      {rank:3,name:"James",avatar:"J",score:2290,detail:"2,290 Engagement Points",trend:"down"},
-    ],
-  };
-
-  const data=LEADERBOARD_DATA[category]||[];
-  const top3=data.slice(0,3);
-  const rest=data.slice(3);
-  const trendColor=(t:string)=>t==="up"?"#3dd68c":t==="down"?"#e05050":T.textMuted;
-  const trendSymbol=(t:string)=>t==="up"?"▲":t==="down"?"▼":"—";
-
-  return (
-    <div style={{paddingBottom:100}}>
-      {/* Hero */}
-      <div style={{background:"linear-gradient(170deg,#1a1208,#0f0a04)",
-        padding:"24px 20px 20px",borderBottom:`1px solid ${T.border}`}}>
-        <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:6}}>
-          <div style={{fontSize:28}}>🏆</div>
-          <div>
-            <div style={{fontSize:22,fontWeight:"bold",color:T.textPrimary,
-              fontFamily:"Georgia,serif",lineHeight:1.1}}>Mario's Leaderboard</div>
-            <div style={{fontSize:11,color:T.textMuted,fontFamily:"Georgia,serif",
-              fontStyle:"italic",marginTop:3}}>
-              Recognizing the most active members of the club
-            </div>
-          </div>
-        </div>
+  return(
+    <div style={{padding:"0 16px 24px"}}>
+      {/* Subtitle */}
+      <div style={{fontSize:15,color:T.textSecondary,fontFamily:"Georgia,serif",
+        marginBottom:16,lineHeight:1.5}}>
+        See how you rank against other members in the Mario's Humidor Club.
       </div>
 
-      {/* Category selector */}
-      <div style={{overflowX:"auto",scrollbarWidth:"none",
-        borderBottom:`1px solid ${T.border}`,background:"#0a0602"}}>
-        <div style={{display:"flex",padding:"10px 12px",gap:6,minWidth:"max-content"}}>
-          {CATEGORIES.map(cat=>{
-            const active=category===cat.id;
-            return (
-              <button key={cat.id} onClick={()=>setCategory(cat.id as any)}
-                style={{display:"flex",alignItems:"center",gap:5,padding:"7px 12px",
-                  background:active?`linear-gradient(135deg,${T.goldDark},${T.goldMid})`:"transparent",
-                  border:`1px solid ${active?"transparent":"rgba(196,154,40,0.2)"}`,
-                  borderRadius:20,cursor:"pointer",flexShrink:0,transition:"all 0.18s"}}>
-                <span style={{fontSize:13}}>{cat.icon}</span>
-                <span style={{fontSize:11,color:active?"#0a0a0a":T.textMuted,
-                  fontFamily:"Georgia,serif",whiteSpace:"nowrap",letterSpacing:0.3}}>
-                  {cat.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div style={{padding:"20px 16px 0"}}>
-        {/* Podium — top 3 */}
-        {top3.length>=3&&(
-          <div style={{display:"flex",alignItems:"flex-end",justifyContent:"center",
-            gap:8,marginBottom:24,marginTop:16,height:160}}>
-            {/* 2nd place */}
-            <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
-              <div style={{fontSize:11,color:T.textMuted,fontFamily:"Georgia,serif"}}>{top3[1].detail}</div>
-              <div style={{width:52,height:52,borderRadius:"50%",
-                background:"linear-gradient(135deg,rgba(192,192,192,0.2),rgba(192,192,192,0.4))",
-                border:"2px solid rgba(192,192,192,0.5)",
-                display:"flex",alignItems:"center",justifyContent:"center",
-                fontSize:18,fontWeight:"bold",color:"#fff",fontFamily:"Georgia,serif"}}>
-                {top3[1].avatar}
-              </div>
-              <div style={{fontSize:13,fontWeight:"bold",color:T.textPrimary,
-                fontFamily:"Georgia,serif"}}>{top3[1].name}</div>
-              <div style={{width:"100%",background:"linear-gradient(180deg,#2a2a2a,#1a1a1a)",
-                borderRadius:"8px 8px 0 0",height:80,border:`1px solid rgba(192,192,192,0.2)`,
-                display:"flex",alignItems:"center",justifyContent:"center"}}>
-                <div style={{fontSize:24,fontWeight:"bold",color:"rgba(192,192,192,0.8)",
-                  fontFamily:"Georgia,serif"}}>2</div>
-              </div>
-            </div>
-            {/* 1st place */}
-            <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
-              <div style={{fontSize:11,color:T.goldMid,fontFamily:"Georgia,serif"}}>{top3[0].detail}</div>
-              <div style={{position:"relative"}}>
-                <div style={{width:60,height:60,borderRadius:"50%",
-                  background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
-                  border:`3px solid ${T.goldLight}`,
-                  display:"flex",alignItems:"center",justifyContent:"center",
-                  fontSize:20,fontWeight:"bold",color:"#0a0a0a",fontFamily:"Georgia,serif",
-                  boxShadow:`0 0 20px rgba(196,154,40,0.5)`}}>
-                  {top3[0].avatar}
-                </div>
-                <div style={{position:"absolute",top:-8,left:"50%",transform:"translateX(-50%)",
-                  fontSize:16}}>👑</div>
-              </div>
-              <div style={{fontSize:14,fontWeight:"bold",color:T.goldMid,
-                fontFamily:"Georgia,serif"}}>{top3[0].name}</div>
-              <div style={{width:"100%",background:`linear-gradient(180deg,${T.goldDark}44,${T.goldDark}22)`,
-                borderRadius:"8px 8px 0 0",height:110,
-                border:`1px solid rgba(196,154,40,0.35)`,
-                display:"flex",alignItems:"center",justifyContent:"center"}}>
-                <div style={{fontSize:28,fontWeight:"bold",color:T.goldMid,
-                  fontFamily:"Georgia,serif"}}>1</div>
-              </div>
-            </div>
-            {/* 3rd place */}
-            <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
-              <div style={{fontSize:11,color:T.textMuted,fontFamily:"Georgia,serif"}}>{top3[2].detail}</div>
-              <div style={{width:48,height:48,borderRadius:"50%",
-                background:"linear-gradient(135deg,rgba(205,127,50,0.2),rgba(205,127,50,0.4))",
-                border:"2px solid rgba(205,127,50,0.5)",
-                display:"flex",alignItems:"center",justifyContent:"center",
-                fontSize:16,fontWeight:"bold",color:"#fff",fontFamily:"Georgia,serif"}}>
-                {top3[2].avatar}
-              </div>
-              <div style={{fontSize:12,fontWeight:"bold",color:T.textPrimary,
-                fontFamily:"Georgia,serif"}}>{top3[2].name}</div>
-              <div style={{width:"100%",background:"linear-gradient(180deg,#241a0e,#1a1208)",
-                borderRadius:"8px 8px 0 0",height:60,border:"1px solid rgba(205,127,50,0.2)",
-                display:"flex",alignItems:"center",justifyContent:"center"}}>
-                <div style={{fontSize:20,fontWeight:"bold",color:"rgba(205,127,50,0.7)",
-                  fontFamily:"Georgia,serif"}}>3</div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Ranked list */}
-        <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:20}}>
-          {rest.map(member=>(
-            <div key={member.rank} style={{display:"flex",alignItems:"center",gap:12,
-              background:"linear-gradient(170deg,#1a1208,#0f0a04)",
-              borderRadius:12,border:`1px solid rgba(196,154,40,0.1)`,
-              padding:"12px 14px"}}>
-              <div style={{width:28,textAlign:"center",flexShrink:0}}>
-                <span style={{fontSize:14,fontWeight:"bold",color:T.textMuted,
-                  fontFamily:"Georgia,serif"}}>#{member.rank}</span>
-              </div>
-              <div style={{width:36,height:36,borderRadius:"50%",flexShrink:0,
-                background:`linear-gradient(135deg,rgba(196,154,40,0.15),rgba(196,154,40,0.25))`,
-                border:`1px solid rgba(196,154,40,0.2)`,
-                display:"flex",alignItems:"center",justifyContent:"center",
-                fontSize:13,fontWeight:"bold",color:T.goldMid,fontFamily:"Georgia,serif"}}>
-                {member.avatar}
-              </div>
-              <div style={{flex:1}}>
-                <div style={{fontSize:13,fontWeight:"bold",color:T.textPrimary,
-                  fontFamily:"Georgia,serif"}}>{member.name}</div>
-                <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",
-                  fontStyle:"italic"}}>{member.detail}</div>
-              </div>
-              <div style={{display:"flex",alignItems:"center",gap:4}}>
-                <span style={{fontSize:10,color:trendColor(member.trend),
-                  fontFamily:"Georgia,serif"}}>{trendSymbol(member.trend)}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* View Full Leaderboard */}
-        <button style={{width:"100%",padding:"13px",background:"transparent",
-          border:`1px solid rgba(196,154,40,0.2)`,borderRadius:12,
-          color:T.goldMid,fontSize:12,fontFamily:"Georgia,serif",cursor:"pointer",
-          letterSpacing:2,textTransform:"uppercase",display:"flex",
-          alignItems:"center",justifyContent:"center",gap:8}}>
-          View Full Leaderboard
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-            stroke={T.goldMid} strokeWidth="2">
-            <polyline points="9 18 15 12 9 6"/>
+      {/* Filter pills */}
+      <div style={{display:"flex",gap:10,marginBottom:20}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,
+          background:"#111111",border:`1px solid rgba(196,154,40,0.2)`,
+          borderRadius:10,padding:"9px 14px",flex:1}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.textMuted} strokeWidth="2">
+            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
           </svg>
-        </button>
+          <span style={{fontSize:14,color:T.textPrimary,fontFamily:"Georgia,serif",flex:1}}>This Month</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.textMuted} strokeWidth="2">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:8,
+          background:"#111111",border:`1px solid rgba(196,154,40,0.2)`,
+          borderRadius:10,padding:"9px 14px",flex:1}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.textMuted} strokeWidth="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          <span style={{fontSize:14,color:T.textPrimary,fontFamily:"Georgia,serif",flex:1}}>All Members</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.textMuted} strokeWidth="2">
+            <polyline points="6 9 12 15 18 9"/>
+          </svg>
+        </div>
+      </div>
+
+      {/* Top 3 podium — full width medal cards */}
+      <div style={{display:"flex",gap:6,alignItems:"flex-start",marginBottom:20}}>
+
+        {/* 2nd — Silver */}
+        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",marginTop:40}}>
+          <div style={{position:"relative",width:"100%"}}>
+            <img src="/Silver_Medal.png" alt="2nd"
+              style={{width:"100%",height:"auto",display:"block"}}/>
+            <div style={{position:"absolute",top:"19%",left:"50%",
+              transform:"translateX(-50%)",
+              width:"52%",paddingBottom:"52%",borderRadius:"50%",
+              overflow:"hidden",background:"#111"}}>
+              <img src={TOP3[1].img} alt={TOP3[1].name}
+                style={{position:"absolute",inset:0,width:"100%",height:"100%",
+                  objectFit:"cover",objectPosition:"center 15%"}}
+                onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
+            </div>
+          </div>
+          <div style={{textAlign:"center",marginTop:6,padding:"0 4px"}}>
+            <div style={{fontSize:14,fontWeight:"bold",color:T.textPrimary,
+              fontFamily:"Georgia,serif"}}>{TOP3[1].name}</div>
+            <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",marginTop:1}}>
+              {TOP3[1].title}</div>
+            <div style={{display:"flex",alignItems:"center",gap:3,justifyContent:"center",marginTop:4}}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill={T.goldMid}>
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+              <span style={{fontSize:12,color:T.textPrimary,fontFamily:"Georgia,serif"}}>
+                {TOP3[1].pts.toLocaleString()} pts
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* 1st — Gold (slightly wider) */}
+        <div style={{flex:1.15,display:"flex",flexDirection:"column",alignItems:"center"}}>
+          <div style={{position:"relative",width:"100%"}}>
+            <img src="/Gold_Medal.png" alt="1st"
+              style={{width:"100%",height:"auto",display:"block"}}/>
+            <div style={{position:"absolute",top:"19%",left:"50%",
+              transform:"translateX(-50%)",
+              width:"52%",paddingBottom:"52%",borderRadius:"50%",
+              overflow:"hidden",background:"#111"}}>
+              <img src={TOP3[0].img} alt={TOP3[0].name}
+                style={{position:"absolute",inset:0,width:"100%",height:"100%",
+                  objectFit:"cover",objectPosition:"center 15%"}}
+                onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
+            </div>
+          </div>
+          <div style={{textAlign:"center",marginTop:6,padding:"0 4px"}}>
+            <div style={{fontSize:16,fontWeight:"bold",color:T.textPrimary,
+              fontFamily:"Georgia,serif"}}>{TOP3[0].name}</div>
+            <div style={{fontSize:11,color:T.goldMid,fontFamily:"Georgia,serif",marginTop:1}}>
+              {TOP3[0].title}</div>
+            <div style={{display:"flex",alignItems:"center",gap:3,justifyContent:"center",marginTop:4}}>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill={T.goldMid}>
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+              <span style={{fontSize:14,fontWeight:"bold",color:T.textPrimary,
+                fontFamily:"Georgia,serif"}}>
+                {TOP3[0].pts.toLocaleString()} pts
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* 3rd — Bronze */}
+        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",marginTop:60}}>
+          <div style={{position:"relative",width:"100%"}}>
+            <img src="/Bronze_Medal.png" alt="3rd"
+              style={{width:"100%",height:"auto",display:"block"}}/>
+            <div style={{position:"absolute",top:"19%",left:"50%",
+              transform:"translateX(-50%)",
+              width:"52%",paddingBottom:"52%",borderRadius:"50%",
+              overflow:"hidden",background:"#111"}}>
+              <img src={TOP3[2].img} alt={TOP3[2].name}
+                style={{position:"absolute",inset:0,width:"100%",height:"100%",
+                  objectFit:"cover",objectPosition:"center 15%"}}
+                onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
+            </div>
+          </div>
+          <div style={{textAlign:"center",marginTop:6,padding:"0 4px"}}>
+            <div style={{fontSize:14,fontWeight:"bold",color:T.textPrimary,
+              fontFamily:"Georgia,serif"}}>{TOP3[2].name}</div>
+            <div style={{fontSize:10,color:"rgba(205,127,50,0.85)",fontFamily:"Georgia,serif",
+              marginTop:1}}>{TOP3[2].title}</div>
+            <div style={{display:"flex",alignItems:"center",gap:3,justifyContent:"center",marginTop:4}}>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill={T.goldMid}>
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+              <span style={{fontSize:12,color:T.textPrimary,fontFamily:"Georgia,serif"}}>
+                {TOP3[2].pts.toLocaleString()} pts
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Rest of leaderboard */}
+      <div style={{background:"#111111",borderRadius:16,
+        border:`1px solid rgba(196,154,40,0.12)`,overflow:"hidden",marginBottom:12}}>
+        {REST.map((m,i)=>(
+          <div key={m.rank} style={{display:"flex",alignItems:"center",gap:14,
+            padding:"14px 16px",
+            borderBottom:i<REST.length-1?`1px solid rgba(196,154,40,0.08)`:"none"}}>
+            <div style={{width:28,textAlign:"center",flexShrink:0}}>
+              <span style={{fontSize:15,color:T.textMuted,fontFamily:"Georgia,serif",
+                fontWeight:"bold"}}>{m.rank}</span>
+            </div>
+            <div style={{width:38,height:38,borderRadius:"50%",flexShrink:0,
+              background:"rgba(196,154,40,0.08)",border:`1px solid rgba(196,154,40,0.15)`,
+              display:"flex",alignItems:"center",justifyContent:"center",
+              fontSize:14,fontWeight:"bold",color:T.goldMid,fontFamily:"Georgia,serif"}}>
+              {m.name.charAt(0)}
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:17,fontWeight:"bold",color:T.textPrimary,
+                fontFamily:"Georgia,serif"}}>{m.name}</div>
+              <div style={{fontSize:12,color:T.textMuted,fontFamily:"Georgia,serif",
+                fontStyle:"italic"}}>{m.title}</div>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:5}}>
+              <span style={{fontSize:15,fontWeight:"bold",color:T.textPrimary,
+                fontFamily:"Georgia,serif"}}>{m.pts.toLocaleString()} pts</span>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill={T.goldMid}>
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* You row */}
+      <div style={{background:"#111111",borderRadius:14,
+        border:`1px solid rgba(196,154,40,0.3)`,padding:"14px 16px",
+        display:"flex",alignItems:"center",gap:14,marginBottom:16}}>
+        <div style={{width:28,textAlign:"center",flexShrink:0}}>
+          <span style={{fontSize:17,fontWeight:"bold",color:T.goldMid,
+            fontFamily:"Georgia,serif"}}>{YOU.rank}</span>
+        </div>
+        <div style={{width:38,height:38,borderRadius:"50%",flexShrink:0,
+          background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
+          display:"flex",alignItems:"center",justifyContent:"center",
+          fontSize:14,fontWeight:"bold",color:"#0a0a0a",fontFamily:"Georgia,serif"}}>
+          Z
+        </div>
+        <div style={{flex:1}}>
+          <div style={{fontSize:17,fontWeight:"bold",color:T.goldMid,
+            fontFamily:"Georgia,serif"}}>{YOU.name}</div>
+          <div style={{fontSize:12,color:T.textMuted,fontFamily:"Georgia,serif",
+            fontStyle:"italic"}}>{YOU.title}</div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:5}}>
+          <span style={{fontSize:15,fontWeight:"bold",color:T.textPrimary,
+            fontFamily:"Georgia,serif"}}>{YOU.pts} pts</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill={T.goldMid}>
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div style={{background:"#111111",borderRadius:14,
+        border:`1px solid rgba(196,154,40,0.12)`,padding:"16px",
+        display:"flex",alignItems:"center",gap:14}}>
+        <div style={{width:44,height:44,borderRadius:"50%",flexShrink:0,
+          background:"rgba(196,154,40,0.08)",border:`1px solid rgba(196,154,40,0.2)`,
+          display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={T.goldMid} strokeWidth="1.8">
+            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+            <path d="M4 22h16"/>
+            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+            <path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/>
+          </svg>
+        </div>
+        <div style={{flex:1}}>
+          <div style={{fontSize:15,fontWeight:"bold",color:T.textPrimary,
+            fontFamily:"Georgia,serif",marginBottom:3}}>Rankings update every hour</div>
+          <div style={{fontSize:13,color:T.textMuted,fontFamily:"Georgia,serif",lineHeight:1.5}}>
+            Earn points by logging smokes, completing challenges, writing reviews, and staying active in the community.
+          </div>
+        </div>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="rgba(196,154,40,0.3)" strokeWidth="2">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
       </div>
     </div>
   );
 }
 
 // ── CLUB TAB ───────────────────────────────────────────────────────────────
-function ClubTab() {
-  const [subTab,setSubTab]=useState<'rankings'|'challenges'|'achievements'>('challenges');
+// ── CLUB TAB — section header w/ optional badge ─────────────────────────────
+function ClubSectionHeader({icon,title,badge,onViewAll}:{
+  icon:React.ReactNode;title:string;
+  badge?:'buildable'|'phase2';
+  onViewAll?:()=>void;
+}){
+  return (
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+      <div style={{display:"flex",alignItems:"center",gap:10}}>
+        <div style={{width:34,height:34,borderRadius:10,flexShrink:0,
+          background:"rgba(196,154,40,0.08)",border:`1px solid rgba(196,154,40,0.2)`,
+          display:"flex",alignItems:"center",justifyContent:"center"}}>
+          {icon}
+        </div>
+        <div style={{fontSize:18,fontWeight:"bold",color:T.textPrimary,
+          fontFamily:"Georgia,serif"}}>{title}</div>
+      </div>
+      {onViewAll&&(
+        <button onClick={onViewAll} style={{background:"transparent",border:"none",
+          cursor:"pointer",display:"flex",alignItems:"center",gap:4,
+          color:T.goldMid,fontSize:12,fontFamily:"Georgia,serif",letterSpacing:0.5}}>
+          View All
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.goldMid} strokeWidth="2">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </button>
+      )}
+    </div>
+  );
+}
 
+// ── CLUB TAB — main hub (single scroll, drill-down architecture) ───────────
+function ClubTab() {
+  const [view,setView]=useState<'home'|'challenges'|'achievements'>('home');
+  const [mounted,setMounted]=useState(false);
+  const [cigars,setCigars]=useState<any[]>([]);
+  const [notes,setNotes]=useState<any[]>([]);
+
+  useEffect(()=>{
+    try{const s=localStorage.getItem('mh_cigars');if(s)setCigars(JSON.parse(s));}catch{}
+    try{const s=localStorage.getItem('mh_notes');if(s)setNotes(JSON.parse(s));}catch{}
+    setMounted(true);
+  },[]);
+
+  const totalCigars=mounted?cigars.reduce((a:number,c:any)=>a+(c.count||0),0):0;
+  const uniqueBrands=mounted?new Set(cigars.map((c:any)=>c.brand)).size:0;
+
+  // ── DETAIL SCREENS ────────────────────────────────────────────────────────
+  if(view==='challenges'){
+    return (
+      <div style={{paddingBottom:100}}>
+        <div style={{padding:"24px 20px 0"}}>
+          <button onClick={()=>setView('home')} style={{background:"transparent",border:"none",
+            cursor:"pointer",display:"flex",alignItems:"center",gap:6,marginBottom:14,
+            color:T.goldMid,fontSize:13,fontFamily:"Georgia,serif"}}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.goldMid} strokeWidth="2">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+            Club
+          </button>
+          <div style={{fontSize:30,fontWeight:"bold",color:T.textPrimary,
+            fontFamily:"Georgia,serif",lineHeight:1,marginBottom:16}}>Official Challenges</div>
+        </div>
+        <ChallengesTab/>
+      </div>
+    );
+  }
+
+  if(view==='achievements'){
+    return (
+      <div style={{paddingBottom:100}}>
+        <div style={{padding:"24px 20px 0"}}>
+          <button onClick={()=>setView('home')} style={{background:"transparent",border:"none",
+            cursor:"pointer",display:"flex",alignItems:"center",gap:6,marginBottom:14,
+            color:T.goldMid,fontSize:13,fontFamily:"Georgia,serif"}}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={T.goldMid} strokeWidth="2">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+            Club
+          </button>
+          <div style={{fontSize:30,fontWeight:"bold",color:T.textPrimary,
+            fontFamily:"Georgia,serif",lineHeight:1,marginBottom:16}}>Achievements</div>
+        </div>
+        <AchievementsTab/>
+      </div>
+    );
+  }
+
+  // ── PHASE 2 BADGE ─────────────────────────────────────────────────────────
+  const Phase2Badge=()=>(
+    <div style={{fontSize:9,fontWeight:"bold",color:"#7eb8e0",
+      background:"rgba(110,160,224,0.12)",border:"1px solid rgba(110,160,224,0.3)",
+      borderRadius:6,padding:"3px 8px",letterSpacing:1,textTransform:"uppercase",
+      fontFamily:"Georgia,serif",whiteSpace:"nowrap"}}>
+      Phase 2
+    </div>
+  );
+
+  // ── HOME (SUMMARY) VIEW ───────────────────────────────────────────────────
   return (
     <div style={{paddingBottom:100}}>
       {/* Header */}
       <div style={{padding:"24px 20px 0"}}>
         <div style={{fontSize:36,fontWeight:"bold",color:T.textPrimary,
-          fontFamily:"Georgia,serif",lineHeight:1,marginBottom:4}}>Club</div>
-        <div style={{fontSize:11,color:T.goldMid,letterSpacing:4,textTransform:"uppercase",
-          fontFamily:"Georgia,serif",marginBottom:20}}>
-          {subTab.toUpperCase()}
-        </div>
-        {/* Sub-tab selector */}
-        <div style={{display:"flex",background:"rgba(0,0,0,0.4)",
-          border:`1px solid rgba(196,154,40,0.15)`,borderRadius:12,
-          padding:3,marginBottom:16,gap:2}}>
-          {(['rankings','challenges','achievements'] as const).map(st=>(
-            <button key={st} onClick={()=>setSubTab(st)}
-              style={{flex:1,padding:"10px 4px",
-                background:subTab===st?`linear-gradient(135deg,${T.goldDark},${T.goldMid})`:"transparent",
-                border:"none",borderRadius:10,cursor:"pointer",
-                color:subTab===st?"#0a0a0a":T.textMuted,
-                fontSize:11,fontFamily:"Georgia,serif",letterSpacing:1,
-                textTransform:"uppercase",transition:"all 0.2s"}}>
-              {st.charAt(0).toUpperCase()+st.slice(1)}
-            </button>
-          ))}
+          fontFamily:"Georgia,serif",lineHeight:1,marginBottom:4}}>The Club</div>
+        <div style={{fontSize:12,color:T.goldMid,fontFamily:"Georgia,serif",
+          fontStyle:"italic",marginBottom:24}}>
+          Connect. Compete. Celebrate.
         </div>
       </div>
 
-      {subTab==='rankings'&&<LeaderboardTab/>}
-      {subTab==='challenges'&&<ChallengesTab/>}
-      {subTab==='achievements'&&<AchievementsTab/>}
+      <div style={{padding:"0 16px",display:"flex",flexDirection:"column",gap:14}}>
+
+        {/* ── 1. MY PROGRESS ───────────────────────────────────────────── */}
+        <div style={{background:"#111111",borderRadius:16,
+          border:`1px solid rgba(196,154,40,0.15)`,padding:"18px 16px"}}>
+          <ClubSectionHeader
+            icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.goldMid} strokeWidth="1.8">
+              <line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>
+            </svg>}
+            title="My Progress"/>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
+            {[
+              {val:totalCigars,label:"Cigars Logged"},
+              {val:uniqueBrands,label:"Brands Explored"},
+              {val:0,label:"Lounges Visited"},
+              {val:0,label:"Day Streak"},
+            ].map((s,i)=>(
+              <div key={i} style={{textAlign:"center",background:"rgba(0,0,0,0.3)",
+                borderRadius:10,border:"1px solid rgba(196,154,40,0.1)",padding:"10px 4px"}}>
+                <div style={{fontSize:20,fontWeight:"bold",color:T.goldMid,
+                  fontFamily:"Georgia,serif",lineHeight:1,marginBottom:4}}>{s.val}</div>
+                <div style={{fontSize:9,color:T.textMuted,fontFamily:"Georgia,serif",
+                  lineHeight:1.2}}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── 2. OFFICIAL CHALLENGES ───────────────────────────────────── */}
+        <div onClick={()=>setView('challenges')} style={{background:"#111111",borderRadius:16,
+          border:`1px solid rgba(196,154,40,0.15)`,padding:"18px 16px",cursor:"pointer"}}>
+          <ClubSectionHeader
+            icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.goldMid} strokeWidth="1.8">
+              <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>
+            </svg>}
+            title="Official Challenges"
+            onViewAll={()=>setView('challenges')}/>
+          <div style={{display:"flex",alignItems:"center",gap:14}}>
+            <div style={{width:48,height:48,borderRadius:"50%",flexShrink:0,
+              background:"rgba(196,154,40,0.08)",border:`1px solid rgba(196,154,40,0.2)`,
+              display:"flex",alignItems:"center",justifyContent:"center",
+              fontSize:15,fontWeight:"bold",color:T.goldMid,fontFamily:"Georgia,serif"}}>
+              {Math.min(uniqueBrands,10)}/10
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:15,fontWeight:"bold",color:T.textPrimary,
+                fontFamily:"Georgia,serif",marginBottom:4}}>Smoke 10 Different Brands</div>
+              <div style={{height:6,borderRadius:3,background:"rgba(255,255,255,0.08)",overflow:"hidden"}}>
+                <div style={{height:"100%",width:`${Math.min(uniqueBrands*10,100)}%`,
+                  background:`linear-gradient(90deg,${T.goldDark},${T.goldMid})`,borderRadius:3}}/>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── 3. ACHIEVEMENTS ───────────────────────────────────────────── */}
+        <div onClick={()=>setView('achievements')} style={{background:"#111111",borderRadius:16,
+          border:`1px solid rgba(196,154,40,0.15)`,padding:"18px 16px",cursor:"pointer"}}>
+          <ClubSectionHeader
+            icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.goldMid} strokeWidth="1.8">
+              <circle cx="12" cy="8" r="6"/><path d="M8.21 13.89 7 23l5-3 5 3-1.21-9.12"/>
+            </svg>}
+            title="Achievements"
+            onViewAll={()=>setView('achievements')}/>
+          <div style={{display:"flex",gap:10,overflowX:"auto"}}>
+            {["/badges/smoking-cat.png","/badges/collection-cat.png","/badges/community-cat.png","/badges/special-cat.png"].map((img,i)=>(
+              <div key={i} style={{width:52,height:52,borderRadius:"50%",flexShrink:0,
+                background:"rgba(196,154,40,0.08)",border:`1px solid rgba(196,154,40,0.2)`,
+                overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <img src={img} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}
+                  onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ── 4. GROUP CHALLENGES (PHASE 2) ─────────────────────────────── */}
+        <div style={{background:"#111111",borderRadius:16,
+          border:`1px solid rgba(196,154,40,0.12)`,padding:"18px 16px",opacity:0.85}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{width:34,height:34,borderRadius:10,flexShrink:0,
+                background:"rgba(196,154,40,0.08)",border:`1px solid rgba(196,154,40,0.2)`,
+                display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.goldMid} strokeWidth="1.8">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+              </div>
+              <div style={{fontSize:18,fontWeight:"bold",color:T.textPrimary,
+                fontFamily:"Georgia,serif"}}>Group Challenges</div>
+            </div>
+            <Phase2Badge/>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:14}}>
+            <div style={{width:48,height:48,borderRadius:12,flexShrink:0,
+              background:"linear-gradient(135deg,#2a3a1a,#4a5a2a)",
+              display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>
+              ⛳
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:15,fontWeight:"bold",color:T.textPrimary,
+                fontFamily:"Georgia,serif",marginBottom:2}}>Friday Foursome Challenge</div>
+              <div style={{fontSize:12,color:T.textMuted,fontFamily:"Georgia,serif",marginBottom:6}}>
+                Smoke 5 different Padrón cigars
+              </div>
+              <div style={{height:6,borderRadius:3,background:"rgba(255,255,255,0.08)",overflow:"hidden"}}>
+                <div style={{height:"100%",width:"66%",
+                  background:`linear-gradient(90deg,${T.goldDark},${T.goldMid})`,borderRadius:3}}/>
+              </div>
+            </div>
+            <div style={{textAlign:"right",flexShrink:0}}>
+              <div style={{fontSize:14,fontWeight:"bold",color:T.goldMid,
+                fontFamily:"Georgia,serif"}}>4/6</div>
+              <div style={{fontSize:9,color:T.textMuted,fontFamily:"Georgia,serif"}}>members</div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── 5. EVENTS (PHASE 2) ───────────────────────────────────────── */}
+        <div style={{background:"#111111",borderRadius:16,
+          border:`1px solid rgba(196,154,40,0.12)`,padding:"18px 16px",opacity:0.85}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{width:34,height:34,borderRadius:10,flexShrink:0,
+                background:"rgba(196,154,40,0.08)",border:`1px solid rgba(196,154,40,0.2)`,
+                display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.goldMid} strokeWidth="1.8">
+                  <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+              </div>
+              <div style={{fontSize:18,fontWeight:"bold",color:T.textPrimary,
+                fontFamily:"Georgia,serif"}}>Events</div>
+            </div>
+            <Phase2Badge/>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:14}}>
+            <div style={{width:48,height:48,borderRadius:12,flexShrink:0,
+              background:"rgba(196,154,40,0.1)",border:`1px solid rgba(196,154,40,0.2)`,
+              display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+              <div style={{fontSize:9,color:T.goldMid,fontFamily:"Georgia,serif",fontWeight:"bold"}}>JUN</div>
+              <div style={{fontSize:16,color:T.textPrimary,fontFamily:"Georgia,serif",fontWeight:"bold",lineHeight:1}}>14</div>
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:15,fontWeight:"bold",color:T.textPrimary,
+                fontFamily:"Georgia,serif",marginBottom:2}}>Cigars Under the Stars</div>
+              <div style={{fontSize:12,color:T.textMuted,fontFamily:"Georgia,serif"}}>
+                Havana Lounge · 7:00 PM
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── 6. ACTIVITY FEED (PHASE 2) ────────────────────────────────── */}
+        <div style={{background:"#111111",borderRadius:16,
+          border:`1px solid rgba(196,154,40,0.12)`,padding:"18px 16px",opacity:0.85}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{width:34,height:34,borderRadius:10,flexShrink:0,
+                background:"rgba(196,154,40,0.08)",border:`1px solid rgba(196,154,40,0.2)`,
+                display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={T.goldMid} strokeWidth="1.8">
+                  <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/>
+                </svg>
+              </div>
+              <div style={{fontSize:18,fontWeight:"bold",color:T.textPrimary,
+                fontFamily:"Georgia,serif"}}>Activity Feed</div>
+            </div>
+            <Phase2Badge/>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            {[
+              {name:"Mike R.",action:"logged a cigar",detail:"Padrón 1964 Anniversary Series",time:"2h ago"},
+              {name:"Lisa J.",action:"completed the challenge",detail:"Smoke 10 Different Brands",time:"5h ago"},
+              {name:"Chris P.",action:"earned the Explorer badge",detail:"",time:"12h ago"},
+            ].map((a,i)=>(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:10}}>
+                <div style={{width:32,height:32,borderRadius:"50%",flexShrink:0,
+                  background:"rgba(196,154,40,0.15)",display:"flex",alignItems:"center",
+                  justifyContent:"center",fontSize:12,fontWeight:"bold",color:T.goldMid,
+                  fontFamily:"Georgia,serif"}}>
+                  {a.name.split(' ').map(n=>n[0]).join('')}
+                </div>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:12,color:T.textPrimary,fontFamily:"Georgia,serif"}}>
+                    <span style={{fontWeight:"bold"}}>{a.name}</span> {a.action}
+                  </div>
+                  {a.detail&&<div style={{fontSize:11,color:T.textMuted,fontFamily:"Georgia,serif"}}>{a.detail}</div>}
+                </div>
+                <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",flexShrink:0}}>{a.time}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+      </div>
     </div>
   );
 }
 
 // ── ACHIEVEMENTS TAB ───────────────────────────────────────────────────────
 function AchievementsTab() {
-  const [filter,setFilter]=useState<'all'|'milestones'|'collection'|'activity'|'community'>('all');
+  const [filter,setFilter]=useState<'all'|'smoking'|'collection'|'community'|'special'>('all');
   const [mounted,setMounted]=useState(false);
   const [cigars,setCigars]=useState<any[]>([]);
   const [notes,setNotes]=useState<any[]>([]);
+  const [achMarioPrompt,setAchMarioPrompt]=useState<string|null>(null);
 
   useEffect(()=>{
     try{const s=localStorage.getItem('mh_cigars');if(s)setCigars(JSON.parse(s));}catch{}
@@ -4467,196 +5776,260 @@ function AchievementsTab() {
   const totalNotes=mounted?notes.length:0;
   const totalPoints=(uniqueBrands*100)+(totalNotes*150)+(totalCigars*10);
   const totalAchievements=Math.min(
-    (uniqueBrands>=1?1:0)+(totalNotes>=1?1:0)+(totalCigars>=5?1:0)+(totalCigars>=1?1:0),4
+    (uniqueBrands>=1?1:0)+(totalNotes>=1?1:0)+(totalCigars>=5?1:0)+(totalCigars>=1?1:0),60
   );
 
-  const RECENT_ACHIEVEMENTS=[
-    {id:1,icon:"🔥",title:"Smoke Streak",sub:"30 Days",pts:250,color:"#e05050"},
-    {id:2,icon:"🌎",title:"World Traveler",sub:"3 Countries",pts:200,color:T.goldMid},
-    {id:3,icon:"💧",title:"Humidor Master",sub:"30 Days RH",pts:350,color:"#6a9fe0"},
-    {id:4,icon:"📓",title:"Tasting Expert",sub:"50 Notes",pts:200,color:"#b67ee0"},
+  const RECENT=[
+    {img:"/Smoke_streak_V1.png",title:"Smoke Streak",sub:"30 Days",date:"Apr 28, 2025",pts:250},
+    {img:"/Tasting_Notes.png",title:"Tasting Notes Master",sub:"",date:"Apr 25, 2025",pts:150},
+    {img:"/World_Traveler_V1.png",title:"World Traveler",sub:"3 Countries",date:"Apr 22, 2025",pts:200},
+    {img:"/Humidor_Perfection_V1.png",title:"Humidor Perfection",sub:"",date:"Apr 20, 2025",pts:300},
   ];
 
-  const IN_PROGRESS=[
-    {id:1,icon:"🔥",title:"Smoke 10 Different Brands",current:uniqueBrands,goal:10,color:"#e05050"},
-    {id:2,icon:"🌎",title:"World Tour",current:new Set(cigars.filter((c:any)=>c.origin).map((c:any)=>c.origin)).size,goal:4,color:T.goldMid},
-    {id:3,icon:"💧",title:"Humidor Perfection",current:0,goal:30,color:"#6a9fe0"},
+  const CATEGORIES=[
+    {img:"/badges/smoking-cat.png",icon:"cigar",label:"Smoking",done:14,total:30,color:T.goldMid},
+    {img:"/badges/collection-cat.png",icon:"box",label:"Collection",done:8,total:15,color:"#3dd68c"},
+    {img:"/badges/community-cat.png",icon:"users",label:"Community",done:5,total:10,color:"#b67ee0"},
+    {img:"/badges/special-cat.png",icon:"star",label:"Special",done:1,total:5,color:"#6a9fe0"},
   ];
 
-  const UNLOCKED=[
-    ...(totalCigars>=1?[{icon:"🚬",title:"First Smoke",pts:100}]:[]),
-    ...(totalNotes>=1?[{icon:"⭐",title:"5 Star Review",pts:150}]:[]),
-    ...(totalCigars>=5?[{icon:"📦",title:"Collector",pts:200}]:[]),
-    ...(uniqueBrands>=3?[{icon:"📸",title:"Photo Share",pts:100}]:[]),
+  const LOCKED=[
+    {img:"/badges/century-club.png",icon:"hundred",title:"Century Club",
+      desc:"Smoke 100 different cigars.",current:totalCigars,goal:100,pts:500},
+    {img:"/badges/year-of-smoke.png",icon:"calendar",title:"Year of Smoke",
+      desc:"Maintain a 365 day smoke streak.",current:0,goal:365,pts:750},
   ];
 
-  return (
-    <div style={{padding:"0 16px"}}>
+  const tierLabel=totalPoints<1000?"Novice":totalPoints<3000?"Enthusiast":totalPoints<6000?"Cigar Connoisseur":"Aficionado";
+  const nextTier=totalPoints<1000?"Enthusiast":totalPoints<3000?"Cigar Connoisseur":totalPoints<6000?"Aficionado":"Master";
+
+  return(
+    <div style={{padding:"0 16px 24px"}}>
+      {/* Subtitle */}
+      <div style={{fontSize:15,color:T.textSecondary,fontFamily:"Georgia,serif",
+        marginBottom:16,lineHeight:1.5}}>
+        Celebrate your progress and unlock achievements.
+      </div>
+
       {/* Progress card */}
-      <div style={{background:"linear-gradient(170deg,#1a1208,#0f0a04)",borderRadius:16,
+      <div style={{background:"#111111",borderRadius:16,
         border:`1px solid rgba(196,154,40,0.2)`,padding:"20px",marginBottom:16,
         display:"flex",alignItems:"center",gap:16}}>
+        {/* Ring */}
         <div style={{position:"relative",width:72,height:72,flexShrink:0}}>
-          <svg width="72" height="72" viewBox="0 0 72 72">
-            <circle cx="36" cy="36" r="30" fill="none" stroke="rgba(196,154,40,0.15)" strokeWidth="6"/>
-            <circle cx="36" cy="36" r="30" fill="none" stroke={T.goldMid} strokeWidth="6"
-              strokeDasharray={`${2*Math.PI*30*Math.min(totalAchievements/10,1)} ${2*Math.PI*30}`}
-              strokeDashoffset={2*Math.PI*30*0.25} strokeLinecap="round"
-              style={{transform:"rotate(-90deg)",transformOrigin:"center"}}/>
+          <svg width="72" height="72" style={{transform:"rotate(-90deg)"}}>
+            <circle cx="36" cy="36" r="28" fill="none"
+              stroke="rgba(196,154,40,0.12)" strokeWidth="6"/>
+            <circle cx="36" cy="36" r="28" fill="none" stroke={T.goldMid} strokeWidth="6"
+              strokeLinecap="round"
+              strokeDasharray={`${2*Math.PI*28*Math.min(totalAchievements/60,1)} ${2*Math.PI*28}`}/>
           </svg>
           <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",
             alignItems:"center",justifyContent:"center"}}>
-            <div style={{fontSize:18,fontWeight:"bold",color:T.goldMid,fontFamily:"Georgia,serif",lineHeight:1}}>
-              {totalAchievements}
-            </div>
-            <div style={{fontSize:8,color:T.textMuted,fontFamily:"Georgia,serif"}}>/60</div>
+            <div style={{fontSize:20,fontWeight:"bold",color:T.goldMid,
+              fontFamily:"Georgia,serif",lineHeight:1}}>{totalAchievements}</div>
+            <div style={{fontSize:9,color:T.textMuted,fontFamily:"Georgia,serif"}}>/60</div>
           </div>
         </div>
+        {/* Info */}
         <div style={{flex:1}}>
-          <div style={{fontSize:14,fontWeight:"bold",color:T.textPrimary,
-            fontFamily:"Georgia,serif",marginBottom:2}}>Your Progress</div>
-          <div style={{fontSize:11,color:T.textMuted,fontFamily:"Georgia,serif",
-            fontStyle:"italic",marginBottom:8}}>Keep earning to reach the next level.</div>
-          <div style={{display:"flex",alignItems:"center",gap:6}}>
-            <span style={{fontSize:13}}>⭐</span>
-            <span style={{fontSize:14,fontWeight:"bold",color:T.goldMid,
+          <div style={{fontSize:15,fontWeight:"bold",color:T.textPrimary,
+            fontFamily:"Georgia,serif",marginBottom:3}}>Your Progress</div>
+          <div style={{fontSize:13,color:T.textMuted,fontFamily:"Georgia,serif",
+            marginBottom:10}}>Keep earning to reach the next level.</div>
+          <div style={{display:"flex",alignItems:"center",gap:5}}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill={T.goldMid}>
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+            <span style={{fontSize:15,fontWeight:"bold",color:T.goldMid,
               fontFamily:"Georgia,serif"}}>{totalPoints.toLocaleString()} Points</span>
           </div>
         </div>
+        {/* Tier badge */}
         <div style={{textAlign:"center",flexShrink:0}}>
-          <div style={{fontSize:28}}>👑</div>
-          <div style={{fontSize:11,fontWeight:"bold",color:T.goldMid,fontFamily:"Georgia,serif"}}>
-            {totalPoints<1000?"Novice":totalPoints<5000?"Enthusiast":"Connoisseur"}
+          <div style={{width:56,height:56,borderRadius:12,margin:"0 auto 6px",
+            background:"rgba(196,154,40,0.08)",border:`1px solid rgba(196,154,40,0.25)`,
+            overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <img src="/badges/tier-badge.png" alt={tierLabel}
+              style={{width:"100%",height:"100%",objectFit:"cover"}}
+              onError={e=>{
+                const t=e.target as HTMLImageElement;
+                t.style.display="none";
+                (t.parentElement as HTMLElement).innerHTML='<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="'+T.goldMid+'" stroke-width="1.8"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6M18 9h1.5a2.5 2.5 0 0 0 0-5H18M18 2H6v7a6 6 0 0 0 12 0V2z"/></svg>';
+              }}/>
           </div>
-          <div style={{fontSize:9,color:T.textMuted,fontFamily:"Georgia,serif"}}>
-            Next: {totalPoints<1000?"Enthusiast":totalPoints<5000?"Connoisseur":"Aficionado"}
+          <div style={{fontSize:11,fontWeight:"bold",color:T.goldMid,
+            fontFamily:"Georgia,serif"}}>{tierLabel}</div>
+          <div style={{fontSize:9,color:T.textMuted,fontFamily:"Georgia,serif",marginTop:2}}>
+            Next: {nextTier}
           </div>
         </div>
       </div>
 
       {/* Filter pills */}
-      <div style={{display:"flex",gap:6,marginBottom:16,overflowX:"auto",scrollbarWidth:"none"}}>
-        {(['all','milestones','collection','activity','community'] as const).map(f=>(
+      <div style={{display:"flex",gap:6,marginBottom:20,overflowX:"auto",
+        scrollbarWidth:"none",paddingBottom:2}}>
+        {(['all','smoking','collection','community','special'] as const).map(f=>(
           <button key={f} onClick={()=>setFilter(f)}
-            style={{padding:"6px 14px",flexShrink:0,
-              background:filter===f?`linear-gradient(135deg,${T.goldDark},${T.goldMid})`:"transparent",
+            style={{padding:"7px 16px",flexShrink:0,
+              background:filter===f?`linear-gradient(135deg,${T.goldDark},${T.goldMid})`:"#111111",
               border:`1px solid ${filter===f?"transparent":"rgba(196,154,40,0.2)"}`,
-              borderRadius:20,color:filter===f?"#0a0a0a":T.textMuted,
-              fontSize:11,fontFamily:"Georgia,serif",cursor:"pointer",
+              borderRadius:10,color:filter===f?"#0a0a0a":T.textMuted,
+              fontSize:13,fontFamily:"Georgia,serif",cursor:"pointer",
               textTransform:"capitalize"}}>
             {f}
           </button>
         ))}
       </div>
 
-      {/* Recently Earned */}
-      <div style={{marginBottom:20}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-          <div style={{fontSize:13,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif"}}>
-            Recently Earned
-          </div>
-          <div style={{fontSize:10,color:T.goldMid,fontFamily:"Georgia,serif"}}>View All ›</div>
+      {/* Recent Achievements — 4 column grid */}
+      <div style={{marginBottom:24}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <div style={{fontSize:17,fontWeight:"bold",color:T.textPrimary,
+            fontFamily:"Georgia,serif"}}>Recent Achievements</div>
+          <div style={{fontSize:13,color:T.goldMid,fontFamily:"Georgia,serif"}}>View All ›</div>
         </div>
-        <div style={{display:"flex",gap:10,overflowX:"auto",scrollbarWidth:"none",paddingBottom:4}}>
-          {RECENT_ACHIEVEMENTS.map(a=>(
-            <div key={a.id} style={{flexShrink:0,width:130,
-              background:"linear-gradient(170deg,#1a1208,#0f0a04)",
-              borderRadius:14,border:`1px solid rgba(196,154,40,0.15)`,
-              padding:"14px 10px",textAlign:"center"}}>
-              <div style={{fontSize:32,marginBottom:8}}>{a.icon}</div>
-              <div style={{fontSize:12,fontWeight:"bold",color:T.textPrimary,
-                fontFamily:"Georgia,serif",marginBottom:2}}>{a.title}</div>
-              <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",
-                marginBottom:8}}>{a.sub}</div>
-              <div style={{fontSize:11,color:T.goldMid,fontFamily:"Georgia,serif"}}>
-                +{a.pts} pts
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8}}>
+          {RECENT.map((a,i)=>(
+            <div key={i} style={{background:"#111111",borderRadius:12,
+              border:`1px solid rgba(196,154,40,0.15)`,padding:"10px 6px 12px",
+              textAlign:"center"}}>
+              <div style={{width:56,height:56,borderRadius:10,margin:"0 auto 8px",
+                background:"#000",overflow:"hidden",
+                border:`1px solid rgba(196,154,40,0.15)`}}>
+                <img src={a.img} alt={a.title}
+                  style={{width:"100%",height:"100%",objectFit:"cover"}}
+                  onError={e=>{
+                    const t=e.target as HTMLImageElement;
+                    t.style.display="none";
+                    (t.parentElement as HTMLElement).style.background="#1a1a1a";
+                  }}/>
+              </div>
+              <div style={{fontSize:10,fontWeight:"bold",color:T.textPrimary,
+                fontFamily:"Georgia,serif",lineHeight:1.3,marginBottom:3}}>{a.title}</div>
+              {a.sub&&<div style={{fontSize:9,color:T.textMuted,fontFamily:"Georgia,serif",
+                marginBottom:3}}>{a.sub}</div>}
+              <div style={{fontSize:9,color:T.textMuted,fontFamily:"Georgia,serif",
+                marginBottom:4}}>{a.date}</div>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:3}}>
+                <svg width="9" height="9" viewBox="0 0 24 24" fill={T.goldMid}>
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+                <span style={{fontSize:10,color:T.goldMid,fontFamily:"Georgia,serif",
+                  fontWeight:"bold"}}>{a.pts} pts</span>
               </div>
             </div>
           ))}
         </div>
       </div>
 
-      {/* In Progress */}
-      <div style={{marginBottom:20}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-          <div style={{fontSize:13,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif"}}>
-            In Progress
-          </div>
-          <div style={{fontSize:10,color:T.goldMid,fontFamily:"Georgia,serif"}}>View All ›</div>
-        </div>
-        {IN_PROGRESS.map(a=>{
-          const pct=Math.min(Math.round((a.current/a.goal)*100),100);
-          return (
-            <div key={a.id} style={{display:"flex",alignItems:"center",gap:14,
-              background:"linear-gradient(170deg,#1a1208,#0f0a04)",
-              borderRadius:12,border:`1px solid rgba(196,154,40,0.12)`,
-              padding:"14px",marginBottom:8}}>
-              <div style={{width:40,height:40,borderRadius:"50%",flexShrink:0,
-                background:`rgba(0,0,0,0.4)`,border:`1px solid ${a.color}44`,
-                display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>
-                {a.icon}
+      {/* Achievement Categories */}
+      <div style={{marginBottom:24}}>
+        <div style={{fontSize:17,fontWeight:"bold",color:T.textPrimary,
+          fontFamily:"Georgia,serif",marginBottom:14}}>Achievement Categories</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8}}>
+          {CATEGORIES.map((cat,i)=>(
+            <div key={i} style={{background:"#111111",borderRadius:12,
+              border:`1px solid rgba(196,154,40,0.12)`,padding:"12px 8px",textAlign:"center"}}>
+              <div style={{width:52,height:52,borderRadius:"50%",margin:"0 auto 8px",
+                background:"rgba(196,154,40,0.06)",
+                border:`1px solid rgba(196,154,40,0.15)`,
+                overflow:"hidden",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                <img src={cat.img} alt={cat.label}
+                  style={{width:"100%",height:"100%",objectFit:"cover"}}
+                  onError={e=>{
+                    const t=e.target as HTMLImageElement;
+                    t.style.display="none";
+                    (t.parentElement as HTMLElement).innerHTML=
+                      `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="${T.goldMid}" stroke-width="1.8"><circle cx="12" cy="12" r="10"/></svg>`;
+                  }}/>
               </div>
-              <div style={{flex:1}}>
-                <div style={{fontSize:12,fontWeight:"bold",color:T.textPrimary,
-                  fontFamily:"Georgia,serif",marginBottom:6}}>{a.title}</div>
-                <div style={{height:4,background:"rgba(0,0,0,0.4)",borderRadius:4,overflow:"hidden",marginBottom:4}}>
-                  <div style={{height:"100%",width:`${pct}%`,
-                    background:`linear-gradient(90deg,${a.color}88,${a.color})`,borderRadius:4}}/>
-                </div>
-                <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif"}}>
-                  {a.current} / {a.goal}
-                </div>
+              <div style={{fontSize:11,fontWeight:"bold",color:T.textPrimary,
+                fontFamily:"Georgia,serif",marginBottom:3}}>{cat.label}</div>
+              <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",
+                marginBottom:6}}>{cat.done} / {cat.total}</div>
+              <div style={{height:3,background:"rgba(0,0,0,0.4)",borderRadius:3,overflow:"hidden"}}>
+                <div style={{height:"100%",
+                  width:`${Math.round((cat.done/cat.total)*100)}%`,
+                  background:cat.color,borderRadius:3}}/>
               </div>
-              <div style={{flexShrink:0,textAlign:"right"}}>
-                <div style={{fontSize:16,fontWeight:"bold",color:a.color,
-                  fontFamily:"Georgia,serif"}}>{pct}%</div>
-              </div>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                stroke="rgba(196,154,40,0.3)" strokeWidth="2">
-                <polyline points="9 18 15 12 9 6"/>
-              </svg>
             </div>
-          );
-        })}
+          ))}
+        </div>
       </div>
 
-      {/* Recently Unlocked */}
-      {UNLOCKED.length>0&&(
-        <div style={{marginBottom:20}}>
-          <div style={{fontSize:13,fontWeight:"bold",color:T.textPrimary,
-            fontFamily:"Georgia,serif",marginBottom:12}}>Recently Unlocked</div>
-          <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-            {UNLOCKED.map((u,i)=>(
-              <div key={i} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,
-                width:80}}>
-                <div style={{width:56,height:56,borderRadius:12,
-                  background:`linear-gradient(135deg,${T.goldDark}44,${T.goldDark}22)`,
-                  border:`1px solid rgba(196,154,40,0.3)`,
-                  display:"flex",alignItems:"center",justifyContent:"center",fontSize:24}}>
-                  {u.icon}
+      {/* Locked Achievements */}
+      <div style={{marginBottom:20}}>
+        <div style={{fontSize:17,fontWeight:"bold",color:T.textPrimary,
+          fontFamily:"Georgia,serif",marginBottom:14}}>Locked Achievements</div>
+        <div style={{background:"#111111",borderRadius:14,
+          border:`1px solid rgba(196,154,40,0.12)`,overflow:"hidden"}}>
+          {LOCKED.map((l,i)=>{
+            const pct=Math.min(Math.round((l.current/l.goal)*100),100);
+            return(
+              <div key={i} style={{padding:"16px",
+                borderBottom:i<LOCKED.length-1?`1px solid rgba(196,154,40,0.08)`:"none",
+                display:"flex",alignItems:"center",gap:14}}>
+                <div style={{width:52,height:52,borderRadius:10,flexShrink:0,
+                  background:"rgba(0,0,0,0.5)",overflow:"hidden",
+                  border:`1px solid rgba(196,154,40,0.12)`,
+                  display:"flex",alignItems:"center",justifyContent:"center"}}>
+                  <img src={l.img} alt={l.title}
+                    style={{width:"100%",height:"100%",objectFit:"cover",opacity:0.5}}
+                    onError={e=>{
+                      const t=e.target as HTMLImageElement;
+                      t.style.display="none";
+                      (t.parentElement as HTMLElement).innerHTML=
+                        `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="${T.goldMid}" stroke-width="1.8" opacity="0.4"><circle cx="12" cy="12" r="10"/></svg>`;
+                    }}/>
                 </div>
-                <div style={{fontSize:10,color:T.textPrimary,fontFamily:"Georgia,serif",
-                  textAlign:"center",lineHeight:1.2}}>{u.title}</div>
-                <div style={{fontSize:9,color:T.goldMid,fontFamily:"Georgia,serif"}}>
-                  +{u.pts} pts
+                <div style={{flex:1}}>
+                  <div style={{fontSize:15,fontWeight:"bold",color:T.textPrimary,
+                    fontFamily:"Georgia,serif",marginBottom:2}}>{l.title}</div>
+                  <div style={{fontSize:12,color:T.textMuted,fontFamily:"Georgia,serif",
+                    marginBottom:8}}>{l.desc}</div>
+                  <div style={{height:4,background:"rgba(0,0,0,0.4)",borderRadius:4,
+                    overflow:"hidden",marginBottom:4}}>
+                    <div style={{height:"100%",width:`${pct}%`,
+                      background:`linear-gradient(90deg,${T.goldDark},${T.goldMid})`,
+                      borderRadius:4}}/>
+                  </div>
+                  <div style={{fontSize:11,color:T.textMuted,fontFamily:"Georgia,serif"}}>
+                    {l.current.toLocaleString()} / {l.goal.toLocaleString()}
+                  </div>
+                </div>
+                <div style={{textAlign:"center",flexShrink:0}}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none"
+                    stroke={T.goldMid} strokeWidth="1.8" opacity="0.6">
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                  </svg>
+                  <div style={{fontSize:13,fontWeight:"bold",color:T.goldMid,
+                    fontFamily:"Georgia,serif",marginTop:3}}>{l.pts} pts</div>
                 </div>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
-      )}
+      </div>
 
-      {/* Footer banner */}
-      <div style={{background:"linear-gradient(170deg,#1a1208,#0f0a04)",borderRadius:12,
-        border:`1px solid rgba(196,154,40,0.1)`,padding:"16px",
-        display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
-        <div style={{fontSize:24}}>🏆</div>
+      {/* Footer */}
+      <div style={{background:"#111111",borderRadius:14,
+        border:`1px solid rgba(196,154,40,0.12)`,padding:"16px",
+        display:"flex",alignItems:"center",gap:14}}>
+        <div style={{width:40,height:40,borderRadius:"50%",flexShrink:0,
+          background:"rgba(196,154,40,0.08)",border:`1px solid rgba(196,154,40,0.2)`,
+          display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={T.goldMid} strokeWidth="1.8">
+            <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+            <path d="M4 22h16"/>
+            <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/>
+            <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>
+            <path d="M18 2H6v7a6 6 0 0 0 12 0V2z"/>
+          </svg>
+        </div>
         <div style={{flex:1}}>
-          <div style={{fontSize:12,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif"}}>
-            Earn achievements. Unlock badges.
-          </div>
-          <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",fontStyle:"italic"}}>
-            Climb the ranks and become a true connoisseur.
+          <div style={{fontSize:13,color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1.5}}>
+            New achievements are added regularly. Keep exploring and check back often!
           </div>
         </div>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -4664,13 +6037,387 @@ function AchievementsTab() {
           <polyline points="9 18 15 12 9 6"/>
         </svg>
       </div>
+
+      {/* Mario Modal */}
+      {achMarioPrompt!==null&&(
+        <MarioModal
+          initialPrompt={achMarioPrompt}
+          onClose={()=>setAchMarioPrompt(null)}
+          liveData={{}}
+          lang="en"/>
+      )}
     </div>
   );
 }
 
 function ProfileTab() {
-  return <SettingsTab/>;
+  const [mounted,setMounted]=useState(false);
+  const [cigars,setCigars]=useState<any[]>([]);
+  const [notes,setNotes]=useState<any[]>([]);
+  const [showMore,setShowMore]=useState(false);
+
+  useEffect(()=>{
+    try{const s=localStorage.getItem('mh_cigars');if(s)setCigars(JSON.parse(s));}catch{}
+    try{const s=localStorage.getItem('mh_notes');if(s)setNotes(JSON.parse(s));}catch{}
+    setMounted(true);
+  },[]);
+
+  const totalCigars=mounted?cigars.reduce((a:number,c:any)=>a+(c.count||0),0):0;
+  const uniqueBrands=mounted?new Set(cigars.map((c:any)=>c.brand)).size:0;
+  const totalNotes=mounted?notes.length:0;
+  const totalPoints=(uniqueBrands*100)+(totalNotes*150)+(totalCigars*10);
+  const totalAchievements=Math.min((uniqueBrands>=1?1:0)+(totalNotes>=1?1:0)+(totalCigars>=5?1:0)+(totalCigars>=1?1:0),60);
+  const tierLabel=totalPoints<1000?"Novice":totalPoints<3000?"Enthusiast":totalPoints<6000?"Gold":totalPoints<10000?"Platinum":"Aficionado";
+  const nextTier=totalPoints<1000?"Enthusiast":totalPoints<3000?"Gold":totalPoints<6000?"Platinum":totalPoints<10000?"Aficionado":"Master";
+  const tierMax=totalPoints<1000?1000:totalPoints<3000?3000:totalPoints<6000?6000:totalPoints<10000?10000:15000;
+  const tierMin=totalPoints<1000?0:totalPoints<3000?1000:totalPoints<6000?3000:totalPoints<10000?6000:10000;
+  const tierPct=Math.round(((totalPoints-tierMin)/(tierMax-tierMin))*100);
+
+  const ACTIVITY=[
+    {img:"/ad-padron.png",title:"Smoked a Padrón 1964 Exclusivo",sub:"Rated it 94",time:"2h ago"},
+    {img:"/ad-davidoff.png",title:"Wrote a review for Davidoff Nicaragua",sub:"",time:"1d ago"},
+    {img:"/Humidor_Perfection_V1.png",title:"Earned achievement Humidor Master",sub:"",time:"2d ago"},
+    {img:"/ad-myfather.png",title:"Added My Father Le Bijou to collection",sub:"",time:"3d ago"},
+  ];
+
+  const STATS=[
+    {icon:"cigar",val:totalCigars,label:"Cigars Smoked"},
+    {icon:"star",val:totalNotes,label:"Reviews Written"},
+    {icon:"globe",val:new Set(cigars.filter((c:any)=>c.origin).map((c:any)=>c.origin)).size,label:"Countries Smoked"},
+    {icon:"fire",val:0,label:"Day Streak"},
+    {icon:"calendar",val:mounted?1:0,label:"Days Active"},
+    {icon:"users",val:0,label:"Friends"},
+  ];
+
+  if(showMore) return <MoreScreen onBack={()=>setShowMore(false)}/>;
+
+  return(
+    <div style={{paddingBottom:100}}>
+      {/* Header */}
+      <div style={{padding:"20px 20px 0",display:"flex",alignItems:"center",
+        justifyContent:"space-between",marginBottom:20}}>
+        <div style={{fontSize:28,fontWeight:"bold",color:T.textPrimary,
+          fontFamily:"Georgia,serif"}}>Profile</div>
+        <button onClick={()=>setShowMore(true)}
+          style={{background:"none",border:`1px solid rgba(196,154,40,0.3)`,
+            borderRadius:10,padding:"8px 16px",cursor:"pointer",
+            color:T.goldMid,fontSize:13,fontFamily:"Georgia,serif",
+            display:"flex",alignItems:"center",gap:6}}>
+          More
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke={T.goldMid} strokeWidth="2">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </button>
+      </div>
+
+      <div style={{padding:"0 16px"}}>
+
+        {/* Avatar + name + stats */}
+        <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:16}}>
+          <div style={{position:"relative",flexShrink:0}}>
+            <div style={{width:80,height:80,borderRadius:"50%",overflow:"hidden",
+              border:`3px solid ${T.goldMid}`,background:"#111",
+              boxShadow:`0 0 20px rgba(196,154,40,0.3)`}}>
+              <img src="/mario-avatar.jpg" alt="Profile"
+                style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 40%"}}
+                onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
+            </div>
+          </div>
+          <div style={{flex:1}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+              <div style={{fontSize:22,fontWeight:"bold",color:T.textPrimary,
+                fontFamily:"Georgia,serif"}}>Zebulon B.</div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke={T.goldMid} strokeWidth="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </div>
+            <div style={{fontSize:13,color:T.goldMid,fontFamily:"Georgia,serif",
+              marginBottom:10}}>{tierLabel}</div>
+            <div style={{display:"flex",gap:20}}>
+              {[{val:totalAchievements,label:"Achievements"},{val:totalPoints.toLocaleString(),label:"Points"},{val:23,label:"Rank"}].map((s,i)=>(
+                <div key={i} style={{textAlign:"center"}}>
+                  <div style={{fontSize:17,fontWeight:"bold",color:T.textPrimary,
+                    fontFamily:"Georgia,serif",lineHeight:1}}>{s.val}</div>
+                  <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",
+                    marginTop:2}}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Mario quote */}
+        <div style={{textAlign:"center",padding:"12px 8px",marginBottom:16,
+          borderTop:`1px solid rgba(196,154,40,0.1)`,
+          borderBottom:`1px solid rgba(196,154,40,0.1)`}}>
+          <div style={{fontSize:14,color:T.textSecondary,fontFamily:"Georgia,serif",
+            fontStyle:"italic",lineHeight:1.6}}>
+            "Life is too short to smoke bad cigars."
+          </div>
+          <div style={{fontSize:11,color:T.goldMid,fontFamily:"Georgia,serif",marginTop:4}}>
+            – Mario
+          </div>
+        </div>
+
+        {/* Tier progress card */}
+        <div style={{background:"#111111",borderRadius:14,
+          border:`1px solid rgba(196,154,40,0.2)`,padding:"16px",
+          marginBottom:20,display:"flex",alignItems:"center",gap:14}}>
+          <div style={{width:52,height:52,borderRadius:12,flexShrink:0,
+            background:"rgba(196,154,40,0.08)",border:`1px solid rgba(196,154,40,0.2)`,
+            display:"flex",alignItems:"center",justifyContent:"center"}}>  <SvgIcon id="crown" size={24}/>
+          </div>
+          <div style={{flex:1}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+              marginBottom:6}}>
+              <span style={{fontSize:15,fontWeight:"bold",color:T.goldMid,
+                fontFamily:"Georgia,serif",letterSpacing:1}}>{tierLabel.toUpperCase()}</span>
+              <span style={{fontSize:12,color:T.textMuted,fontFamily:"Georgia,serif"}}>
+                Next Tier: {nextTier.toUpperCase()}
+              </span>
+            </div>
+            <div style={{height:6,background:"rgba(0,0,0,0.4)",borderRadius:6,
+              overflow:"hidden",marginBottom:6}}>
+              <div style={{height:"100%",width:`${tierPct}%`,
+                background:`linear-gradient(90deg,${T.goldDark},${T.goldMid})`,
+                borderRadius:6,boxShadow:`0 0 8px rgba(196,154,40,0.4)`}}/>
+            </div>
+            <div style={{fontSize:12,color:T.textMuted,fontFamily:"Georgia,serif"}}>
+              {totalPoints.toLocaleString()} / {tierMax.toLocaleString()} pts
+            </div>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+            stroke="rgba(196,154,40,0.3)" strokeWidth="2">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </div>
+
+        {/* Overview stats grid */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+          marginBottom:12}}>
+          <div style={{fontSize:13,fontWeight:"bold",color:T.textPrimary,
+            fontFamily:"Georgia,serif",letterSpacing:2,textTransform:"uppercase"}}>
+            Overview
+          </div>
+          <div style={{fontSize:13,color:T.goldMid,fontFamily:"Georgia,serif"}}>View All</div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:24}}>
+          {STATS.map((s,i)=>(
+            <div key={i} style={{background:"#111111",borderRadius:12,
+              border:`1px solid rgba(196,154,40,0.12)`,padding:"14px 8px",
+              textAlign:"center"}}>
+              <div style={{marginBottom:6,display:"flex",justifyContent:"center"}}><SvgIcon id={s.icon} size={22}/></div>
+              <div style={{fontSize:20,fontWeight:"bold",color:T.textPrimary,
+                fontFamily:"Georgia,serif",lineHeight:1,marginBottom:4}}>{s.val}</div>
+              <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",
+                lineHeight:1.3}}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Recent Activity */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+          marginBottom:12}}>
+          <div style={{fontSize:13,fontWeight:"bold",color:T.textPrimary,
+            fontFamily:"Georgia,serif",letterSpacing:2,textTransform:"uppercase"}}>
+            Recent Activity
+          </div>
+          <div style={{fontSize:13,color:T.goldMid,fontFamily:"Georgia,serif"}}>View All</div>
+        </div>
+        <div style={{background:"#111111",borderRadius:14,
+          border:`1px solid rgba(196,154,40,0.12)`,overflow:"hidden",marginBottom:24}}>
+          {ACTIVITY.map((a,i)=>(
+            <div key={i} style={{display:"flex",alignItems:"center",gap:12,
+              padding:"14px 14px",
+              borderBottom:i<ACTIVITY.length-1?`1px solid rgba(196,154,40,0.08)`:"none"}}>
+              <div style={{width:48,height:48,borderRadius:10,flexShrink:0,
+                background:"#000",overflow:"hidden"}}>
+                <img src={a.img} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}
+                  onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{fontSize:14,fontWeight:"bold",color:T.textPrimary,
+                  fontFamily:"Georgia,serif",lineHeight:1.3,marginBottom:2}}>{a.title}</div>
+                {a.sub&&<div style={{fontSize:12,color:T.textMuted,fontFamily:"Georgia,serif"}}>{a.sub}</div>}
+                <div style={{fontSize:11,color:T.textMuted,fontFamily:"Georgia,serif",marginTop:2}}>{a.time}</div>
+              </div>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="rgba(196,154,40,0.3)" strokeWidth="2">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </div>
+          ))}
+        </div>
+
+        {/* My Collection */}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+          marginBottom:12}}>
+          <div style={{fontSize:13,fontWeight:"bold",color:T.textPrimary,
+            fontFamily:"Georgia,serif",letterSpacing:2,textTransform:"uppercase"}}>
+            My Collection
+          </div>
+          <div style={{fontSize:13,color:T.goldMid,fontFamily:"Georgia,serif"}}>View Collection</div>
+        </div>
+        <div style={{background:"#111111",borderRadius:14,
+          border:`1px solid rgba(196,154,40,0.15)`,overflow:"hidden",
+          display:"flex",alignItems:"center",gap:0}}>
+          <div style={{width:120,height:100,flexShrink:0,background:"#000",overflow:"hidden"}}>
+            <img src="/humidor-hero.png" alt="Collection"
+              style={{width:"100%",height:"100%",objectFit:"cover",
+                filter:"brightness(0.7)"}}
+              onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
+          </div>
+          <div style={{flex:1,padding:"16px"}}>
+            <div style={{fontSize:11,color:T.textMuted,fontFamily:"Georgia,serif",
+              letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Total Cigars</div>
+            <div style={{fontSize:32,fontWeight:"bold",color:T.textPrimary,
+              fontFamily:"Georgia,serif",lineHeight:1,marginBottom:8}}>{totalCigars}</div>
+            <div style={{display:"flex",gap:16}}>
+              <div>
+                <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif"}}>In Humidors</div>
+                <div style={{fontSize:15,fontWeight:"bold",color:T.goldMid,
+                  fontFamily:"Georgia,serif"}}>{cigars.filter((c:any)=>c.humidorId).reduce((a:number,c:any)=>a+(c.count||0),0)}</div>
+              </div>
+              <div>
+                <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif"}}>In Inventory</div>
+                <div style={{fontSize:15,fontWeight:"bold",color:T.goldMid,
+                  fontFamily:"Georgia,serif"}}>{cigars.filter((c:any)=>!c.humidorId).reduce((a:number,c:any)=>a+(c.count||0),0)}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
+
+// ── MORE SCREEN ────────────────────────────────────────────────────────────
+function MoreScreen({onBack}:{onBack:()=>void}) {
+  const MenuItem=({icon,label,right,last,onTap}:{icon:React.ReactNode,label:string,right?:React.ReactNode,last?:boolean,onTap?:()=>void})=>(
+    <button onClick={onTap} style={{width:"100%",display:"flex",alignItems:"center",gap:14,
+      padding:"15px 16px",background:"none",border:"none",cursor:"pointer",
+      borderBottom:last?"none":`1px solid rgba(196,154,40,0.08)`,
+      textAlign:"left"}}>
+      <div style={{width:32,height:32,borderRadius:8,flexShrink:0,
+        background:"rgba(196,154,40,0.08)",border:`1px solid rgba(196,154,40,0.12)`,
+        display:"flex",alignItems:"center",justifyContent:"center"}}>
+        {icon}
+      </div>
+      <div style={{flex:1,fontSize:17,color:T.textPrimary,fontFamily:"Georgia,serif"}}>
+        {label}
+      </div>
+      {right||<svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+        stroke="rgba(196,154,40,0.3)" strokeWidth="2">
+        <polyline points="9 18 15 12 9 6"/>
+      </svg>}
+    </button>
+  );
+
+  const Section=({title,children}:{title:string,children:React.ReactNode})=>(
+    <div style={{marginBottom:20}}>
+      <div style={{fontSize:10,color:T.textMuted,letterSpacing:3,
+        textTransform:"uppercase",fontFamily:"Georgia,serif",
+        padding:"0 4px",marginBottom:8}}>{title}</div>
+      <div style={{background:"#111111",borderRadius:14,
+        border:`1px solid rgba(196,154,40,0.12)`,overflow:"hidden"}}>
+        {children}
+      </div>
+    </div>
+  );
+
+  const Icon=({path,viewBox="0 0 24 24"}:{path:string,viewBox?:string})=>(
+    <svg width="16" height="16" viewBox={viewBox} fill="none" stroke={T.goldMid} strokeWidth="1.8">
+      <path d={path}/>
+    </svg>
+  );
+
+  return(
+    <div style={{paddingBottom:100}}>
+      {/* Header */}
+      <div style={{padding:"20px 16px 16px",display:"flex",alignItems:"center",
+        gap:12,borderBottom:`1px solid rgba(196,154,40,0.1)`}}>
+        <button onClick={onBack} style={{background:"none",border:"none",
+          cursor:"pointer",padding:"4px 8px 4px 0",color:T.goldMid}}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke={T.goldMid} strokeWidth="2">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+        <div style={{fontSize:28,fontWeight:"bold",color:T.textPrimary,
+          fontFamily:"Georgia,serif"}}>More</div>
+      </div>
+
+      <div style={{padding:"20px 16px 0"}}>
+
+        <Section title="ACCOUNT">
+          <MenuItem icon={<Icon path="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>} label="Edit Profile"/>
+          <MenuItem icon={<Icon path="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>} label="Account Settings"/>
+          <MenuItem icon={<Icon path="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>} label="Privacy & Security"/>
+          <MenuItem icon={<Icon path="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0"/>} label="Notifications" last/>
+        </Section>
+
+        <Section title="MY DATA">
+          <MenuItem icon={<Icon path="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>} label="My Collection"/>
+          <MenuItem icon={<Icon path="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>} label="My Reviews"/>
+          <MenuItem icon={<Icon path="M22 12h-4l-3 9L9 3l-3 9H2"/>} label="My Activity"/>
+          <MenuItem icon={<Icon path="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>} label="My Notes"/>
+          <MenuItem icon={<Icon path="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>} label="My Pairings"/>
+          <MenuItem icon={<Icon path="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>} label="My Photos"/>
+          <MenuItem icon={<Icon path="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>} label="Export My Data" last/>
+        </Section>
+
+        <Section title="COMMUNITY">
+          <MenuItem icon={<Icon path="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>} label="Find Friends"/>
+          <MenuItem icon={<Icon path="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>} label="Invite Friends"/>
+          <MenuItem icon={<Icon path="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>} label="My Lounge Check-ins"/>
+          <MenuItem icon={<Icon path="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>} label="Discussions"/>
+          <MenuItem icon={<Icon path="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/>} label="Events" last/>
+        </Section>
+
+        <Section title="SUPPORT">
+          <MenuItem icon={<Icon path="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>} label="Help Center"/>
+          <MenuItem icon={<Icon path="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.99 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.92 1.2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9a16 16 0 0 0 6.91 6.91l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 23 17z"/>} label="Contact Support"/>
+          <MenuItem icon={<Icon path="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>} label="FAQ"/>
+          <MenuItem icon={<Icon path="M9 18h6M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>} label="Suggest a Feature" last/>
+        </Section>
+
+        <Section title="ABOUT">
+          <MenuItem icon={<div style={{width:16,height:16,borderRadius:"50%",
+            background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
+            display:"flex",alignItems:"center",justifyContent:"center",
+            fontSize:9,fontWeight:"bold",color:"#0a0a0a"}}>M</div>}
+            label="About Mario's Humidor"/>
+          <MenuItem icon={<Icon path="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>} label="Terms of Service"/>
+          <MenuItem icon={<Icon path="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>} label="Privacy Policy"/>
+          <MenuItem icon={<Icon path="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/>} label="App Version"
+            right={<span style={{fontSize:13,color:T.textMuted,fontFamily:"Georgia,serif"}}>1.3.0</span>} last/>
+        </Section>
+
+        {/* Log Out */}
+        <button style={{width:"100%",padding:"16px",
+          background:"rgba(139,0,0,0.3)",
+          border:"1px solid rgba(139,0,0,0.4)",
+          borderRadius:14,cursor:"pointer",
+          display:"flex",alignItems:"center",justifyContent:"center",gap:10,
+          marginBottom:8}}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+            stroke="#e05050" strokeWidth="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          <span style={{fontSize:17,color:"#e05050",fontFamily:"Georgia,serif",
+            fontWeight:"bold"}}>Log Out</span>
+        </button>
+
+      </div>
+    </div>
+  );
+}
+
 
 // ── MAIN ───────────────────────────────────────────────────────────────────
 export default function MariosHumidor() {
@@ -4725,7 +6472,7 @@ export default function MariosHumidor() {
   const [showCompose,setShowCompose]=useState(false);
   const [activeClubTab,setActiveClubTab]=useState<'feed'|'news'|'trending'|'rareFinds'|'spotlights'|'showcase'|'events'|'learn'>('feed');
 
-  const TAB_ORDER=["home","humidors","mario","club","profile"];
+  const TAB_ORDER=["home","humidors","club","profile"];
   const touchStartX=useRef<number|null>(null);
   const touchStartY=useRef<number|null>(null);
   const [prevTab,setPrevTab]=useState<string|null>(null);
@@ -4773,16 +6520,15 @@ export default function MariosHumidor() {
 
   const renderTab=(t:string)=>{
     switch(t){
-      case "home":       return <HomeTab liveData={liveData} liveStatus={liveStatus} lastUpdated={lastUpdated} onRefresh={()=>fetchLive(false)}/>;
+      case "home":       return <HomeTab liveData={liveData} liveStatus={liveStatus} lastUpdated={lastUpdated} onRefresh={()=>fetchLive(false)} onNavigate={navigateTo}/>;
       case "humidors":   return <HumidorsTab liveData={liveData} liveStatus={liveStatus} lastUpdated={lastUpdated} onRefresh={()=>fetchLive(false)}/>;
-      case "mario":      return <AskMarioTab liveData={liveData}/>;
       case "club":       return <ClubTab/>;
       case "profile":    return <ProfileTab/>;
       case "collection": return <CollectionTab/>;
       case "community":  return <CommunityTab activeSubTab={activeClubTab} setActiveSubTab={setActiveClubTab}/>;
       case "challenges": return <ChallengesTab/>;
       case "leaderboard": return <LeaderboardTab/>;
-      default:           return <HomeTab liveData={liveData} liveStatus={liveStatus} lastUpdated={lastUpdated} onRefresh={()=>fetchLive(false)}/>;
+      default:           return <HomeTab liveData={liveData} liveStatus={liveStatus} lastUpdated={lastUpdated} onRefresh={()=>fetchLive(false)} onNavigate={navigateTo}/>;
     }
   };
 
@@ -4827,6 +6573,8 @@ export default function MariosHumidor() {
         @keyframes slideInLeft{from{transform:translateX(-100%)}to{transform:translateX(0)}}
         @keyframes slideOutLeft{from{transform:translateX(0)}to{transform:translateX(-100%)}}
         @keyframes slideOutRight{from{transform:translateX(0)}to{transform:translateX(100%)}}
+        @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+        @keyframes ticker-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
       `}</style>
     </div>
     </LangProvider>
