@@ -1,30 +1,53 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
+import { supabase } from "@/lib/supabase";
 
-let latestReading: {
-  temperature: number;
-  humidity: number;
-  timestamp: string;
-} | null = null;
-
-const SENSOR_SECRET = process.env.SENSOR_SECRET ?? '';
-
+// ESP32 posts sensor data here
 export async function POST(req: NextRequest) {
-  const secret = req.headers.get('x-sensor-secret');
-  if (SENSOR_SECRET && secret !== SENSOR_SECRET) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  try {
+    const body = await req.json();
+    const { temperature, humidity, device_name } = body;
+
+    if (typeof temperature !== "number" || typeof humidity !== "number") {
+      return NextResponse.json({ error: "Invalid data" }, { status: 400 });
+    }
+
+    const { error } = await supabase
+      .from("sensor_readings")
+      .insert({
+        device_name: device_name ?? "Mario's Sensor",
+        temperature,
+        humidity,
+      });
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 500 });
   }
-  const body = await req.json();
-  const { temperature, humidity } = body;
-  if (typeof temperature !== 'number' || typeof humidity !== 'number') {
-    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
-  }
-  latestReading = { temperature, humidity, timestamp: new Date().toISOString() };
-  return NextResponse.json({ ok: true });
 }
 
+// App reads latest sensor data here
 export async function GET() {
-  if (!latestReading) {
-    return NextResponse.json({ error: 'No sensor data yet' }, { status: 503 });
+  try {
+    const { data, error } = await supabase
+      .from("sensor_readings")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error || !data) {
+      return NextResponse.json({ error: "No sensor data yet" }, { status: 503 });
+    }
+
+    return NextResponse.json({
+      temperature: data.temperature,
+      humidity: data.humidity,
+      device_name: data.device_name,
+      timestamp: data.created_at,
+    });
+  } catch (err) {
+    return NextResponse.json({ error: String(err) }, { status: 500 });
   }
-  return NextResponse.json(latestReading);
 }
