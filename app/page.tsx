@@ -24,7 +24,7 @@ const LANGS:{code:LangCode;flag:string;name:string}[]=[
 const TRANSLATIONS:{[K in LangCode]:Record<string,string>}={
   en:{
     // Nav
-    nav_home:"Home",nav_humidors:"Humidors",nav_mario:"Mario",nav_club:"Club",nav_profile:"Profile",
+    nav_home:"Home",nav_humidors:"Humidors",nav_record:"Record",nav_mario:"Mario",nav_club:"Club",nav_profile:"Profile",
     // Home
     greeting_morning:"Good morning",greeting_afternoon:"Good afternoon",greeting_evening:"Good evening",
     welcome_back:"Welcome back to the lounge.",
@@ -62,7 +62,7 @@ const TRANSLATIONS:{[K in LangCode]:Record<string,string>}={
     try_again:"Try Again",add_to_col_btn:"+ Add to Collection",
   },
   es:{
-    nav_home:"Inicio",nav_humidors:"Humidores",nav_mario:"Mario",nav_club:"Club",nav_profile:"Perfil",
+    nav_home:"Inicio",nav_humidors:"Humidores",nav_record:"Registro",nav_mario:"Mario",nav_club:"Club",nav_profile:"Perfil",
     greeting_morning:"Buenos días",greeting_afternoon:"Buenas tardes",greeting_evening:"Buenas noches",
     welcome_back:"Bienvenido al salón.",
     my_humidors:"Mis Humidores",sensor_offline:"Sensor desconectado",sensor_updating:"Actualizando…",
@@ -91,7 +91,7 @@ const TRANSLATIONS:{[K in LangCode]:Record<string,string>}={
     try_again:"Intentar de Nuevo",add_to_col_btn:"+ Añadir a Colección",
   },
   pt:{
-    nav_home:"Início",nav_humidors:"Humidores",nav_mario:"Mario",nav_club:"Clube",nav_profile:"Perfil",
+    nav_home:"Início",nav_humidors:"Humidores",nav_record:"Registro",nav_mario:"Mario",nav_club:"Clube",nav_profile:"Perfil",
     greeting_morning:"Bom dia",greeting_afternoon:"Boa tarde",greeting_evening:"Boa noite",
     welcome_back:"Bem-vindo ao salão.",
     my_humidors:"Meus Humidores",sensor_offline:"Sensor offline",sensor_updating:"Atualizando…",
@@ -120,7 +120,7 @@ const TRANSLATIONS:{[K in LangCode]:Record<string,string>}={
     try_again:"Tentar Novamente",add_to_col_btn:"+ Adicionar à Coleção",
   },
   fr:{
-    nav_home:"Accueil",nav_humidors:"Humidors",nav_mario:"Mario",nav_club:"Club",nav_profile:"Profil",
+    nav_home:"Accueil",nav_humidors:"Humidors",nav_record:"Journal",nav_mario:"Mario",nav_club:"Club",nav_profile:"Profil",
     greeting_morning:"Bonjour",greeting_afternoon:"Bon après-midi",greeting_evening:"Bonsoir",
     welcome_back:"Bienvenue au salon.",
     my_humidors:"Mes Humidors",sensor_offline:"Capteur hors ligne",sensor_updating:"Mise à jour…",
@@ -149,7 +149,7 @@ const TRANSLATIONS:{[K in LangCode]:Record<string,string>}={
     try_again:"Réessayer",add_to_col_btn:"+ Ajouter à la Collection",
   },
   de:{
-    nav_home:"Start",nav_humidors:"Humidore",nav_mario:"Mario",nav_club:"Club",nav_profile:"Profil",
+    nav_home:"Start",nav_humidors:"Humidore",nav_record:"Aufzeichnung",nav_mario:"Mario",nav_club:"Club",nav_profile:"Profil",
     greeting_morning:"Guten Morgen",greeting_afternoon:"Guten Tag",greeting_evening:"Guten Abend",
     welcome_back:"Willkommen in der Lounge.",
     my_humidors:"Meine Humidore",sensor_offline:"Sensor offline",sensor_updating:"Aktualisierung…",
@@ -287,35 +287,6 @@ const NOTES_INIT=[
   {id:2,brand:"Arturo Fuente",line:"Opus X",vitola:"Robusto",date:"May 15, 2026",rating:5,
     notes:"Spicy cedar entry, black pepper through the first third. Creamy sweetness emerges at the midpoint. Complex, rewarding.",pairing:"Glenfarclas 25yr"},
 ];
-const POSTS_INIT=[
-  {id:1,user:"CigarDon_85",avatar:"C",badge:"Top Reviewer",category:"Review",time:"2h ago",
-    title:"Opus X Double Corona — worth the wait",
-    body:"Finally cracked one I've been aging 3 years. The complexity is unreal — espresso, dark chocolate, leather. The patience was worth every month.",
-    likes:24,comments:8,liked:false},
-  {id:2,user:"HumidorQueen",avatar:"H",badge:"Pairing Pro",category:"Pairing",time:"1h ago",
-    title:"Padrón 1926 + Glenfarclas 25yr",
-    body:"The sherry cask and natural wrapper are a match made in heaven. Tried this last night on the back porch. Absolutely transcendent.",
-    likes:41,comments:15,liked:false},
-  {id:3,user:"SlowBurn_Mike",avatar:"S",badge:"",category:"Question",time:"3h ago",
-    title:"Humidity dropped to 62% — how long to recover?",
-    body:"Came home to find my main humidor at 62%. Added a recharged Boveda. Anyone had experience with recovery time?",
-    likes:7,comments:22,liked:false},
-];
-const NEWS=[
-  {id:1,title:"Padrón 1964 Anniversary Series — A Retrospective",summary:"Forty years of Nicaraguan excellence. How the Padrón family changed premium cigars forever.",source:"Cigar Aficionado",date:"May 30, 2026",accent:"#7a1212",
-    image:"https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=80",
-    link:"https://www.cigaraficionado.com/top25cigar/padron-1964-anniversary-series-torpedo-natural"},
-  {id:2,title:"Arturo Fuente Opus X: The Story Behind the Legend",summary:"How a Dominican factory became the most coveted cigar in the world.",source:"Halfwheel",date:"May 29, 2026",accent:T.goldMid,
-    image:"https://images.unsplash.com/photo-1571066811602-716837d681de?w=600&q=80",
-    link:"https://halfwheel.com/tag/opusx/"},
-  {id:3,title:"2026 Cigar of the Year Contenders Revealed",summary:"From Nicaragua to Honduras, the top-rated cigars of the year so far.",source:"Cigar Advisor",date:"May 28, 2026",accent:"#2a5c38",
-    image:"https://images.unsplash.com/photo-1562016600-ece13e8ba570?w=600&q=80",
-    link:"https://www.cigarjournal.com/ratings-and-awards/top-25-cigars/"},
-  {id:4,title:"Humidity Control: The Science Behind the Perfect Humidor",summary:"Cedar aging, the 70/70 rule, and why Boveda may be changing everything.",source:"Halfwheel",date:"May 27, 2026",accent:"#1a2c50",
-    image:"https://images.unsplash.com/photo-1585553616435-2dc0a54e1a6b?w=600&q=80",
-    link:"https://halfwheel.com/humi-care-seasoning-wipes/380946/"},
-];
-
 // ── HUMIDORS SCREEN ────────────────────────────────────────────────────────
 function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
   liveData:Record<string,{temperature:number|null;humidity:number|null;observedAt:string|null}>;
@@ -547,7 +518,7 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
                   style={{marginBottom:6}}>
                   <path d="M12 2C6 10 4 14 4 17a8 8 0 0 0 16 0c0-3-2-7-8-15z"/>
                 </svg>
-                <div style={{fontSize:32,fontWeight:"bold",color:"#3dd68c",
+                <div style={{fontSize:32,fontWeight:"bold",color:"#ffffff",
                   fontFamily:"Georgia,serif",lineHeight:1}}>
                   {hasReading&&humidity!==null?`${humidity}%`:"—"}
                 </div>
@@ -564,7 +535,7 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
                   style={{marginBottom:6}}>
                   <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
                 </svg>
-                <div style={{fontSize:32,fontWeight:"bold",color:T.goldMid,
+                <div style={{fontSize:32,fontWeight:"bold",color:"#ffffff",
                   fontFamily:"Georgia,serif",lineHeight:1}}>
                   {hasReading&&temp!==null?`${temp}°F`:"—"}
                 </div>
@@ -917,7 +888,7 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
               <div style={{width:44,height:44,borderRadius:"50%",overflow:"hidden",flexShrink:0,
                 border:`2px solid ${T.goldMid}`}}>
                 <img src="/mario-avatar.jpg" alt="Mario"
-                  style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 50%"}}/>
+                  style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 65%"}}/>
               </div>
               <div style={{flex:1}}>
                 <div style={{fontSize:11,color:T.goldMid,letterSpacing:2,
@@ -981,7 +952,7 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
               <div style={{width:44,height:44,borderRadius:"50%",overflow:"hidden",flexShrink:0,
                 border:`1.5px solid ${T.goldDark}`}}>
                 <img src="/mario-avatar.jpg" alt="Mario"
-                  style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 50%"}}/>
+                  style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 65%"}}/>
               </div>
               <div style={{flex:1}}>
                 <div style={{fontSize:15,fontWeight:"bold",color:T.textPrimary,
@@ -1104,7 +1075,7 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
             <div style={{width:32,height:32,borderRadius:"50%",overflow:"hidden",flexShrink:0,
               border:`1.5px solid ${T.goldDark}`}}>
               <img src="/mario-avatar.jpg" alt="Mario"
-                style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 50%"}}/>
+                style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 65%"}}/>
             </div>
             <div style={{flex:1}}>
               <div style={{fontSize:9,color:T.goldMid,letterSpacing:2,textTransform:"uppercase",
@@ -1229,7 +1200,7 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="#3dd68c" opacity="0.85">
                         <path d="M12 2C6 10 4 14 4 17a8 8 0 0 0 16 0c0-3-2-7-8-15z"/>
                       </svg>
-                      <span style={{fontSize:26,fontWeight:"bold",color:"#3dd68c",
+                      <span style={{fontSize:20,fontWeight:"bold",color:"#ffffff",
                         fontFamily:"Georgia,serif",lineHeight:1}}>
                         {hasReading&&humidity!==null?`${humidity}%`:"—"}
                       </span>
@@ -1243,7 +1214,7 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
                         stroke={T.goldMid} strokeWidth="2" opacity="0.85">
                         <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
                       </svg>
-                      <span style={{fontSize:20,fontWeight:"bold",color:T.goldMid,
+                      <span style={{fontSize:20,fontWeight:"bold",color:"#ffffff",
                         fontFamily:"Georgia,serif",lineHeight:1}}>
                         {hasReading&&temp!==null?`${temp}°F`:"—"}
                       </span>
@@ -1534,11 +1505,13 @@ function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
 // ── BAND SCANNER MODAL ─────────────────────────────────────────────────────
 type ScanResult={brand:string;line:string;vitola:string;origin:string;wrapper:string;rating:number|null;confidence:string;notes:string};
 
-function BandScannerModal({onClose,onAddToCollection,onAddToJournal,onSmokedOne}:{
+function BandScannerModal({onClose,onAddToCollection,onAddToJournal,onSmokedOne,onSaveToRecord,recordMode}:{
   onClose:()=>void;
-  onAddToCollection:(r:ScanResult)=>void;
-  onAddToJournal:(r:ScanResult)=>void;
-  onSmokedOne:(r:ScanResult)=>void;
+  onAddToCollection?:(r:ScanResult)=>void;
+  onAddToJournal?:(r:ScanResult)=>void;
+  onSmokedOne?:(r:ScanResult)=>void;
+  onSaveToRecord?:(r:ScanResult,status:"smoked"|"onMyList",note:string,photo:string|null)=>void;
+  recordMode?:boolean;
 }) {
   const fileRef=useRef<HTMLInputElement>(null);
   const cameraRef=useRef<HTMLInputElement>(null);
@@ -1546,6 +1519,8 @@ function BandScannerModal({onClose,onAddToCollection,onAddToJournal,onSmokedOne}
   const [preview,setPreview]=useState<string|null>(null);
   const [result,setResult]=useState<ScanResult|null>(null);
   const [errMsg,setErrMsg]=useState("");
+  const [recordStatus,setRecordStatus]=useState<"smoked"|"onMyList">("smoked");
+  const [recordNote,setRecordNote]=useState("");
   const {t}=useLang();
 
   const scan=async(file:File)=>{
@@ -1579,7 +1554,7 @@ function BandScannerModal({onClose,onAddToCollection,onAddToJournal,onSmokedOne}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 20px",
         borderBottom:`1px solid ${T.border}`}}>
         <div>
-          <div style={{fontSize:10,letterSpacing:5,textTransform:"uppercase",color:T.textMuted,fontFamily:"Georgia,serif"}}>Collection</div>
+          <div style={{fontSize:10,letterSpacing:5,textTransform:"uppercase",color:T.textMuted,fontFamily:"Georgia,serif"}}>{recordMode?"Record":"Collection"}</div>
           <div style={{fontSize:20,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif"}}>Band Scanner</div>
         </div>
         <button onClick={onClose} style={{background:"rgba(255,255,255,0.06)",border:`1px solid ${T.border}`,
@@ -1691,22 +1666,61 @@ function BandScannerModal({onClose,onAddToCollection,onAddToJournal,onSmokedOne}
             </div>
 
             {/* Action buttons */}
+            {recordMode ? (
+              <div style={{display:"flex",flexDirection:"column",gap:14}}>
+                {/* Smoked / On My List toggle */}
+                <div style={{display:"flex",borderRadius:12,overflow:"hidden",
+                  border:`1px solid ${T.borderGold}`}}>
+                  {(["smoked","onMyList"] as const).map(s=>(
+                    <button key={s} onClick={()=>setRecordStatus(s)}
+                      style={{flex:1,padding:"12px",border:"none",cursor:"pointer",
+                        fontFamily:"Georgia,serif",fontSize:14,fontWeight:"bold",
+                        background:recordStatus===s
+                          ?"linear-gradient(135deg,#2a2a2a,#0a0a0a)"
+                          :"transparent",
+                        color:recordStatus===s?T.goldMid:T.textMuted}}>
+                      {s==="smoked"?"Smoked":"On My List"}
+                    </button>
+                  ))}
+                </div>
+                {/* Optional note */}
+                <textarea value={recordNote} onChange={e=>setRecordNote(e.target.value)}
+                  placeholder="Add a quick note (optional)"
+                  rows={3}
+                  style={{width:"100%",background:"rgba(0,0,0,0.2)",border:`1px solid ${T.border}`,
+                    borderRadius:10,padding:"12px 14px",color:T.textPrimary,fontSize:14,
+                    outline:"none",boxSizing:"border-box",fontFamily:"Georgia,serif",resize:"vertical"}}/>
+                <button onClick={()=>onSaveToRecord?.(result,recordStatus,recordNote,preview)}
+                  style={{width:"100%",padding:"15px",
+                    background:"linear-gradient(135deg,#2a2a2a,#0a0a0a)",
+                    border:`1px solid rgba(196,154,40,0.3)`,borderRadius:12,color:T.goldMid,fontSize:17,
+                    fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>
+                  Save to Record
+                </button>
+                <button onClick={()=>{setPhase("idle");setPreview(null);setResult(null);setRecordNote("");}}
+                  style={{width:"100%",padding:"12px",background:"none",
+                    border:`1px solid ${T.border}`,borderRadius:12,color:T.textMuted,
+                    fontSize:13,cursor:"pointer",fontFamily:"Georgia,serif"}}>
+                  {t("scan_another")}
+                </button>
+              </div>
+            ) : (
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
-              <button onClick={()=>onAddToCollection(result)}
+              <button onClick={()=>onAddToCollection?.(result)}
                 style={{width:"100%",padding:"15px",
                   background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
                   border:"none",borderRadius:12,color:"#0a0a0a",fontSize:17,
                   fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>
                 {t("add_to_col_btn")}
               </button>
-              <button onClick={()=>onSmokedOne(result)}
+              <button onClick={()=>onSmokedOne?.(result)}
                 style={{width:"100%",padding:"15px",
                   background:"linear-gradient(135deg,#7a1212,#a01818)",
                   border:"none",borderRadius:12,color:"#f0e8d8",fontSize:17,
                   fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif"}}>
                 {t("smoked_one")}
               </button>
-              <button onClick={()=>onAddToJournal(result)}
+              <button onClick={()=>onAddToJournal?.(result)}
                 style={{width:"100%",padding:"15px",background:"none",
                   border:`1px solid ${T.borderGold}`,borderRadius:12,color:T.goldLight,
                   fontSize:17,cursor:"pointer",fontFamily:"Georgia,serif",fontWeight:"bold"}}>
@@ -1719,6 +1733,7 @@ function BandScannerModal({onClose,onAddToCollection,onAddToJournal,onSmokedOne}
                 {t("scan_another")}
               </button>
             </div>
+            )}
           </div>
         )}
 
@@ -2639,7 +2654,7 @@ function AskMarioTab({liveData}:{liveData:Record<string,{temperature:number|null
           <div style={{width:72,height:72,borderRadius:"50%",flexShrink:0,
             border:`2px solid ${T.goldMid}`,overflow:"hidden",
             boxShadow:`0 0 0 3px #0a0a0a, 0 0 0 5px ${T.goldDark}44`}}>
-            <img src="/mario-avatar.jpg" alt="Mario" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 50%"}}/>
+            <img src="/mario-avatar.jpg" alt="Mario" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 65%"}}/>
           </div>
           <div style={{flex:1}}>
             <div style={{fontSize:24,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1.15}}>{t("ask_mario")}</div>
@@ -2661,7 +2676,7 @@ function AskMarioTab({liveData}:{liveData:Record<string,{temperature:number|null
                 <div style={{fontSize:9,color:T.goldMid,letterSpacing:2,textTransform:"uppercase",
                   marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
                   <div style={{width:18,height:18,borderRadius:"50%",overflow:"hidden",border:`1px solid ${T.goldDark}`,flexShrink:0}}>
-                    <img src="/mario-avatar.jpg" alt="Mario" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 50%"}}/>
+                    <img src="/mario-avatar.jpg" alt="Mario" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 65%"}}/>
                   </div>
                   <span>Mario</span>
                 </div>
@@ -2735,79 +2750,9 @@ function AskMarioTab({liveData}:{liveData:Record<string,{temperature:number|null
             fontFamily:"Georgia,serif",outline:"none"}}/>
         <button onClick={()=>send(input)}
           style={{width:44,height:44,borderRadius:"50%",flexShrink:0,
-            background:`linear-gradient(135deg,${T.goldMid},${T.goldDark})`,
-            border:"none",cursor:"pointer",color:"#0a0a0a",fontSize:22,fontWeight:"bold",
+            background:"linear-gradient(135deg,#2a2a2a,#0a0a0a)",
+            border:`1px solid rgba(196,154,40,0.3)`,cursor:"pointer",color:T.goldMid,fontSize:22,fontWeight:"bold",
             display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"Georgia,serif",lineHeight:1}}>›</button>
-      </div>
-    </div>
-  );
-}
-
-// ── NEWS CARD ──────────────────────────────────────────────────────────────
-function NewsCard({n}:{n:any}) {
-  const [showTake,setShowTake]=useState(false);
-  return (
-    <div style={{background:"linear-gradient(170deg,#111111,#0a0a0a)",borderRadius:16,border:`1px solid rgba(196,154,40,0.18)`,overflow:"hidden"}}>
-      {n.image&&(
-        <div style={{width:"100%",height:190,overflow:"hidden",position:"relative"}}>
-          <img src={n.image} alt={n.title}
-            style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}
-            onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
-          <div style={{position:"absolute",inset:0,
-            background:"linear-gradient(180deg,transparent 40%,rgba(0,0,0,0.6) 100%)"}}/>
-          <div style={{position:"absolute",bottom:12,left:14,
-            fontSize:11,color:"rgba(255,255,255,0.95)",letterSpacing:2.5,
-            textTransform:"uppercase",fontFamily:"Georgia,serif",fontWeight:"bold"}}>{n.source}</div>
-        </div>
-      )}
-      <div style={{height:3,background:n.accent}}/>
-      <div style={{padding:"18px 18px 16px"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-          {!n.image&&<div style={{fontSize:10,color:n.accent,letterSpacing:2,textTransform:"uppercase",fontFamily:"Georgia,serif"}}>{n.source}</div>}
-          <div style={{fontSize:11,color:T.textSecondary,marginLeft:"auto"}}>{n.date}</div>
-        </div>
-        <div style={{fontSize:19,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1.3,marginBottom:10}}>{n.title}</div>
-        <div style={{fontSize:17,color:T.textSecondary,lineHeight:1.7,fontFamily:"Georgia,serif"}}>{n.summary}</div>
-        {showTake&&n.marioTake&&(
-          <div style={{marginTop:12,padding:"14px 16px",
-            background:"linear-gradient(155deg,#1a1a1a,#0d0d0d)",
-            borderRadius:10,border:`1px solid rgba(196,154,40,0.22)`}}>
-            <div style={{fontSize:9,color:T.goldMid,letterSpacing:2,textTransform:"uppercase",
-              marginBottom:8,display:"flex",alignItems:"center",gap:6,fontFamily:"Georgia,serif"}}>
-              <div style={{width:16,height:16,borderRadius:"50%",overflow:"hidden",border:`1px solid ${T.goldDark}`,flexShrink:0}}>
-                <img src="/mario-avatar.jpg" alt="Mario" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 50%"}}/>
-              </div>
-              Mario's Take
-            </div>
-            <div style={{fontSize:13,color:T.textPrimary,fontFamily:"Georgia,serif",fontStyle:"italic",lineHeight:1.7}}>
-              {n.marioTake}
-            </div>
-          </div>
-        )}
-        <div style={{marginTop:14,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          {n.link ? (
-            <a href={n.link} target="_blank" rel="noopener noreferrer"
-              style={{background:"none",border:`1px solid ${n.accent}44`,borderRadius:20,
-                padding:"8px 18px",fontSize:12,color:n.accent,cursor:"pointer",
-                fontFamily:"Georgia,serif",letterSpacing:0.5,textDecoration:"none"}}>
-              Read More
-            </a>
-          ):(
-            <button style={{background:"none",border:`1px solid ${n.accent}44`,borderRadius:20,
-              padding:"5px 14px",fontSize:11,color:n.accent,cursor:"pointer",fontFamily:"Georgia,serif",letterSpacing:0.5}}>
-              Read More
-            </button>
-          )}
-          {n.marioTake ? (
-            <button onClick={()=>setShowTake(s=>!s)}
-              style={{background:"none",border:"none",fontSize:10,color:T.goldMid,
-                cursor:"pointer",fontFamily:"Georgia,serif",fontStyle:"italic"}}>
-              {showTake?"Hide Take":"Mario's Take →"}
-            </button>
-          ):(
-            <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",fontStyle:"italic"}}>Mario's Take →</div>
-          )}
-        </div>
       </div>
     </div>
   );
@@ -3146,881 +3091,106 @@ const RARE_FINDS=[
     tags:["Dominican","Regional Exclusive","Fuente"],likes:22,wants:31,liked:false,wanted:false},
 ];
 
-// ── CLUB BOTTOM NAV ICONS (top-level so ContextBar can use them) ───────────
-const IconTrending=({c}:{c:string})=>(
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
-    <polyline points="17 6 23 6 23 12"/>
-  </svg>
-);
-const IconDiscussions=({c}:{c:string})=>(
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-  </svg>
-);
-const IconNews=({c}:{c:string})=>(
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/>
-    <line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="12" y2="15"/>
-  </svg>
-);
-const IconSpotlight=({c}:{c:string})=>(
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="8" r="4"/>
-    <path d="M12 12v9"/><path d="M8.5 20.5h7"/>
-    <path d="M6 8H2M22 8h-4"/>
-  </svg>
-);
-const IconShowcase=({c}:{c:string})=>(
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="7" width="20" height="14" rx="2"/>
-    <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
-    <line x1="12" y1="12" x2="12" y2="17"/><line x1="9.5" y1="14.5" x2="14.5" y2="14.5"/>
-  </svg>
-);
-const IconEvents=({c}:{c:string})=>(
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="4" width="18" height="18" rx="2"/>
-    <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
-    <line x1="3" y1="10" x2="21" y2="10"/>
-    <path d="M9 16l2 2 4-4"/>
-  </svg>
-);
-const IconEducation=({c}:{c:string})=>(
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-  </svg>
-);
+// ── RECORD TAB ─────────────────────────────────────────────────────────────
+type RecordEntry={
+  id:number;brand:string;line:string;vitola:string;wrapper:string;origin:string;
+  status:"smoked"|"onMyList";note:string;rating:number;photo:string|null;date:string;
+};
 
-const CLUB_NAV_ICONS=[
-  {Icon:IconTrending,label:'Trending',tab:'trending'},
-  {Icon:IconDiscussions,label:'Discuss',tab:'feed'},
-  {Icon:IconNews,label:'News',tab:'news'},
-  {Icon:IconSpotlight,label:'Spotlights',tab:'spotlights'},
-  {Icon:IconShowcase,label:'Showcase',tab:'showcase'},
-  {Icon:IconEvents,label:'Events',tab:'events'},
-  {Icon:IconEducation,label:'Learn',tab:'learn'},
-];
-
-function CommunityTab({activeSubTab,setActiveSubTab}:{
-  activeSubTab:'feed'|'news'|'trending'|'rareFinds'|'spotlights'|'showcase'|'events'|'learn';
-  setActiveSubTab:(t:'feed'|'news'|'trending'|'rareFinds'|'spotlights'|'showcase'|'events'|'learn')=>void;
-}) {
-  const [posts,setPosts]=useState(POSTS_INIT);
-  const [newPost,setNewPost]=useState('');
-  const [postCategory,setPostCategory]=useState('Review');
-  const [showCompose,setShowCompose]=useState(false);
-  const [liveNews,setLiveNews]=useState<any[]>([]);
-  const [newsLoading,setNewsLoading]=useState(false);
-  const [videos,setVideos]=useState<any[]>([]);
-  const [videosLoading,setVideosLoading]=useState(false);
-  const [podcastGroups,setPodcastGroups]=useState<any[]>([]);
-  const [podcastsLoading,setPodcastsLoading]=useState(false);
-  const [newsSubTab,setNewsSubTab]=useState<'youtube'|'articles'|'podcasts'>('youtube');
-  const [filter,setFilter]=useState<'all'|'following'|'mine'>('all');
-  const [lastFetched,setLastFetched]=useState<{news:number;videos:number;podcasts:number}>({news:0,videos:0,podcasts:0});
-  const CACHE_TTL=30*60*1000; // 30 minutes
-
-  const fetchNews=()=>{
-    setNewsLoading(true);
-    fetch('/api/news')
-      .then(r=>r.json())
-      .then(d=>{if(d.ok&&d.articles?.length>0){setLiveNews(d.articles);setLastFetched(p=>({...p,news:Date.now()}));}})
-      .catch(()=>{})
-      .finally(()=>setNewsLoading(false));
-  };
-  const fetchVideos=()=>{
-    setVideosLoading(true);
-    fetch('/api/youtube')
-      .then(r=>r.json())
-      .then(d=>{if(d.ok&&d.videos?.length>0){setVideos(d.videos);setLastFetched(p=>({...p,videos:Date.now()}));}})
-      .catch(()=>{})
-      .finally(()=>setVideosLoading(false));
-  };
-  const fetchPodcasts=()=>{
-    setPodcastsLoading(true);
-    fetch('/api/podcasts')
-      .then(r=>r.json())
-      .then(d=>{if(d.ok&&d.grouped?.length>0){setPodcastGroups(d.grouped);setLastFetched(p=>({...p,podcasts:Date.now()}));}})
-      .catch(()=>{})
-      .finally(()=>setPodcastsLoading(false));
-  };
-  const refreshAll=()=>{fetchNews();fetchVideos();fetchPodcasts();};
+function RecordTab() {
+  const [records,setRecords]=useState<RecordEntry[]>([]);
+  const [loaded,setLoaded]=useState(false);
+  const [showScanner,setShowScanner]=useState(false);
 
   useEffect(()=>{
-    if(activeSubTab==='news'){
-      const now=Date.now();
-      if(liveNews.length===0||now-lastFetched.news>CACHE_TTL) fetchNews();
-      if(videos.length===0||now-lastFetched.videos>CACHE_TTL) fetchVideos();
-      if(podcastGroups.length===0||now-lastFetched.podcasts>CACHE_TTL) fetchPodcasts();
-    }
-  },[activeSubTab]);
+    try{
+      const raw=localStorage.getItem("mh_records");
+      if(raw) setRecords(JSON.parse(raw));
+    }catch{}
+    setLoaded(true);
+  },[]);
 
-  const submitPost=()=>{
-    if(!newPost.trim()) return;
-    setPosts([{id:Date.now(),user:'You',avatar:'Y',badge:'Member',category:postCategory,time:'Just now',
-      title:'',body:newPost,likes:0,comments:0,liked:false},...posts]);
-    setNewPost('');
-    setShowCompose(false);
+  useEffect(()=>{
+    if(!loaded) return;
+    try{localStorage.setItem("mh_records",JSON.stringify(records));}catch{}
+  },[records,loaded]);
+
+  const openNewEntry=()=>setShowScanner(true);
+
+  const handleSaveToRecord=(r:ScanResult,status:"smoked"|"onMyList",note:string,photo:string|null)=>{
+    const entry:RecordEntry={
+      id:Date.now(),brand:r.brand,line:r.line,vitola:r.vitola,
+      wrapper:r.wrapper,origin:r.origin,status,note,
+      rating:r.rating??0,photo,
+      date:new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})
+    };
+    setRecords(prev=>[entry,...prev]);
+    setShowScanner(false);
   };
 
-  const fi={width:'100%',padding:'10px 14px',background:'rgba(0,0,0,0.3)',
-    border:`1px solid ${T.border}`,borderRadius:8,color:T.textPrimary,
-    fontSize:13,outline:'none',boxSizing:'border-box' as const,fontFamily:'Georgia,serif'};
-
   return (
-    <div style={{paddingBottom:100}}>
-
-      {/* ── CLUB SUB-TABS (inline, all 7 fit on one row) ── */}
-      <div style={{borderBottom:`1px solid rgba(160,120,40,0.28)`,
-        backgroundImage:"url('/leather-nav.png')",
-        backgroundSize:"cover",backgroundPosition:"center top",
-        boxShadow:"0 2px 12px rgba(0,0,0,0.5)"}}>
-        <div style={{display:'flex',padding:'8px 6px',gap:3}}
-          onTouchStart={e=>e.stopPropagation()}
-          onTouchEnd={e=>e.stopPropagation()}>
-          {CLUB_NAV_ICONS.map((item)=>{
-            const active=activeSubTab===item.tab;
-            const c=active?T.goldMid:'rgba(160,120,40,0.5)';
-            return (
-              <button key={item.tab} onClick={()=>setActiveSubTab(item.tab as any)}
-                style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:3,
-                  padding:'6px 2px',
-                  background:active?'rgba(196,154,40,0.18)':'rgba(0,0,0,0.2)',
-                  border:`1px solid ${active?T.borderGold:'rgba(160,120,40,0.15)'}`,
-                  borderRadius:8,cursor:'pointer',transition:'all 0.18s',minWidth:0}}>
-                <item.Icon c={c}/>
-                <span style={{fontSize:8,color:active?T.goldMid:T.textMuted,
-                  fontFamily:'Georgia,serif',whiteSpace:'nowrap',letterSpacing:0.2,
-                  overflow:'hidden',textOverflow:'ellipsis',maxWidth:'100%',
-                  display:'block',textAlign:'center'}}>
-                  {item.label}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── HERO BANNER ─────────────────────────────── */}
-      <div style={{
-        margin:'0 0 0',
-        position:'relative',overflow:'hidden',
-        borderBottom:`1px solid rgba(196,154,40,0.2)`,
-        minHeight:200,
-      }}>
-        {/* Background image */}
-        <img src="/club-hero.jpg" alt="Mario's Social Club"
-          style={{position:'absolute',inset:0,width:'100%',height:'100%',
-            objectFit:'cover',objectPosition:'center 40%',opacity:1}}/>
-        {/* Dark overlay gradient */}
-        <div style={{position:'absolute',inset:0,
-          background:'linear-gradient(160deg,rgba(10,10,10,0.1) 0%,rgba(10,10,10,0.05) 50%,rgba(10,10,10,0.2) 100%)'}}/>
-        {/* Gold top line */}
-        <div style={{position:'absolute',top:0,left:0,right:0,height:2,
-          background:`linear-gradient(90deg,transparent,${T.goldMid},transparent)`}}/>
-        {/* Content */}
-        <div style={{position:'relative',zIndex:1,padding:'24px 20px 20px',minHeight:160,display:'flex',flexDirection:'column'}}>
-          <div>
-            <div style={{fontSize:10,color:T.goldMid,letterSpacing:5,textTransform:'uppercase',
-              fontFamily:'Georgia,serif',marginBottom:8}}>Members Only</div>
-            <div style={{fontSize:26,fontWeight:'bold',color:'#ffffff',
-              fontFamily:'Georgia,serif',lineHeight:1.1,marginBottom:6,
-              textShadow:'0 2px 8px rgba(0,0,0,0.8)'}}>
-              Mario's Social Club
-            </div>
-            <div style={{fontSize:13,color:'rgba(255,255,255,0.75)',fontFamily:'Georgia,serif',
-              fontStyle:'italic',lineHeight:1.6,
-              textShadow:'0 1px 4px rgba(0,0,0,0.8)'}}>
-              A place for cigar enthusiasts to connect, share, learn, and celebrate the lifestyle.
-            </div>
-          </div>
-
-        </div>
-      </div>
-
-      {/* ── CONTENT PILLS — always visible ── */}
-      <div style={{display:'flex',alignItems:'center',padding:'8px 10px 0',
-        borderBottom:`1px solid rgba(196,154,40,0.1)`}}>
-        {/* YouTube pill */}
-        <button onClick={()=>{setActiveSubTab('news' as any);setNewsSubTab('youtube');}}
-          style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'8px 4px',
-            borderRadius:24,cursor:'pointer',fontFamily:'Georgia,serif',fontSize:12,
-            marginBottom:10,fontWeight:(activeSubTab==='news'&&newsSubTab==='youtube')?'bold':'normal',
-            background:(activeSubTab==='news'&&newsSubTab==='youtube')?`linear-gradient(135deg,${T.goldDark},${T.goldMid})`:'transparent',
-            border:(activeSubTab==='news'&&newsSubTab==='youtube')?'none':`1px solid rgba(196,154,40,0.25)`,
-            color:(activeSubTab==='news'&&newsSubTab==='youtube')?'#0a0a0a':T.textMuted}}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={(activeSubTab==='news'&&newsSubTab==='youtube')?'#0a0a0a':T.goldMid} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="2" y="4" width="20" height="16" rx="3"/>
-            <polygon points="10,8 16,12 10,16" fill={(activeSubTab==='news'&&newsSubTab==='youtube')?'#0a0a0a':T.goldMid} stroke="none"/>
-          </svg>
-          YouTube
-        </button>
-        {/* Podcasts pill */}
-        <button onClick={()=>{setActiveSubTab('news' as any);setNewsSubTab('podcasts');}}
-          style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'8px 4px',
-            borderRadius:24,cursor:'pointer',fontFamily:'Georgia,serif',fontSize:12,
-            marginBottom:10,fontWeight:(activeSubTab==='news'&&newsSubTab==='podcasts')?'bold':'normal',
-            background:(activeSubTab==='news'&&newsSubTab==='podcasts')?`linear-gradient(135deg,${T.goldDark},${T.goldMid})`:'transparent',
-            border:(activeSubTab==='news'&&newsSubTab==='podcasts')?'none':`1px solid rgba(196,154,40,0.25)`,
-            color:(activeSubTab==='news'&&newsSubTab==='podcasts')?'#0a0a0a':T.textMuted}}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-            stroke={(activeSubTab==='news'&&newsSubTab==='podcasts')?'#0a0a0a':T.goldMid} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="11" r="4"/>
-            <path d="M12 1a3 3 0 0 0-3 3v4a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" fill={(activeSubTab==='news'&&newsSubTab==='podcasts')?'#0a0a0a':'none'} stroke={(activeSubTab==='news'&&newsSubTab==='podcasts')?'#0a0a0a':T.goldMid}/>
-            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-            <line x1="12" y1="19" x2="12" y2="23"/>
-            <line x1="8" y1="23" x2="16" y2="23"/>
-          </svg>
-          Podcasts
-        </button>
-        {/* News pill */}
-        <button onClick={()=>{setActiveSubTab('news' as any);setNewsSubTab('articles');}}
-          style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'8px 4px',
-            borderRadius:24,cursor:'pointer',fontFamily:'Georgia,serif',fontSize:12,
-            marginBottom:10,fontWeight:(activeSubTab==='news'&&newsSubTab==='articles')?'bold':'normal',
-            background:(activeSubTab==='news'&&newsSubTab==='articles')?`linear-gradient(135deg,${T.goldDark},${T.goldMid})`:'transparent',
-            border:(activeSubTab==='news'&&newsSubTab==='articles')?'none':`1px solid rgba(196,154,40,0.25)`,
-            color:(activeSubTab==='news'&&newsSubTab==='articles')?'#0a0a0a':T.textMuted}}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-            stroke={(activeSubTab==='news'&&newsSubTab==='articles')?'#0a0a0a':T.goldMid} strokeWidth="2" strokeLinecap="round">
-            <path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/>
-            <line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="12" y2="15"/>
-          </svg>
-          News
-        </button>
-        {/* REFRESH button */}
-        <button onClick={refreshAll}
-          style={{display:'flex',alignItems:'center',justifyContent:'center',
-            width:32,height:32,flexShrink:0,borderRadius:'50%',cursor:'pointer',
-            background:'transparent',border:`1px solid rgba(196,154,40,0.25)`,
-            marginBottom:10}}
-          title="Refresh feeds">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.goldMid} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="23 4 23 10 17 10"/>
-            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-          </svg>
-        </button>
-        {/* NEW POST pill */}
-        <button onClick={()=>setShowCompose(true)}
-          style={{flex:1,display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:'8px 4px',
-            marginBottom:10,
-            borderRadius:24,cursor:'pointer',fontFamily:'Georgia,serif',fontSize:12,fontWeight:'bold',
-            background:showCompose?`linear-gradient(135deg,${T.goldDark},${T.goldMid})`:'transparent',
-            border:showCompose?'none':`1px solid rgba(196,154,40,0.25)`,
-            color:showCompose?'#0a0a0a':T.textMuted,letterSpacing:0.3}}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={showCompose?'#0a0a0a':T.goldMid} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-          </svg>
-          New Post
-        </button>
-      </div>
-
-      {/* ── COMPOSE MODAL ───────────────────────────── */}
-      {showCompose&&(
-        <div style={{position:'fixed',inset:0,zIndex:200,background:'rgba(0,0,0,0.85)',
-          display:'flex',alignItems:'flex-end'}}>
-          <div style={{width:'100%',maxWidth:480,margin:'0 auto',
-            background:'#111111',borderRadius:'20px 20px 0 0',
-            border:`1px solid rgba(196,154,40,0.3)`,padding:'20px 20px 40px'}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
-              <div style={{fontSize:16,fontWeight:'bold',color:T.textPrimary,fontFamily:'Georgia,serif'}}>New Post</div>
-              <button onClick={()=>setShowCompose(false)}
-                style={{background:'none',border:'none',color:T.textMuted,fontSize:22,cursor:'pointer'}}>×</button>
-            </div>
-            {/* Category */}
-            <div style={{display:'flex',gap:8,marginBottom:12,overflowX:'auto'}}>
-              {['Review','Pairing','Question','Storage','Discussion'].map(cat=>(
-                <button key={cat} onClick={()=>setPostCategory(cat)}
-                  style={{flexShrink:0,padding:'5px 12px',borderRadius:20,cursor:'pointer',
-                    fontSize:11,fontFamily:'Georgia,serif',
-                    background:postCategory===cat?`${CAT_COLORS[cat]||T.goldDark}22`:'transparent',
-                    border:`1px solid ${postCategory===cat?CAT_COLORS[cat]||T.goldDark:T.border}`,
-                    color:postCategory===cat?CAT_COLORS[cat]||T.goldMid:T.textMuted}}>
-                  {cat}
-                </button>
-              ))}
-            </div>
-            <textarea value={newPost} onChange={e=>setNewPost(e.target.value)}
-              placeholder="What are you smoking today? Share your experience..."
-              rows={4}
-              style={{...fi,resize:'none',lineHeight:1.7,marginBottom:12}}/>
-            <div style={{display:'flex',gap:10}}>
-              <button onClick={submitPost}
-                style={{flex:1,padding:'12px',background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
-                  border:'none',borderRadius:12,color:'#0a0a0a',fontSize:14,
-                  fontWeight:'bold',cursor:'pointer',fontFamily:'Georgia,serif'}}>
-                Post to Club
-              </button>
-              <button onClick={()=>setShowCompose(false)}
-                style={{padding:'12px 16px',background:'transparent',
-                  border:`1px solid ${T.border}`,borderRadius:12,
-                  color:T.textMuted,fontSize:13,cursor:'pointer'}}>
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
+    <div style={{padding:"0 0 32px",position:"relative"}}>
+      {showScanner && (
+        <BandScannerModal
+          recordMode
+          onClose={()=>setShowScanner(false)}
+          onSaveToRecord={handleSaveToRecord}
+        />
       )}
-
-      {/* ── FEED ────────────────────────────────────── */}
-      {activeSubTab==='feed'&&(
+      <div style={{padding:"24px 20px 20px",borderBottom:`1px solid ${T.border}`,
+        display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}>
         <div>
-          {/* Filter pills */}
-          <div style={{display:'flex',gap:8,padding:'12px 16px 4px'}}>
-            {([['all','All Activity'],['following','Following'],['mine','My Posts']] as [typeof filter,string][]).map(([id,label])=>(
-              <button key={id} onClick={()=>setFilter(id)}
-                style={{padding:'6px 14px',borderRadius:20,cursor:'pointer',
-                  fontFamily:'Georgia,serif',fontSize:12,
-                  background:filter===id?'rgba(196,154,40,0.15)':'transparent',
-                  border:`1px solid ${filter===id?T.borderGold:T.border}`,
-                  color:filter===id?T.goldMid:T.textMuted}}>
-                {label}
-              </button>
-            ))}
-            <div style={{marginLeft:'auto',display:'flex',alignItems:'center'}}>
-              <span style={{fontSize:11,color:T.textMuted,fontFamily:'Georgia,serif'}}>Sort: Latest</span>
-            </div>
+          <div style={{fontSize:10,letterSpacing:5,textTransform:"uppercase",color:T.textMuted,fontFamily:"Georgia,serif",marginBottom:6}}>Quick Log</div>
+          <div style={{fontSize:22,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif"}}>Record</div>
+        </div>
+        <button onClick={openNewEntry}
+          style={{background:"linear-gradient(135deg,#2a2a2a,#0a0a0a)",
+            border:`1px solid rgba(196,154,40,0.3)`,
+            borderRadius:20,padding:"8px 18px",color:T.goldMid,fontSize:12,
+            fontFamily:"Georgia,serif",fontWeight:"bold",cursor:"pointer"}}>
+          + Log Cigar
+        </button>
+      </div>
+
+      {loaded&&records.length===0&&(
+        <div style={{padding:"60px 24px",textAlign:"center"}}>
+          <div style={{fontSize:48,marginBottom:16,opacity:0.4}}>🚬</div>
+          <div style={{fontSize:16,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",marginBottom:8}}>
+            No cigars logged yet
           </div>
-          {/* Posts */}
-          <div style={{padding:'8px 16px 0'}}>
-            {posts.map(post=>(
-              <div key={post.id} style={{
-                background:'linear-gradient(170deg,#1a1a1a 0%,#111111 60%,#0d0d0d 100%)',
-                borderRadius:14,border:`1px solid rgba(196,154,40,0.18)`,
-                marginBottom:10,overflow:'hidden',
-                boxShadow:'0 4px 16px rgba(0,0,0,0.4)'}}>
-                <div style={{padding:'14px 16px 0',display:'flex',gap:12}}>
-                  <div style={{width:42,height:42,borderRadius:'50%',flexShrink:0,
-                    background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
-                    display:'flex',alignItems:'center',justifyContent:'center',
-                    fontSize:16,fontWeight:'bold',color:'#0a0a0a',fontFamily:'Georgia,serif'}}>
-                    {post.avatar}
+          <div style={{fontSize:13,color:T.textSecondary,fontFamily:"Georgia,serif",lineHeight:1.6,maxWidth:280,margin:"0 auto"}}>
+            Snap a photo or search for a cigar to keep track of what you've tried — and what's still on your list.
+          </div>
+        </div>
+      )}
+
+      {records.length>0&&(
+        <div style={{display:"flex",flexDirection:"column",gap:12,padding:"16px"}}>
+          {records.map(r=>(
+            <div key={r.id} style={{display:"flex",gap:12,background:T.card,
+              borderRadius:14,border:`1px solid ${T.border}`,overflow:"hidden",padding:12}}>
+              <div style={{width:56,height:56,borderRadius:10,overflow:"hidden",flexShrink:0,
+                background:"rgba(0,0,0,0.3)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                {r.photo?(
+                  <img src={r.photo} alt={r.brand} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                ):(
+                  <span style={{fontSize:24,opacity:0.3}}>🚬</span>
+                )}
+              </div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+                  <div style={{fontSize:14,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif"}}>
+                    {r.brand}{r.line?` ${r.line}`:""}
                   </div>
-                  <div style={{flex:1}}>
-                    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:5,flexWrap:'wrap'}}>
-                      <span style={{fontWeight:'bold',color:T.textPrimary,fontFamily:'Georgia,serif',fontSize:15}}>{post.user}</span>
-                      {post.badge&&<span style={{fontSize:9,color:T.goldMid,background:'rgba(196,154,40,0.12)',
-                        padding:'3px 9px',borderRadius:20,letterSpacing:1,border:`1px solid rgba(196,154,40,0.2)`}}>{post.badge}</span>}
-                      <span style={{fontSize:11,color:T.textMuted,marginLeft:'auto'}}>{post.time}</span>
-                    </div>
-                    <span style={{fontSize:10,color:CAT_COLORS[post.category]||T.goldDark,
-                      background:`${CAT_COLORS[post.category]||T.goldDark}18`,
-                      padding:'3px 10px',borderRadius:12,letterSpacing:1,
-                      border:`1px solid ${CAT_COLORS[post.category]||T.goldDark}33`}}>{post.category}</span>
-                    {post.title&&<div style={{fontSize:16,fontWeight:'bold',color:T.textPrimary,
-                      fontFamily:'Georgia,serif',marginTop:10,marginBottom:4,lineHeight:1.3}}>{post.title}</div>}
-                    <div style={{fontSize:14,color:T.textSecondary,fontFamily:'Georgia,serif',
-                      lineHeight:1.7,marginTop:8,marginBottom:12}}>{post.body}</div>
-                  </div>
-                </div>
-                <div style={{display:'flex',gap:20,padding:'10px 16px 12px',
-                  borderTop:`1px solid rgba(196,154,40,0.08)`}}>
-                  <button onClick={()=>setPosts(posts.map(p=>p.id===post.id?{...p,likes:p.liked?p.likes-1:p.likes+1,liked:!p.liked}:p))}
-                    style={{background:'none',border:'none',cursor:'pointer',
-                      color:post.liked?T.goldLight:T.textMuted,
-                      fontFamily:'Georgia,serif',fontSize:17,display:'flex',alignItems:'center',gap:6}}>
-                    <svg width='13' height='13' viewBox='0 0 24 24' fill={post.liked?T.goldMid:'none'} stroke={T.goldMid} strokeWidth='1.8'><path d='M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z'/></svg> {post.likes}
-                  </button>
-                  <span style={{color:T.textMuted,fontSize:14,display:'flex',alignItems:'center',gap:6}}>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.goldMid} strokeWidth="1.8" style={{display:"inline",marginRight:3}}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>{post.comments} replies
+                  <span style={{fontSize:9,padding:"3px 8px",borderRadius:10,whiteSpace:"nowrap",
+                    background:r.status==="smoked"?"rgba(196,154,40,0.15)":"rgba(255,255,255,0.08)",
+                    color:r.status==="smoked"?T.goldMid:T.textSecondary,
+                    fontFamily:"Georgia,serif",textTransform:"uppercase",letterSpacing:1}}>
+                    {r.status==="smoked"?"Smoked":"On My List"}
                   </span>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={T.textMuted} strokeWidth="1.8" style={{marginLeft:"auto",cursor:"pointer"}}><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── NEWS ────────────────────────────────────── */}
-      {activeSubTab==='news'&&(
-        <div style={{padding:16,display:'flex',flexDirection:'column',gap:12}}>
-          {/* YOUTUBE */}
-          {newsSubTab==='youtube'&&(
-            <>
-              {videosLoading&&(
-                <div style={{textAlign:'center',padding:40,color:T.textMuted,fontFamily:'Georgia,serif'}}>
-                  <div style={{display:'flex',gap:7,justifyContent:'center',marginBottom:12}}>
-                    {[0,1,2].map(i=><div key={i} style={{width:6,height:6,borderRadius:'50%',background:T.goldDark,animation:`sp 1.4s ease-in-out ${i*0.28}s infinite`}}/>)}
-                  </div>
-                  Loading videos...
-                </div>
-              )}
-              {!videosLoading&&videos.length===0&&(
-                <div style={{textAlign:'center',padding:40,color:T.textMuted,fontFamily:'Georgia,serif',fontStyle:'italic'}}>
-                  No videos loaded yet
-                </div>
-              )}
-              {videos.map(v=>(
-                <a key={v.id} href={v.url} target="_blank" rel="noopener noreferrer"
-                  style={{textDecoration:'none',display:'block',
-                    background:'linear-gradient(170deg,#111111,#0a0a0a)',
-                    borderRadius:16,border:`1px solid rgba(196,154,40,0.18)`,
-                    overflow:'hidden',cursor:'pointer'}}>
-                  {/* Full-width thumbnail */}
-                  <div style={{width:'100%',height:190,overflow:'hidden',position:'relative'}}>
-                    {v.thumbnail&&<img src={v.thumbnail} alt={v.title}
-                      style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}
-                      onError={e=>{(e.target as HTMLImageElement).style.display='none';}}/>}
-                    {/* Dark gradient overlay */}
-                    <div style={{position:'absolute',inset:0,
-                      background:'linear-gradient(180deg,transparent 40%,rgba(0,0,0,0.65) 100%)'}}/>
-                    {/* Channel label bottom-left */}
-                    <div style={{position:'absolute',bottom:12,left:14,
-                      fontSize:11,color:'rgba(255,255,255,0.95)',letterSpacing:2.5,
-                      textTransform:'uppercase',fontFamily:'Georgia,serif',fontWeight:'bold'}}>{v.channel}</div>
-                    {/* Play button center */}
-                    <div style={{position:'absolute',top:'50%',left:'50%',
-                      transform:'translate(-50%,-50%)',
-                      width:44,height:44,borderRadius:'50%',background:'rgba(255,0,0,0.88)',
-                      display:'flex',alignItems:'center',justifyContent:'center',
-                      boxShadow:'0 2px 12px rgba(0,0,0,0.5)'}}>
-                      <svg width="14" height="14" viewBox="0 0 10 10" fill="white">
-                        <path d="M3 2l5 3-5 3V2z"/>
-                      </svg>
-                    </div>
-                  </div>
-                  {/* Red accent line */}
-                  <div style={{height:3,background:'#ff4444'}}/>
-                  {/* Content */}
-                  <div style={{padding:'14px 16px 16px'}}>
-                    <div style={{fontSize:11,color:T.textMuted,marginBottom:8,textAlign:'right'}}>{v.publishedAt}</div>
-                    <div style={{fontSize:17,fontWeight:'bold',color:T.textPrimary,
-                      fontFamily:'Georgia,serif',lineHeight:1.3,marginBottom:6}}>
-                      {v.title}
-                    </div>
-                    <div style={{marginTop:12,display:'flex',justifyContent:'flex-start'}}>
-                      <span style={{background:'none',border:'1px solid rgba(255,68,68,0.4)',borderRadius:20,
-                        padding:'7px 18px',fontSize:12,color:'#ff6666',
-                        fontFamily:'Georgia,serif',letterSpacing:0.5}}>
-                        Watch on YouTube →
-                      </span>
-                    </div>
-                  </div>
-                </a>
-              ))}
-            </>
-          )}
-
-          {/* ARTICLES */}
-          {newsSubTab==='articles'&&(
-            <>
-              {newsLoading&&(
-                <div style={{textAlign:'center',padding:40,color:T.textMuted,fontFamily:'Georgia,serif'}}>
-                  <div style={{display:'flex',gap:7,justifyContent:'center',marginBottom:12}}>
-                    {[0,1,2].map(i=><div key={i} style={{width:6,height:6,borderRadius:'50%',background:T.goldDark,animation:`sp 1.4s ease-in-out ${i*0.28}s infinite`}}/>)}
-                  </div>
-                  Loading latest news...
-                </div>
-              )}
-              {!newsLoading&&(()=>{
-                const articles=liveNews;
-                if(articles.length===0) return (
-                  <div style={{textAlign:'center',padding:'40px 20px',color:T.textMuted,fontFamily:'Georgia,serif'}}>
-                    <div style={{fontSize:13,marginBottom:8}}>No articles loaded</div>
-                    <div style={{fontSize:11,fontStyle:'italic',marginBottom:16}}>Tap ↻ to refresh</div>
-                  </div>
-                );
-                // Group by source
-                const bySource:Record<string,any[]>={};
-                articles.forEach((n:any)=>{
-                  const src=n.source||'News';
-                  if(!bySource[src]) bySource[src]=[];
-                  bySource[src].push(n);
-                });
-                const sources=Object.keys(bySource);
-                if(sources.length<=1){
-                  // Single source or flat list — render as-is
-                  return articles.map((n:any)=><NewsCard key={n.id||n.title} n={n}/>);
-                }
-                // Multiple sources — show source headers
-                return sources.map(src=>(
-                  <div key={src} style={{marginBottom:24}}>
-                    <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:12}}>
-                      <div style={{width:6,height:6,borderRadius:'50%',background:T.goldMid,flexShrink:0,
-                        boxShadow:`0 0 8px ${T.goldMid}`}}/>
-                      <div style={{fontSize:10,color:T.goldMid,letterSpacing:3,
-                        textTransform:'uppercase',fontFamily:'Georgia,serif',fontWeight:'bold'}}>{src}</div>
-                      <div style={{flex:1,height:1,background:`linear-gradient(90deg,${T.goldDark}44,transparent)`}}/>
-                    </div>
-                    {bySource[src].map((n:any)=><div key={n.id||n.title} style={{marginBottom:12}}><NewsCard n={n}/></div>)}
-                  </div>
-                ));
-              })()}
-            </>
-          )}
-
-          {/* PODCASTS */}
-          {newsSubTab==='podcasts'&&(
-            <>
-              {podcastsLoading&&(
-                <div style={{textAlign:'center',padding:40,color:T.textMuted,fontFamily:'Georgia,serif'}}>
-                  <div style={{display:'flex',gap:7,justifyContent:'center',marginBottom:12}}>
-                    {[0,1,2].map(i=><div key={i} style={{width:6,height:6,borderRadius:'50%',background:T.goldDark,animation:`sp 1.4s ease-in-out ${i*0.28}s infinite`}}/>)}
-                  </div>
-                  Loading podcast episodes...
-                </div>
-              )}
-              {!podcastsLoading&&podcastGroups.length===0&&(
-                <div style={{textAlign:'center',padding:40,color:T.textMuted,fontFamily:'Georgia,serif',fontStyle:'italic'}}>
-                  No episodes loaded
-                </div>
-              )}
-              {!podcastsLoading&&podcastGroups.map((group:any)=>(
-                <div key={group.channel} style={{marginBottom:20}}>
-                  {/* Channel header */}
-                  <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:10}}>
-                    <div style={{width:6,height:6,borderRadius:'50%',background:group.accent,flexShrink:0,
-                      boxShadow:`0 0 8px ${group.accent}`}}/>
-                    <div style={{fontSize:10,color:group.accent,letterSpacing:3,
-                      textTransform:'uppercase',fontFamily:'Georgia,serif',fontWeight:'bold'}}>{group.channel}</div>
-                    <div style={{flex:1,height:1,background:`linear-gradient(90deg,${group.accent}44,transparent)`}}/>
-                  </div>
-                  {/* Videos */}
-                  {group.videos.length===0?(
-                    <div style={{fontSize:12,color:T.textMuted,fontFamily:'Georgia,serif',fontStyle:'italic',paddingLeft:16}}>No recent episodes</div>
-                  ):group.videos.map((v:any)=>(
-                    <a key={v.id} href={v.url} target="_blank" rel="noopener noreferrer"
-                      style={{textDecoration:'none',display:'block',marginBottom:10,
-                        background:'linear-gradient(170deg,#111111,#0a0a0a)',
-                        borderRadius:16,border:`1px solid rgba(196,154,40,0.18)`,
-                        overflow:'hidden',cursor:'pointer'}}>
-                      {/* Full-width thumbnail */}
-                      <div style={{width:'100%',height:190,overflow:'hidden',position:'relative'}}>
-                        {v.thumbnail?(
-                          <img src={v.thumbnail} alt={v.title}
-                            style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}}
-                            onError={e=>{(e.target as HTMLImageElement).style.display='none';}}/>
-                        ):(
-                          <div style={{width:'100%',height:'100%',
-                            background:`linear-gradient(135deg,${group.accent}22,#0a0a0a)`,
-                            display:'flex',alignItems:'center',justifyContent:'center'}}>
-                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none"
-                              stroke={group.accent} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                              <circle cx="12" cy="11" r="4"/>
-                              <path d="M12 1a3 3 0 0 0-3 3v4a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-                              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-                              <line x1="12" y1="19" x2="12" y2="23"/>
-                              <line x1="8" y1="23" x2="16" y2="23"/>
-                            </svg>
-                          </div>
-                        )}
-                        <div style={{position:'absolute',inset:0,
-                          background:'linear-gradient(180deg,transparent 40%,rgba(0,0,0,0.65) 100%)'}}/>
-                        <div style={{position:'absolute',bottom:12,left:14,
-                          fontSize:11,color:'rgba(255,255,255,0.95)',letterSpacing:2.5,
-                          textTransform:'uppercase',fontFamily:'Georgia,serif',fontWeight:'bold'}}>{group.channel}</div>
-                        {/* Play button */}
-                        <div style={{position:'absolute',top:'50%',left:'50%',
-                          transform:'translate(-50%,-50%)',
-                          width:44,height:44,borderRadius:'50%',
-                          background:`${group.accent}dd`,
-                          display:'flex',alignItems:'center',justifyContent:'center',
-                          boxShadow:'0 2px 12px rgba(0,0,0,0.5)'}}>
-                          <svg width="14" height="14" viewBox="0 0 10 10" fill="#0a0a0a">
-                            <polygon points="3,2 8,5 3,8"/>
-                          </svg>
-                        </div>
-                      </div>
-                      {/* Accent line in channel color */}
-                      <div style={{height:3,background:group.accent}}/>
-                      {/* Content */}
-                      <div style={{padding:'14px 16px 16px'}}>
-                        <div style={{fontSize:11,color:T.textMuted,marginBottom:8,textAlign:'right'}}>{v.publishedAt}</div>
-                        <div style={{fontSize:17,fontWeight:'bold',color:T.textPrimary,
-                          fontFamily:'Georgia,serif',lineHeight:1.3,marginBottom:6}}>
-                          {v.title}
-                        </div>
-                        <div style={{marginTop:12}}>
-                          <span style={{background:'none',border:`1px solid ${group.accent}44`,borderRadius:20,
-                            padding:'7px 18px',fontSize:12,color:group.accent,
-                            fontFamily:'Georgia,serif',letterSpacing:0.5}}>
-                            Listen Now →
-                          </span>
-                        </div>
-                      </div>
-                    </a>
-                  ))}
-                </div>
-              ))}
-            </>
-          )}
-        </div>
-      )}
-
-      {/* ── TRENDING ─────────────────────────────────── */}
-      {activeSubTab==='trending'&&(
-        <div style={{padding:'16px 16px 0'}}>
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
-            <div>
-              <div style={{fontSize:17,fontWeight:'bold',color:T.textPrimary,fontFamily:'Georgia,serif',lineHeight:1.2}}>Trending Now</div>
-              <div style={{fontSize:13,color:T.textSecondary,fontFamily:'Georgia,serif',marginTop:3}}>What the community is talking about</div>
-            </div>
-            <div style={{display:'flex',alignItems:'center',gap:5,background:'rgba(196,154,40,0.1)',
-              border:`1px solid rgba(196,154,40,0.3)`,borderRadius:20,padding:'5px 12px'}}>
-              <SvgIcon id="fire" size={11}/>
-              <span style={{fontSize:10,color:T.goldMid,letterSpacing:2,fontFamily:'Georgia,serif',fontWeight:'bold'}}>LIVE</span>
-            </div>
-          </div>
-          {TRENDING.map((t,i)=>(
-            <div key={i} style={{
-              background:'linear-gradient(170deg,#111111,#0a0a0a)',
-              borderRadius:14,border:`1px solid ${t.hot?'rgba(196,154,40,0.3)':'rgba(196,154,40,0.12)'}`,
-              marginBottom:10,overflow:'hidden',cursor:'pointer',
-              boxShadow:t.hot?'0 4px 20px rgba(196,154,40,0.08)':'none'}}>
-              <div style={{display:'flex',alignItems:'center',gap:14,padding:'16px'}}>
-                <div style={{width:44,height:44,borderRadius:10,flexShrink:0,
-                  background:i===0?`linear-gradient(135deg,${T.goldDark},${T.goldMid})`:
-                             i===1?'linear-gradient(135deg,#888,#aaa)':
-                             i===2?'linear-gradient(135deg,#8B6914,#c49a28)':
-                             'linear-gradient(135deg,#1a1a1a,#2a2a2a)',
-                  border:i>2?`1px solid rgba(196,154,40,0.2)`:'none',
-                  display:'flex',alignItems:'center',justifyContent:'center',
-                  color:i<3?'#0a0a0a':T.goldDark,
-                  fontWeight:'bold',fontFamily:'Georgia,serif',fontSize:18}}>
-                  {i+1}
-                </div>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:4}}>
-                    {t.hot&&<SvgIcon id="fire" size={12}/>}
-                    <div style={{fontSize:16,fontWeight:'bold',color:T.textPrimary,fontFamily:'Georgia,serif',lineHeight:1.2}}>{t.title}</div>
-                  </div>
-                  <div style={{fontSize:12,color:T.textSecondary,fontFamily:'Georgia,serif',fontStyle:'italic',marginBottom:8,lineHeight:1.4}}>{t.sub}</div>
-                  <div style={{display:'flex',alignItems:'center',gap:12}}>
-                    <span style={{fontSize:12,color:T.goldMid,display:"flex",alignItems:"center",gap:3}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.goldMid} strokeWidth="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>{t.comments}</span>
-                    <span style={{fontSize:12,color:T.textMuted,display:"flex",alignItems:"center",gap:3}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.textMuted} strokeWidth="1.8"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>{(t.views/1000).toFixed(1)}K</span>
-                    <span style={{fontSize:11,color:T.textMuted,fontFamily:'Georgia,serif',marginLeft:'auto'}}>{t.time}</span>
-                  </div>
-                </div>
-                <span style={{color:T.goldMid,fontSize:20,flexShrink:0}}>›</span>
-              </div>
-              <div style={{height:2,background:`linear-gradient(90deg,${T.goldDark},${T.goldMid}${Math.round((t.comments/31)*255).toString(16).padStart(2,'0')},transparent)`}}/>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ── SPOTLIGHTS ───────────────────────────────── */}
-      {activeSubTab==='spotlights'&&(
-        <div style={{padding:'16px 16px 0'}}>
-          <div style={{marginBottom:16}}>
-            <div style={{fontSize:17,fontWeight:'bold',color:T.textPrimary,fontFamily:'Georgia,serif'}}>Member Spotlights</div>
-            <div style={{fontSize:13,color:T.textSecondary,fontFamily:'Georgia,serif',marginTop:3}}>Featured collectors this week</div>
-          </div>
-          {[
-            {name:'CigarDon_85',badge:'Top Reviewer',avatar:'C',cigars:247,notes:89,joined:'Jan 2023',
-              fav:'Cohiba Behike BHK 56',bio:'Obsessed with Cuban aged tobacco and Nicaraguan blends. 20+ years in the hobby.'},
-            {name:'HumidorQueen',badge:'Pairing Pro',avatar:'H',cigars:183,notes:64,joined:'Mar 2022',
-              fav:'Padrón Family Reserve No. 85',bio:'Sommelier by day, cigar enthusiast by night. Pairing is an art form.'},
-            {name:'SlowBurn_Mike',badge:'Rare Finder',avatar:'S',cigars:312,notes:121,joined:'Jun 2021',
-              fav:'Arturo Fuente Opus X BBMF',bio:'Estate sale hunter and limited edition tracker. If it\'s rare, I\'ve smoked it.'},
-          ].map(m=>(
-            <div key={m.name} style={{background:'linear-gradient(170deg,#111111,#0a0a0a)',
-              borderRadius:14,border:`1px solid rgba(196,154,40,0.22)`,marginBottom:14,overflow:'hidden'}}>
-              <div style={{height:2,background:`linear-gradient(90deg,${T.goldDark},${T.goldMid})`}}/>
-              <div style={{padding:'16px 16px'}}>
-                <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:12}}>
-                  <div style={{width:48,height:48,borderRadius:'50%',flexShrink:0,
-                    background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
-                    display:'flex',alignItems:'center',justifyContent:'center',
-                    fontSize:20,fontWeight:'bold',color:'#0a0a0a',fontFamily:'Georgia,serif'}}>
-                    {m.avatar}
-                  </div>
-                  <div style={{flex:1}}>
-                    <div style={{display:'flex',alignItems:'center',gap:8}}>
-                      <span style={{fontWeight:'bold',color:T.textPrimary,fontFamily:'Georgia,serif',fontSize:15}}>{m.name}</span>
-                      <span style={{fontSize:9,color:T.goldMid,background:'rgba(196,154,40,0.12)',
-                        padding:'2px 8px',borderRadius:20,border:`1px solid rgba(196,154,40,0.2)`}}>{m.badge}</span>
-                    </div>
-                    <div style={{fontSize:11,color:T.textMuted,marginTop:2}}>Member since {m.joined}</div>
-                  </div>
-                </div>
-                <div style={{fontSize:13,color:T.textSecondary,fontFamily:'Georgia,serif',fontStyle:'italic',
-                  lineHeight:1.7,marginBottom:12}}>{m.bio}</div>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,
-                  paddingTop:12,borderTop:`1px solid rgba(196,154,40,0.1)`}}>
-                  {[['Cigars',m.cigars],['Reviews',m.notes],['Joined',m.joined.split(' ')[1]]].map(([k,v])=>(
-                    <div key={k} style={{textAlign:'center'}}>
-                      <div style={{fontSize:18,fontWeight:'bold',color:T.goldMid,fontFamily:'Georgia,serif'}}>{v}</div>
-                      <div style={{fontSize:9,color:T.textMuted,textTransform:'uppercase',letterSpacing:1.5}}>{k}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ── SHOWCASE ─────────────────────────────────── */}
-      {activeSubTab==='showcase'&&(
-        <div style={{padding:'16px 16px 0'}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end',marginBottom:16}}>
-            <div>
-              <div style={{fontSize:17,fontWeight:'bold',color:T.textPrimary,fontFamily:'Georgia,serif'}}>Collector's Showcase</div>
-              <div style={{fontSize:13,color:T.textSecondary,fontFamily:'Georgia,serif',marginTop:3}}>Members' rarest and finest</div>
-            </div>
-            <button style={{background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
-              border:'none',borderRadius:20,padding:'7px 14px',color:'#0a0a0a',
-              fontSize:11,fontFamily:'Georgia,serif',fontWeight:'bold',cursor:'pointer'}}>
-              + Pin a Cigar
-            </button>
-          </div>
-          {[
-            {user:'CigarDon_85',avatar:'C',badge:'Top Reviewer',cigar:'Cohiba Behike BHK 56',
-              year:'2014',origin:'Cuba',note:'Found 5 at an estate sale in Miami. Previous owner was a diplomat. Transcendent.',
-              rarity:'Ultra Rare',likes:34,wants:18},
-            {user:'HumidorQueen',avatar:'H',badge:'Pairing Pro',cigar:'Padrón Family Reserve No. 85',
-              year:'2009',origin:'Nicaragua',note:'Rested 15 years. Chocolate and leather notes have deepened into something extraordinary.',
-              rarity:'Aged 15yr',likes:41,wants:27},
-            {user:'SlowBurn_Mike',avatar:'S',badge:'',cigar:'Arturo Fuente Opus X BBMF',
-              year:'2018',origin:'Dominican Republic',note:'My tobacconist got an allocation of 12 and held one back for me. Waiting for the right moment.',
-              rarity:'Regional',likes:22,wants:31},
-          ].map((r,i)=>(
-            <div key={i} style={{background:'linear-gradient(170deg,#111111,#0a0a0a)',
-              borderRadius:14,border:`1px solid rgba(196,154,40,0.22)`,marginBottom:14,overflow:'hidden'}}>
-              <div style={{background:`linear-gradient(90deg,${T.goldDark}22,transparent)`,
-                padding:'10px 16px',borderBottom:`1px solid rgba(196,154,40,0.1)`,
-                display:'flex',alignItems:'center',gap:10}}>
-                <div style={{width:32,height:32,borderRadius:'50%',flexShrink:0,
-                  background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
-                  display:'flex',alignItems:'center',justifyContent:'center',
-                  fontSize:13,fontWeight:'bold',color:'#0a0a0a'}}>{r.avatar}</div>
-                <div style={{flex:1}}>
-                  <span style={{color:T.textPrimary,fontFamily:'Georgia,serif',fontSize:13,fontWeight:'bold'}}>{r.user}</span>
-                  {r.badge&&<span style={{fontSize:9,color:T.goldMid,background:'rgba(196,154,40,0.12)',
-                    padding:'2px 8px',borderRadius:20,marginLeft:8,border:`1px solid rgba(196,154,40,0.2)`}}>{r.badge}</span>}
-                </div>
-                <span style={{fontSize:10,color:T.goldMid,background:`${T.goldDark}18`,
-                  border:`1px solid ${T.goldDark}33`,borderRadius:20,padding:'3px 10px',letterSpacing:1}}>{r.rarity}</span>
-              </div>
-              <div style={{padding:'14px 16px'}}>
-                <div style={{fontSize:16,fontWeight:'bold',color:T.textPrimary,fontFamily:'Georgia,serif',marginBottom:3}}>{r.cigar}</div>
-                <div style={{fontSize:11,color:T.goldMid,marginBottom:10}}>{r.year} · {r.origin}</div>
-                <div style={{fontSize:13,color:T.textSecondary,fontFamily:'Georgia,serif',fontStyle:'italic',lineHeight:1.7,marginBottom:12}}>{r.note}</div>
-                <div style={{display:'flex',gap:16,paddingTop:10,borderTop:`1px solid rgba(196,154,40,0.08)`}}>
-                  <span style={{fontSize:13,color:T.textMuted,display:"flex",alignItems:"center",gap:3}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={T.textMuted} strokeWidth="1.8"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>{r.likes}</span>
-                  <span style={{fontSize:13,color:T.goldMid,display:"flex",alignItems:"center",gap:3}}><SvgIcon id="star" size={13}/>{r.wants} want this</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ── EVENTS ───────────────────────────────────── */}
-      {activeSubTab==='events'&&(
-        <div style={{padding:'16px 16px 0'}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-end',marginBottom:16}}>
-            <div>
-              <div style={{fontSize:17,fontWeight:'bold',color:T.textPrimary,fontFamily:'Georgia,serif'}}>Upcoming Events</div>
-              <div style={{fontSize:13,color:T.textSecondary,fontFamily:'Georgia,serif',marginTop:3}}>Tastings, lounges & meetups</div>
-            </div>
-            <button style={{background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
-              border:'none',borderRadius:20,padding:'7px 14px',color:'#0a0a0a',
-              fontSize:11,fontFamily:'Georgia,serif',fontWeight:'bold',cursor:'pointer'}}>
-              + Post Event
-            </button>
-          </div>
-          {[
-            {id:1,title:'Grand Havana Night',host:'CigarDon_85',date:'Jun 14, 2026',time:'7:00 PM',
-              location:'Los Angeles, CA',desc:'Cuban cigar pairing evening featuring pre-revolution Cohibas and aged rums. Limited to 20 guests.',
-              attending:12,cap:20,type:'Tasting'},
-            {id:2,title:'IPCPR Preview Night',host:'HumidorQueen',date:'Jun 21, 2026',time:'6:30 PM',
-              location:'Las Vegas, NV',desc:'Preview of new releases from Padrón, My Father, and Crowned Heads ahead of the trade show.',
-              attending:8,cap:15,type:'Preview'},
-            {id:3,title:'Lake Tahoe Smoke & Hike',host:'SlowBurn_Mike',date:'Jul 4, 2026',time:'10:00 AM',
-              location:'South Lake Tahoe, CA',desc:'Morning hike followed by a sunset smoke session. Bring your favorite outdoor cigar.',
-              attending:6,cap:12,type:'Meetup'},
-          ].map(e=>(
-            <div key={e.id} style={{background:'linear-gradient(170deg,#111111,#0a0a0a)',
-              borderRadius:14,border:`1px solid rgba(196,154,40,0.22)`,marginBottom:14,overflow:'hidden'}}>
-              <div style={{height:3,background:`linear-gradient(90deg,${T.goldDark},${T.goldMid})`}}/>
-              <div style={{padding:'14px 16px'}}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:8}}>
-                  <div style={{flex:1,paddingRight:12}}>
-                    <div style={{fontSize:16,fontWeight:'bold',color:T.textPrimary,fontFamily:'Georgia,serif',marginBottom:4}}>{e.title}</div>
-                    <div style={{fontSize:11,color:T.textMuted}}>Hosted by {e.host}</div>
-                  </div>
-                  <span style={{fontSize:10,color:T.goldMid,background:`${T.goldDark}18`,
-                    border:`1px solid ${T.goldDark}33`,borderRadius:20,padding:'3px 10px',
-                    letterSpacing:1,flexShrink:0}}>{e.type}</span>
-                </div>
-                <div style={{display:'flex',gap:16,marginBottom:10}}>
-                  <div style={{fontSize:12,color:T.textSecondary,display:"flex",alignItems:"center",gap:4}}><SvgIcon id="calendar" size={12}/>{e.date} · {e.time}</div>
-                </div>
-                <div style={{fontSize:12,color:T.textSecondary,marginBottom:10,display:"flex",alignItems:"center",gap:4}}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.textSecondary} strokeWidth="1.8"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>{e.location}</div>
-                <div style={{fontSize:13,color:T.textSecondary,fontFamily:'Georgia,serif',fontStyle:'italic',lineHeight:1.7,marginBottom:12}}>{e.desc}</div>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',
-                  paddingTop:10,borderTop:`1px solid rgba(196,154,40,0.08)`}}>
-                  <div style={{fontSize:12,color:T.textMuted}}>{e.attending}/{e.cap} attending</div>
-                  <button style={{background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
-                    border:'none',borderRadius:20,padding:'7px 18px',color:'#0a0a0a',
-                    fontSize:12,fontFamily:'Georgia,serif',fontWeight:'bold',cursor:'pointer'}}>
-                    RSVP
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ── LEARN — Interactive Tobacco Map ──────────── */}
-      {activeSubTab==='learn'&&<TobaccoMap/>}
-
-      {/* ── RARE FINDS ───────────────────────────────── */}
-      {activeSubTab==='rareFinds'&&(
-        <div style={{padding:'16px 16px 0'}}>
-          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
-            <div>
-              <div style={{fontSize:17,fontWeight:'bold',color:T.textPrimary,fontFamily:'Georgia,serif',lineHeight:1.2}}>Rare Finds</div>
-              <div style={{fontSize:13,color:T.textSecondary,fontFamily:'Georgia,serif',marginTop:3}}>Members sharing exceptional cigars</div>
-            </div>
-            <button style={{background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
-              border:'none',borderRadius:20,padding:'7px 14px',
-              color:'#0a0a0a',fontSize:11,fontFamily:'Georgia,serif',
-              letterSpacing:1,fontWeight:'bold',cursor:'pointer'}}>+ Post Find</button>
-          </div>
-          {RARE_FINDS.map(r=>(
-            <div key={r.id} style={{
-              background:'linear-gradient(170deg,#1a1a1a 0%,#111111 60%,#0d0d0d 100%)',
-              borderRadius:14,border:`1px solid rgba(196,154,40,0.22)`,
-              marginBottom:14,overflow:'hidden',
-              boxShadow:'0 4px 20px rgba(0,0,0,0.4)'}}>
-              <div style={{padding:'14px 16px 0',display:'flex',alignItems:'center',gap:10}}>
-                <div style={{width:38,height:38,borderRadius:'50%',flexShrink:0,
-                  background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
-                  display:'flex',alignItems:'center',justifyContent:'center',
-                  fontSize:14,fontWeight:'bold',color:'#0a0a0a',fontFamily:'Georgia,serif'}}>
-                  {r.avatar}
-                </div>
-                <div style={{flex:1}}>
-                  <div style={{display:'flex',alignItems:'center',gap:8}}>
-                    <span style={{fontWeight:'bold',color:T.textPrimary,fontFamily:'Georgia,serif',fontSize:17}}>{r.user}</span>
-                    {r.badge&&<span style={{fontSize:9,color:T.goldMid,background:'rgba(196,154,40,0.12)',
-                      padding:'2px 8px',borderRadius:20,letterSpacing:1,border:`1px solid rgba(196,154,40,0.2)`}}>{r.badge}</span>}
-                  </div>
-                  <div style={{fontSize:11,color:T.textMuted}}>{r.time}</div>
-                </div>
-              </div>
-              <div style={{padding:'12px 16px 14px'}}>
-                <div style={{fontSize:16,fontWeight:'bold',color:T.textPrimary,fontFamily:'Georgia,serif',marginBottom:4}}>{r.cigar}</div>
-                <div style={{fontSize:11,color:T.goldMid,letterSpacing:1,marginBottom:8}}>{r.rarity} · {r.year} · {r.origin}</div>
-                <div style={{fontSize:13,color:T.textSecondary,fontFamily:'Georgia,serif',fontStyle:'italic',lineHeight:1.7,marginBottom:12}}>{r.story}</div>
-                <div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap' as const}}>
-                  {r.tags.map((tag:string)=>(
-                    <span key={tag} style={{fontSize:10,color:T.textMuted,background:'rgba(255,255,255,0.04)',
-                      border:`1px solid ${T.border}`,borderRadius:20,padding:'3px 10px'}}>{tag}</span>
-                  ))}
-                </div>
-                <div style={{display:'flex',gap:16,paddingTop:10,borderTop:`1px solid rgba(196,154,40,0.08)`}}>
-                  <span style={{fontSize:13,color:T.textMuted,display:"flex",alignItems:"center",gap:3}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={T.textMuted} strokeWidth="1.8"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>{r.likes}</span>
-                  <span style={{fontSize:13,color:T.goldMid,display:"flex",alignItems:"center",gap:3}}><SvgIcon id="star" size={13}/>{r.wants} want this</span>
-                </div>
+                {r.vitola&&<div style={{fontSize:12,color:T.textSecondary,fontFamily:"Georgia,serif",marginTop:2}}>{r.vitola}</div>}
+                <div style={{fontSize:11,color:T.textMuted,marginTop:4}}>{r.date}</div>
               </div>
             </div>
           ))}
@@ -4029,6 +3199,7 @@ function CommunityTab({activeSubTab,setActiveSubTab}:{
     </div>
   );
 }
+
 
 function TastingNotesTab() {
   const [notes,setNotes]=useState(NOTES_INIT);
@@ -4272,40 +3443,6 @@ function SettingsTab() {
   );
 }
 
-// ── NEWS SCREEN ────────────────────────────────────────────────────────────
-function NewsTab() {
-  return (
-    <div style={{padding:"0 0 32px"}}>
-      <div style={{padding:"24px 20px 18px"}}>
-        <div style={{fontSize:10,letterSpacing:5,textTransform:"uppercase",color:T.textMuted,fontFamily:"Georgia,serif"}}>Cigar News</div>
-      </div>
-      <div style={{display:"flex",flexDirection:"column",gap:12,padding:"0 16px"}}>
-        {NEWS.map(n=>(
-          <div key={n.id} style={{background:T.card,borderRadius:16,border:`1px solid ${T.border}`,overflow:"hidden"}}>
-            <div style={{height:3,background:n.accent}}/>
-            <div style={{padding:"18px 18px 16px"}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-                <div style={{fontSize:10,color:n.accent,letterSpacing:2,textTransform:"uppercase",fontFamily:"Georgia,serif"}}>{n.source}</div>
-                <div style={{fontSize:10,color:T.textMuted}}>{n.date}</div>
-              </div>
-              <div style={{fontSize:19,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1.3,marginBottom:10}}>{n.title}</div>
-              <div style={{fontSize:17,color:T.textSecondary,lineHeight:1.7,fontFamily:"Georgia,serif"}}>{n.summary}</div>
-              <div style={{marginTop:14,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <button style={{background:"none",border:`1px solid ${n.accent}44`,borderRadius:20,
-                  padding:"5px 14px",fontSize:11,color:n.accent,cursor:"pointer",fontFamily:"Georgia,serif",letterSpacing:0.5}}>
-                  Read More
-                </button>
-                <div style={{fontSize:10,color:T.textMuted,fontFamily:"Georgia,serif",fontStyle:"italic"}}>Mario's Take →</div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-
 function SvgIcon({id,size=18,color}:{id:string,size?:number,color?:string}) {
   const c=color||T.goldMid;
   const s={width:size,height:size};
@@ -4339,6 +3476,7 @@ function SvgIcon({id,size=18,color}:{id:string,size?:number,color?:string}) {
 const NAV=[
   {id:"home",tk:"nav_home"},
   {id:"humidors",tk:"nav_humidors"},
+  {id:"record",tk:"nav_record"},
   {id:"club",tk:"nav_club"},
   {id:"profile",tk:"nav_profile"},
 ];
@@ -4347,7 +3485,7 @@ function NavIcon({id,active}:{id:string,active:boolean}) {
   const c=active?T.goldLight:T.goldMid;
   const icons:Record<string,React.ReactNode>={
     humidors:(
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none" suppressHydrationWarning>
+      <svg width="26" height="26" viewBox="0 0 22 22" fill="none" suppressHydrationWarning>
         <circle cx="11" cy="11" r="8.5" stroke={c} strokeWidth="1.4" fill="none"/>
         {Array.from({length:9},(_,i)=>{const a=(i*40-200)*Math.PI/180,r1=i%3===0?5.5:6.5,r2=7.8;
           return <line key={i} suppressHydrationWarning x1={11+r1*Math.cos(a)} y1={11+r1*Math.sin(a)} x2={11+r2*Math.cos(a)} y2={11+r2*Math.sin(a)}
@@ -4358,37 +3496,46 @@ function NavIcon({id,active}:{id:string,active:boolean}) {
       </svg>
     ),
     challenges:(
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <svg width="26" height="26" viewBox="0 0 22 22" fill="none">
         <path d="M11 2l2.5 5 5.5.8-4 3.9.9 5.5L11 14.5 6.1 17.2l.9-5.5L3 7.8l5.5-.8L11 2z"
           stroke={c} strokeWidth="1.4" strokeLinejoin="round" fill="none"/>
       </svg>
     ),
     club:(
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <svg width="26" height="26" viewBox="0 0 22 22" fill="none">
         <path d="M11 3l2.5 5 5.5.8-4 3.9.9 5.5L11 15.5 6.1 18.2l.9-5.5L3 8.8l5.5-.8L11 3z"
           stroke={c} strokeWidth="1.4" strokeLinejoin="round" fill={active?c:"none"}/>
       </svg>
     ),
     leaderboard:(
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <svg width="26" height="26" viewBox="0 0 22 22" fill="none">
         <rect x="2" y="12" width="4" height="8" rx="1" stroke={c} strokeWidth="1.4"/>
         <rect x="9" y="7" width="4" height="13" rx="1" stroke={c} strokeWidth="1.4"/>
         <rect x="16" y="3" width="4" height="17" rx="1" stroke={c} strokeWidth="1.4"/>
       </svg>
     ),
+    record:(
+      <svg width="26" height="26" viewBox="0 0 22 22" fill="none">
+        <g transform="rotate(-35 11 11)">
+          <rect x="3" y="9" width="16" height="4" rx="2" stroke={c} strokeWidth="1.4" fill="none"/>
+          <rect x="8" y="8.4" width="2.4" height="5.2" stroke={c} strokeWidth="1" fill={active?c:"none"}/>
+          <path d="M19 11c1 0 1.6.6 1.6 1.4" stroke={c} strokeWidth="1.2" strokeLinecap="round" opacity="0.6"/>
+        </g>
+      </svg>
+    ),
     home:(
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <svg width="26" height="26" viewBox="0 0 22 22" fill="none">
         <path d="M3 9.5L11 3l8 6.5V19a1 1 0 0 1-1 1H14v-5h-4v5H4a1 1 0 0 1-1-1V9.5z" stroke={c} strokeWidth="1.4" fill="none" strokeLinejoin="round"/>
       </svg>
     ),
     profile:(
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <svg width="26" height="26" viewBox="0 0 22 22" fill="none">
         <circle cx="11" cy="8" r="3.8" stroke={c} strokeWidth="1.4" fill="none"/>
         <path d="M4 20c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke={c} strokeWidth="1.4" strokeLinecap="round"/>
       </svg>
     ),
     collection:(
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <svg width="26" height="26" viewBox="0 0 22 22" fill="none">
         <rect x="2.5" y="6" width="17" height="13" rx="2" stroke={c} strokeWidth="1.4" fill="none"/>
         <path d="M7.5 6V4.5A3.5 3.5 0 0 1 14.5 4.5V6" stroke={c} strokeWidth="1.4"/>
         <line x1="7" y1="11.5" x2="15" y2="11.5" stroke={c} strokeWidth="1.2" strokeLinecap="round" opacity="0.7"/>
@@ -4396,14 +3543,14 @@ function NavIcon({id,active}:{id:string,active:boolean}) {
       </svg>
     ),
     mario:(
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <svg width="26" height="26" viewBox="0 0 22 22" fill="none">
         <circle cx="11" cy="8" r="3.8" stroke={c} strokeWidth="1.4" fill="none"/>
         <path d="M4 20c0-3.866 3.134-7 7-7s7 3.134 7 7" stroke={c} strokeWidth="1.4" strokeLinecap="round"/>
         <circle cx="11" cy="8" r="1.4" fill={c}/>
       </svg>
     ),
     community:(
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <svg width="26" height="26" viewBox="0 0 22 22" fill="none">
         <circle cx="8.5" cy="8" r="3" stroke={c} strokeWidth="1.4" fill="none"/>
         <circle cx="15.5" cy="8" r="3" stroke={c} strokeWidth="1.4" fill="none"/>
         <path d="M2 19c0-3.31 2.91-6 6.5-6s6.5 2.69 6.5 6" stroke={c} strokeWidth="1.4" strokeLinecap="round"/>
@@ -4411,14 +3558,14 @@ function NavIcon({id,active}:{id:string,active:boolean}) {
       </svg>
     ),
     notes:(
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <svg width="26" height="26" viewBox="0 0 22 22" fill="none">
         <path d="M12.5 2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6.5-6z" stroke={c} strokeWidth="1.4" fill="none"/>
         <line x1="7" y1="11" x2="15" y2="11" stroke={c} strokeWidth="1.2" strokeLinecap="round" opacity="0.7"/>
         <line x1="7" y1="14.5" x2="11.5" y2="14.5" stroke={c} strokeWidth="1.2" strokeLinecap="round" opacity="0.5"/>
       </svg>
     ),
     news:(
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <svg width="26" height="26" viewBox="0 0 22 22" fill="none">
         <rect x="2" y="4" width="18" height="14" rx="2" stroke={c} strokeWidth="1.4" fill="none"/>
         <line x1="6" y1="8.5" x2="16" y2="8.5" stroke={c} strokeWidth="1.2" strokeLinecap="round"/>
         <line x1="6" y1="11.5" x2="16" y2="11.5" stroke={c} strokeWidth="1.2" strokeLinecap="round" opacity="0.7"/>
@@ -4426,7 +3573,7 @@ function NavIcon({id,active}:{id:string,active:boolean}) {
       </svg>
     ),
     settings:(
-      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+      <svg width="26" height="26" viewBox="0 0 22 22" fill="none">
         <circle cx="11" cy="11" r="3" stroke={c} strokeWidth="1.4" fill="none"/>
         <path d="M11 2v2M11 18v2M2 11H4M18 11h2M4.05 4.05l1.41 1.41M16.54 16.54l1.41 1.41M4.05 17.95l1.41-1.41M16.54 5.46l1.41-1.41"
           stroke={c} strokeWidth="1.4" strokeLinecap="round"/>
@@ -4467,15 +3614,6 @@ function TopNav({tab,setTab}:{tab:string,setTab:(t:string)=>void}) {
       })}
     </div>
   );
-}
-
-function ContextBar({tab,activeClubTab,setActiveClubTab,onNewPost}:{
-  tab:string;
-  activeClubTab:string;
-  setActiveClubTab:(t:string)=>void;
-  onNewPost?:()=>void;
-}) {
-  return null;
 }
 
 // ── APP HEADER ─────────────────────────────────────────────────────────────
@@ -4558,16 +3696,81 @@ function MarioModal({initialPrompt,onClose,liveData,lang}:{
     const userMsg={role:"user",text};
     setMessages(m=>[...m,userMsg]);
     setInput("");
-    setLoading(true);
+    // Delay the visual "typing" indicator slightly so it doesn't feel instant/robotic
+    const loadingTimer=setTimeout(()=>setLoading(true),500);
     try{
       const allMsgs=[...messages,userMsg];
       const res=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({system:systemPrompt,
           messages:allMsgs.map(m=>({role:m.role==="ai"?"assistant":"user",content:m.text}))})});
-      const data=await res.json();
-      const reply=data.content?.find((b:{type:string;text?:string})=>b.type==="text")?.text||"Please try again.";
-      setMessages(m=>[...m,{role:"ai",text:reply}]);
-    }catch{setMessages(m=>[...m,{role:"ai",text:"A momentary connection issue.\n\n— Mario"}]);}
+
+      if(!res.body){throw new Error("No response body");}
+
+      const reader=res.body.getReader();
+      const decoder=new TextDecoder();
+      let buffer="";
+      let targetText="";   // full text received so far
+      let shownText="";    // text currently displayed (typewriter)
+      let started=false;
+      let streamDone=false;
+
+      // Typewriter: reveal a few characters at a steady interval,
+      // independent of how chunky the network delivery is.
+      const REVEAL_CHARS_PER_TICK=1;
+      const TICK_MS=15;
+      const revealInterval=setInterval(()=>{
+        if(shownText.length<targetText.length){
+          shownText=targetText.slice(0,shownText.length+REVEAL_CHARS_PER_TICK);
+          setMessages(m=>{
+            const copy=[...m];
+            copy[copy.length-1]={role:"ai",text:shownText};
+            return copy;
+          });
+        }else if(streamDone){
+          clearInterval(revealInterval);
+        }
+      },TICK_MS);
+
+      while(true){
+        const{done,value}=await reader.read();
+        if(done) break;
+        buffer+=decoder.decode(value,{stream:true});
+
+        const lines=buffer.split("\n");
+        buffer=lines.pop()||"";
+
+        for(const line of lines){
+          const trimmed=line.trim();
+          if(!trimmed.startsWith("data:")) continue;
+          const jsonStr=trimmed.slice(5).trim();
+          if(!jsonStr||jsonStr==="[DONE]") continue;
+
+          let evt:any;
+          try{evt=JSON.parse(jsonStr);}catch{continue;}
+
+          if(evt.type==="content_block_delta"&&evt.delta?.type==="text_delta"){
+            targetText+=evt.delta.text;
+            if(!started){
+              started=true;
+              clearTimeout(loadingTimer);
+              setLoading(false);
+              setMessages(m=>[...m,{role:"ai",text:""}]);
+            }
+          }
+        }
+      }
+
+      streamDone=true;
+
+      if(!started){
+        clearTimeout(loadingTimer);
+        clearInterval(revealInterval);
+        setMessages(m=>[...m,{role:"ai",text:"Please try again.\n\n— Mario"}]);
+      }
+    }catch{
+      clearTimeout(loadingTimer);
+      setMessages(m=>[...m,{role:"ai",text:"A momentary connection issue.\n\n— Mario"}]);
+    }
     setLoading(false);
   },[messages,loading,systemPrompt]);
 
@@ -4590,10 +3793,10 @@ function MarioModal({initialPrompt,onClose,liveData,lang}:{
       {/* Modal header */}
       <div style={{flexShrink:0,padding:"14px 16px 12px",borderBottom:`1px solid rgba(196,154,40,0.15)`,
         display:"flex",alignItems:"center",gap:12,background:"#0a0a0a"}}>
-        <div style={{width:44,height:44,borderRadius:"50%",flexShrink:0,
+        <div style={{width:64,height:64,borderRadius:"50%",flexShrink:0,
           border:`2px solid ${T.goldMid}`,overflow:"hidden",
           boxShadow:`0 0 0 2px #0a0a0a,0 0 0 4px ${T.goldDark}44`}}>
-          <img src="/mario-avatar.jpg" alt="Mario" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 50%"}}/>
+          <img src="/mario-avatar-modal.jpg" alt="Mario" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 60%"}}/>
         </div>
         <div style={{flex:1}}>
           <div style={{fontSize:16,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif"}}>Mario</div>
@@ -4628,11 +3831,11 @@ function MarioModal({initialPrompt,onClose,liveData,lang}:{
                   border:`1px solid rgba(196,154,40,0.22)`,borderRadius:"3px 16px 16px 16px",
                   padding:"16px 18px",boxShadow:"0 4px 20px rgba(0,0,0,0.5)"}}>
                   <div style={{fontSize:9,color:T.goldMid,letterSpacing:2,textTransform:"uppercase",
-                    marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
-                    <div style={{width:18,height:18,borderRadius:"50%",overflow:"hidden",border:`1px solid ${T.goldDark}`,flexShrink:0}}>
-                      <img src="/mario-avatar.jpg" alt="Mario" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 50%"}}/>
+                    marginBottom:12,display:"flex",alignItems:"center",gap:10}}>
+                    <div style={{width:32,height:32,borderRadius:"50%",overflow:"hidden",border:`1px solid ${T.goldDark}`,flexShrink:0}}>
+                      <img src="/mario-avatar-modal.jpg" alt="Mario" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"38% 40%"}}/>
                     </div>
-                    <span>Mario</span>
+                    <span style={{fontSize:11}}>Mario</span>
                   </div>
                   <div style={{fontSize:17,color:T.textPrimary,lineHeight:1.85,fontFamily:"Georgia,serif",whiteSpace:"pre-line"}}>{m.text}</div>
                 </div>
@@ -4666,8 +3869,8 @@ function MarioModal({initialPrompt,onClose,liveData,lang}:{
               fontFamily:"Georgia,serif",outline:"none"}}/>
           <button onClick={()=>send(input)}
             style={{width:44,height:44,borderRadius:"50%",flexShrink:0,
-              background:`linear-gradient(135deg,${T.goldMid},${T.goldDark})`,
-              border:"none",cursor:"pointer",color:"#0a0a0a",fontSize:22,fontWeight:"bold",
+              background:"linear-gradient(135deg,#2a2a2a,#0a0a0a)",
+              border:`1px solid rgba(196,154,40,0.3)`,cursor:"pointer",color:T.goldMid,fontSize:22,fontWeight:"bold",
               display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>›</button>
         </div>
 
@@ -4766,20 +3969,6 @@ function HomeTab({liveData,liveStatus,lastUpdated,onRefresh,onNavigate}:{
   return(
     <div style={{paddingBottom:24,position:"relative",minHeight:"100vh"}}>
 
-      {/* ── FULL-BLEED MARIO BACKGROUND ────────────────────────────────── */}
-      <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",
-        width:"100%",maxWidth:480,height:"100vh",zIndex:0,overflow:"hidden",background:T.bg}}>
-        <div style={{position:"absolute",top:0,left:0,right:0,height:340,overflow:"hidden",
-          display:"flex",alignItems:"flex-end",justifyContent:"flex-end"}}>
-          <img src="/mario-avatar.jpg" alt=""
-            style={{width:"auto",height:"75%",maxWidth:"none",
-              objectFit:"contain",display:"block"}}/>
-          {/* Gradient overlay for legibility, fading to solid bg at bottom of image zone */}
-          <div style={{position:"absolute",inset:0,
-            background:"linear-gradient(180deg, rgba(10,8,4,0.45) 0%, rgba(10,8,4,0.35) 40%, rgba(10,8,4,0.85) 85%, "+T.bg+" 100%)"}}/>
-        </div>
-      </div>
-
       {/* ── CONTENT (floating over background) ─────────────────────────── */}
       <div style={{position:"relative",zIndex:1}}>
 
@@ -4841,15 +4030,14 @@ function HomeTab({liveData,liveStatus,lastUpdated,onRefresh,onNavigate}:{
             </div>
             <button onClick={()=>openModal(freeInput)}
               style={{width:38,height:38,borderRadius:"50%",flexShrink:0,
-                background:`linear-gradient(135deg,${T.goldMid},${T.goldDark})`,
-                border:"none",cursor:"pointer",color:"#0a0a0a",fontSize:22,fontWeight:"bold",
+                background:"linear-gradient(135deg,#2a2a2a,#0a0a0a)",
+                border:`1px solid rgba(196,154,40,0.3)`,cursor:"pointer",color:T.goldMid,fontSize:22,fontWeight:"bold",
                 display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1}}>›</button>
           </div>
 
-          {/* 5 Quick Prompts */}
-          <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8}}>
+          {/* 4 Quick Prompts */}
+          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
             {[
-              {icon:"🍂",label:"What Should I Smoke?",prompt:"What should I smoke today?"},
               {icon:"🥃",label:"Pair this Cigar",prompt:"What pairs well with this cigar?"},
               {icon:"📍",label:"Find a lounge near me",prompt:"lounge",isLounge:true},
               {icon:"⏳",label:"What's aging well?",prompt:"What's aging well in my humidor?"},
@@ -4859,11 +4047,11 @@ function HomeTab({liveData,liveStatus,lastUpdated,onRefresh,onNavigate}:{
                 onClick={()=>p.isLounge?handleLounge(p.prompt):openModal(p.prompt)}
                 style={{background:"rgba(0,0,0,0.35)",
                   border:`1px solid rgba(196,154,40,0.18)`,borderRadius:12,
-                  padding:"8px 4px",cursor:"pointer",textAlign:"center",
-                  display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
-                <span style={{fontSize:18}}>{p.icon}</span>
-                <span style={{fontSize:9,color:"#ffffff",fontFamily:"Georgia,serif",
-                  lineHeight:1.25}}>{p.label}</span>
+                  padding:"12px 6px",cursor:"pointer",textAlign:"center",
+                  display:"flex",flexDirection:"column",alignItems:"center",gap:8}}>
+                <span style={{fontSize:24}}>{p.icon}</span>
+                <span style={{fontSize:11,color:"#ffffff",fontFamily:"Georgia,serif",
+                  lineHeight:1.3}}>{p.label}</span>
               </button>
             ))}
           </div>
@@ -4936,9 +4124,10 @@ function HomeTab({liveData,liveStatus,lastUpdated,onRefresh,onNavigate}:{
               )}
             </div>
             {/* CTA pill */}
-            <div style={{alignSelf:"flex-start",background:`linear-gradient(135deg,${T.goldDark},${T.goldMid})`,
+            <div style={{alignSelf:"flex-start",background:"linear-gradient(135deg,#2a2a2a,#0a0a0a)",
               borderRadius:8,padding:"8px 18px",marginTop:10,
-              color:"#0a0a0a",fontSize:13,fontWeight:"bold",fontFamily:"Georgia,serif",
+              border:`1px solid rgba(196,154,40,0.3)`,
+              color:T.goldMid,fontSize:13,fontWeight:"bold",fontFamily:"Georgia,serif",
               letterSpacing:0.5,whiteSpace:"nowrap"}}>
               {heroRec?"Tell Me More":isReturning?"Ask Mario":"Get Started"}
             </div>
@@ -4984,28 +4173,8 @@ function HomeTab({liveData,liveStatus,lastUpdated,onRefresh,onNavigate}:{
         </div>
       </div>
 
-      {/* ── 6. GROUP CHALLENGE TICKER (fixed above bottom nav) ──────────── */}
-      <div style={{height:60}}/> {/* spacer so content isn't hidden behind fixed ticker+nav */}
-      <div style={{position:"fixed",bottom:64,left:"50%",transform:"translateX(-50%)",
-        width:"100%",maxWidth:480,zIndex:99,padding:"0 16px"}}>
-        <div style={{width:"100%",background:"rgba(15,15,15,0.85)",
-          backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",
-          border:`1px solid rgba(196,154,40,0.18)`,borderRadius:12,
-          padding:"10px 0",overflow:"hidden",position:"relative"}}>
-          <div style={{display:"flex",whiteSpace:"nowrap",
-            animation:"ticker-scroll 32s linear infinite"}}>
-            {[...HOME_TICKER_ITEMS,...HOME_TICKER_ITEMS].map((item,i)=>(
-              <span key={i} style={{display:"inline-flex",alignItems:"center",gap:8,
-                padding:"0 28px",fontSize:13,color:"#ffffff",
-                fontFamily:"Georgia,serif"}}>
-                <span style={{fontSize:14}}>{item.icon}</span>
-                {item.text}
-                <span style={{color:"rgba(255,255,255,0.35)",marginLeft:20}}>•</span>
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
+      {/* ── 6. GROUP CHALLENGE TICKER spacer (ticker itself rendered at app level) ── */}
+      <div style={{height:60}}/>
 
       {/* ── 6. PERSONALIZED INSIGHTS ───────────────────────────────────── */}
       {insights.length>0&&(
@@ -6120,7 +5289,7 @@ function ProfileTab() {
               border:`3px solid ${T.goldMid}`,background:"#111",
               boxShadow:`0 0 20px rgba(196,154,40,0.3)`}}>
               <img src="/mario-avatar.jpg" alt="Profile"
-                style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 40%"}}
+                style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 35%"}}
                 onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
             </div>
           </div>
@@ -6469,10 +5638,7 @@ export default function MariosHumidor() {
     return()=>clearInterval(t);
   },[fetchLive]);
 
-  const [showCompose,setShowCompose]=useState(false);
-  const [activeClubTab,setActiveClubTab]=useState<'feed'|'news'|'trending'|'rareFinds'|'spotlights'|'showcase'|'events'|'learn'>('feed');
-
-  const TAB_ORDER=["home","humidors","club","profile"];
+  const TAB_ORDER=["home","humidors","record","club","profile"];
   const touchStartX=useRef<number|null>(null);
   const touchStartY=useRef<number|null>(null);
   const [prevTab,setPrevTab]=useState<string|null>(null);
@@ -6522,10 +5688,10 @@ export default function MariosHumidor() {
     switch(t){
       case "home":       return <HomeTab liveData={liveData} liveStatus={liveStatus} lastUpdated={lastUpdated} onRefresh={()=>fetchLive(false)} onNavigate={navigateTo}/>;
       case "humidors":   return <HumidorsTab liveData={liveData} liveStatus={liveStatus} lastUpdated={lastUpdated} onRefresh={()=>fetchLive(false)}/>;
+      case "record":     return <RecordTab/>;
       case "club":       return <ClubTab/>;
       case "profile":    return <ProfileTab/>;
       case "collection": return <CollectionTab/>;
-      case "community":  return <CommunityTab activeSubTab={activeClubTab} setActiveSubTab={setActiveClubTab}/>;
       case "challenges": return <ChallengesTab/>;
       case "leaderboard": return <LeaderboardTab/>;
       default:           return <HomeTab liveData={liveData} liveStatus={liveStatus} lastUpdated={lastUpdated} onRefresh={()=>fetchLive(false)} onNavigate={navigateTo}/>;
@@ -6551,13 +5717,50 @@ export default function MariosHumidor() {
             willChange:slideDir?"transform":"auto",
             backfaceVisibility:"hidden"}}>
             {TAB_ORDER.map(t=>(
-              <div key={t} style={{display:tab===t?"block":"none"}}>
+              <div key={t} style={{display:tab===t?"block":"none",contain:"layout style paint"}}>
                 {renderTab(t)}
               </div>
             ))}
           </div>
         </div>
       </div>
+      {/* ── FULL-BLEED MARIO BACKGROUND — rendered outside tab switcher to avoid glitch on swipe ── */}
+      {tab==='home'&&(
+        <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",
+          width:"100%",maxWidth:480,height:"100vh",zIndex:0,overflow:"hidden",background:T.bg}}>
+          <div style={{position:"absolute",top:0,left:0,right:0,height:340,overflow:"hidden",
+            display:"flex",alignItems:"flex-end",justifyContent:"flex-end"}}>
+            <img src="/mario-avatar.jpg" alt=""
+              style={{width:"auto",height:"75%",maxWidth:"none",
+                objectFit:"contain",display:"block"}}/>
+            <div style={{position:"absolute",inset:0,
+              background:"linear-gradient(180deg, rgba(10,8,4,0.45) 0%, rgba(10,8,4,0.35) 40%, rgba(10,8,4,0.85) 85%, "+T.bg+" 100%)"}}/>
+          </div>
+        </div>
+      )}
+      {/* ── GROUP CHALLENGE TICKER — rendered outside tab switcher to avoid glitch on swipe ── */}
+      {tab==='home'&&(
+        <div style={{position:"fixed",bottom:64,left:"50%",transform:"translateX(-50%)",
+          width:"100%",maxWidth:480,zIndex:99}}>
+          <div style={{width:"100%",background:"rgba(15,15,15,0.85)",
+            backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",
+            border:`1px solid rgba(196,154,40,0.18)`,borderRadius:0,
+            padding:"10px 0",overflow:"hidden",position:"relative"}}>
+            <div style={{display:"flex",whiteSpace:"nowrap",
+              animation:"ticker-scroll 9s linear infinite"}}>
+              {[...HOME_TICKER_ITEMS,...HOME_TICKER_ITEMS].map((item,i)=>(
+                <span key={i} style={{display:"inline-flex",alignItems:"center",gap:8,
+                  padding:"0 28px",fontSize:13,color:"#ffffff",
+                  fontFamily:"Georgia,serif"}}>
+                  <span style={{fontSize:14}}>{item.icon}</span>
+                  {item.text}
+                  <span style={{color:"rgba(255,255,255,0.35)",marginLeft:20}}>•</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       <TopNav tab={tab} setTab={navigateTo}/>
       <style>{`
         *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
