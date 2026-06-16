@@ -222,6 +222,9 @@ const NOTES_INIT=[
 // ── HUMIDORS SCREEN ────────────────────────────────────────────────────────
 
 
+const HUMIDORS:any[]=[];
+const CIGARS:any[]=[];
+
 // ── EXPORTS ──────────────────────────────────────────────────────────────────
 export {T,r2,LANGS,TRANSLATIONS,NOTES_INIT,HUMIDORS,CIGARS};
 export type {LangCode,CigarEntry};
