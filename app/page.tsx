@@ -237,7 +237,7 @@ function AuthScreen() {
             variables:{
               colorPrimary:"#C49A28",
               colorBackground:"#111111",
-              colorText:"#ede0cc",
+              
               colorTextSecondary:"rgba(237,224,204,0.6)",
               colorInputBackground:"rgba(255,255,255,0.05)",
               colorInputText:"#ede0cc",
