@@ -6,7 +6,7 @@ import {upsertCigar as syncUpsertCigar,deleteCigar as syncDeleteCigar} from "@/l
 import {BandScannerModal} from "@/components/BandScannerModal";
 
 type ScanResult={brand:string;line:string;vitola:string;origin:string;wrapper:string;rating:number|null;confidence:string;notes:string;image_filename?:string|null};
-type CigarEntry={id:number;brand:string;line:string;vitola:string;origin:string;wrapper:string;rating:number;count:number;purchaseDate:string;bandColor:string;humidorId:number|null};
+type CigarEntry={id:number;brand:string;line:string;vitola:string;origin:string;wrapper:string;rating:number;count:number;purchaseDate:string;bandColor:string;humidorId:number|null;customPhoto?:string|null;imageUri?:string|null;image_filename?:string|null};
 
 const ADS = [
   {brand:"Davidoff",line:"Winston Churchill\nThe Late Hour",vitola:"Toro · 6 × 50",badge:"New Release",

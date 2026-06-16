@@ -5,7 +5,7 @@ import React,{useState,useEffect,useRef,useCallback} from "react";
 import {upsertHumidor as syncUpsertHumidor,deleteHumidor as syncDeleteHumidor,upsertCigar as syncUpsertCigar,upsertRecord as syncUpsertRecord,upsertNote as syncUpsertNote,deleteCigar as syncDeleteCigar,deleteRecord as syncDeleteRecord} from "@/lib/sync";
 import {MarioModal} from "@/components/HomeTab";
 
-type CigarEntry={id:number;brand:string;line:string;vitola:string;origin:string;wrapper:string;rating:number;count:number;purchaseDate:string;bandColor:string;humidorId:number|null};
+type CigarEntry={id:number;brand:string;line:string;vitola:string;origin:string;wrapper:string;rating:number;count:number;purchaseDate:string;bandColor:string;humidorId:number|null;customPhoto?:string|null;imageUri?:string|null;image_filename?:string|null};
 type ScanResult={brand:string;line:string;vitola:string;origin:string;wrapper:string;rating:number|null;confidence:string;notes:string;image_filename?:string|null};
 
 export function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
