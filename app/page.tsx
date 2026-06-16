@@ -231,8 +231,8 @@ function AuthScreen() {
       <div style={{position:"relative",zIndex:1}}>
         <SignIn
           routing="hash"
-          afterSignInUrl="/"
-          afterSignUpUrl="/"
+          fallbackRedirectUrl="/"
+          fallbackRedirectUrl="/"
           appearance={{
             variables:{
               colorPrimary:"#C49A28",
