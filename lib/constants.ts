@@ -227,7 +227,7 @@ type CigarEntry={id:number;brand:string;line:string;vitola:string;origin:string;
 const CIGARS:any[]=[];
 
 // ── EXPORTS ──────────────────────────────────────────────────────────────────
-export {T,r2,LANGS,TRANSLATIONS,NOTES_INIT,HUMIDORS,CIGARS};
+export {T,r2,polar,LANGS,TRANSLATIONS,NOTES_INIT,HUMIDORS,CIGARS};
 export type {LangCode,CigarEntry};
 export {getCigarImage};
 export {SyncContext,useSyncContext,LangContext,useLang};
