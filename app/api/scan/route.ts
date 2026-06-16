@@ -1,74 +1,143 @@
+// app/api/scan/route.ts
+// Pipeline: photo → catalog lookup → hit: return catalog data
+//                                  → miss: Mario identifies from photo (with web knowledge)
+
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import Anthropic from "@anthropic-ai/sdk";
 
-export async function POST(req: NextRequest) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return NextResponse.json({ error: "No API key" }, { status: 500 });
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
-  const { image, mediaType } = await req.json();
-  if (!image) return NextResponse.json({ error: "No image provided" }, { status: 400 });
+const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
 
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-5-20251022",
-      max_tokens: 512,
-      system: `You are an expert cigar sommelier and brand historian with encyclopedic knowledge of premium cigar manufacturers worldwide. You specialize in identifying cigars from band photography.
-
-When analyzing a cigar band image:
-- Look for brand name, logo, shield, crest, or monogram
-- Identify line/series name (often secondary text or ribbon)
-- Note vitola clues from band shape or text (Corona, Robusto, Toro, Churchill, Torpedo, Lancero, etc.)
-- Look for country of origin flags, text, or known brand origins
-- Identify wrapper shade from band color/text (Claro, Natural, Colorado, Maduro, Oscuro, Habano, Corojo, Candela)
-- Use your knowledge of well-known brands: Padrón, Arturo Fuente, Davidoff, Rocky Patel, Oliva, Liga Privada, My Father, Cohiba, Montecristo, Romeo y Julieta, H. Upmann, Punch, Hoyo de Monterrey, Macanudo, CAO, Perdomo, Alec Bradley, Crowned Heads, Warped, Illusione, Plasencia, AJ Fernandez
-
-Return ONLY a valid JSON object — no markdown, no explanation, no extra text:
-{
-  "brand": "exact brand name",
-  "line": "exact line/series name",
-  "vitola": "size name if identifiable, else empty string",
-  "origin": "country of origin",
-  "wrapper": "wrapper shade/type",
-  "rating": null,
-  "confidence": "high" | "medium" | "low",
-  "notes": "one sentence describing this cigar's character or reputation"
+// ── Step 1: Extract band text from photo ──────────────────────────────────
+async function extractBandText(base64: string, mediaType: string): Promise<string> {
+  const res = await anthropic.messages.create({
+    model: "claude-haiku-4-5",
+    max_tokens: 200,
+    messages: [{
+      role: "user",
+      content: [
+        { type: "image", source: { type: "base64", media_type: mediaType as any, data: base64 } },
+        { type: "text", text: "Read the cigar band in this image. Return ONLY the brand name and product line text you can see on the band, nothing else. If you cannot read a band, return 'UNREADABLE'." }
+      ]
+    }]
+  });
+  return (res.content[0] as any).text?.trim() ?? "";
 }
 
-If the image is blurry or the band is partially obscured, do your best and set confidence to "low". Never refuse — always return the JSON.`,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: mediaType || "image/jpeg",
-                data: image,
-              },
-            },
-            {
-              type: "text",
-              text: "Identify this cigar band. Look carefully at all text, logos, colors, and design elements. Return the JSON.",
-            },
-          ],
-        },
-      ],
-    }),
+// ── Step 2: Search catalog ────────────────────────────────────────────────
+async function searchCatalog(query: string) {
+  if (!query || query === "UNREADABLE") return null;
+  const { data } = await supabase
+    .from("cigar_catalog")
+    .select("*")
+    .or(`brand.ilike.%${query}%,line.ilike.%${query}%`)
+    .limit(1);
+  return data?.[0] ?? null;
+}
+
+// ── Step 3: Mario identifies from photo (fallback) ────────────────────────
+async function marioIdentify(base64: string, mediaType: string, bandText: string) {
+  const prompt = `You are Mario, a master cigar sommelier with encyclopedic knowledge of cigars worldwide.
+
+Examine this cigar band photo carefully. ${bandText && bandText !== "UNREADABLE" ? `The band text appears to read: "${bandText}".` : "The band text is unclear."}
+
+Identify this cigar and return ONLY a valid JSON object with exactly these fields (no markdown, no explanation):
+{
+  "brand": "brand name",
+  "line": "product line name",
+  "vitola": "size/shape (e.g. Robusto, Toro, Churchill)",
+  "origin": "country of origin",
+  "wrapper": "wrapper leaf origin/type",
+  "rating": 90,
+  "notes": "2-3 sentences on flavor profile, strength, and what makes this cigar notable",
+  "confidence": "high|medium|low"
+}
+
+Set confidence to:
+- "high" if you are certain of the identification
+- "medium" if you recognize the brand but are estimating the line/vitola
+- "low" if this is an educated guess
+
+Use your training knowledge and typical characteristics for this cigar. If truly unidentifiable, use your best professional estimate and set confidence to "low".`;
+
+  const res = await anthropic.messages.create({
+    model: "claude-haiku-4-5",
+    max_tokens: 500,
+    messages: [{
+      role: "user",
+      content: [
+        { type: "image", source: { type: "base64", media_type: mediaType as any, data: base64 } },
+        { type: "text", text: prompt }
+      ]
+    }]
   });
 
-  const data = await res.json();
-  const raw = data.content?.find((b: { type: string }) => b.type === "text")?.text || "{}";
-
+  const text = (res.content[0] as any).text?.trim() ?? "";
+  // Strip any accidental markdown fences
+  const clean = text.replace(/```json|```/g, "").trim();
   try {
-    const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
-    return NextResponse.json({ ok: true, cigar: parsed });
+    return JSON.parse(clean);
   } catch {
-    return NextResponse.json({ ok: false, error: "Could not parse response", raw });
+    return null;
+  }
+}
+
+// ── Handler ───────────────────────────────────────────────────────────────
+export async function POST(req: NextRequest) {
+  try {
+    const { image, mediaType } = await req.json();
+    if (!image) return NextResponse.json({ ok: false, error: "No image" }, { status: 400 });
+
+    // Step 1: extract band text
+    const bandText = await extractBandText(image, mediaType ?? "image/jpeg");
+
+    // Step 2: catalog lookup
+    const catalogHit = await searchCatalog(bandText);
+    if (catalogHit) {
+      return NextResponse.json({
+        ok: true,
+        source: "catalog",
+        cigar: {
+          brand: catalogHit.brand ?? "",
+          line: catalogHit.line ?? "",
+          vitola: catalogHit.vitola ?? "",
+          origin: catalogHit.origin ?? "",
+          wrapper: catalogHit.wrapper ?? "",
+          rating: catalogHit.rating ?? null,
+          notes: catalogHit.notes ?? "",
+          confidence: "high",
+        }
+      });
+    }
+
+    // Step 3: Mario fallback — send photo + extracted text
+    const marioResult = await marioIdentify(image, mediaType ?? "image/jpeg", bandText);
+    if (marioResult && marioResult.brand) {
+      return NextResponse.json({
+        ok: true,
+        source: "mario",
+        cigar: {
+          brand: marioResult.brand ?? "",
+          line: marioResult.line ?? "",
+          vitola: marioResult.vitola ?? "",
+          origin: marioResult.origin ?? "",
+          wrapper: marioResult.wrapper ?? "",
+          rating: marioResult.rating ?? null,
+          notes: marioResult.notes ?? "",
+          confidence: marioResult.confidence ?? "medium",
+        }
+      });
+    }
+
+    return NextResponse.json({ ok: false, error: "Could not identify cigar" });
+
+  } catch (err: any) {
+    console.error("[scan]", err);
+    return NextResponse.json({ ok: false, error: err.message }, { status: 500 });
   }
 }
