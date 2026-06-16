@@ -508,7 +508,7 @@ function AppInner() {
                   <span key={i} style={{display:"inline-flex",alignItems:"center",gap:8,
                     padding:"0 28px",fontSize:13,color:"#ffffff",
                     fontFamily:"Georgia,serif"}}>
-                    <span style={{fontSize:14}}>{item.icon||item.label}</span>
+                    <span style={{fontSize:14}}>{(item as any).icon||(item as any).label}</span>
                     {item.text}
                     <span style={{color:"rgba(255,255,255,0.35)",marginLeft:20}}>•</span>
                   </span>
