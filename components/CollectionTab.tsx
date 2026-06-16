@@ -97,6 +97,7 @@ export function AdCarousel() {
 // ── COLLECTION SCREEN ──────────────────────────────────────────────────────
 export function CollectionTab() {
   const {t}=useLang();
+  const {userId,getToken}=useSyncContext();
   const [sel,setSel]=useState<number|null>(null);
   const [showScanner,setShowScanner]=useState(false);
   const [showJournal,setShowJournal]=useState(false);
