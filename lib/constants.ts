@@ -223,6 +223,7 @@ const NOTES_INIT=[
 
 
 const HUMIDORS:any[]=[];
+type CigarEntry={id:number;brand:string;line:string;vitola:string;origin:string;wrapper:string;rating:number;count:number;purchaseDate:string;bandColor:string;humidorId:number|null;customPhoto?:string|null;imageUri?:string|null;image_filename?:string|null};
 const CIGARS:any[]=[];
 
 // ── EXPORTS ──────────────────────────────────────────────────────────────────
