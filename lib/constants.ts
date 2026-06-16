@@ -223,7 +223,7 @@ const NOTES_INIT=[
 
 
 // ── EXPORTS ──────────────────────────────────────────────────────────────────
-export {T,r2,polar,LANGS,TRANSLATIONS,NOTES_INIT,HUMIDORS,CIGARS};
+export {T,r2,LANGS,TRANSLATIONS,NOTES_INIT,HUMIDORS,CIGARS};
 export type {LangCode,CigarEntry};
 export {getCigarImage};
 export {SyncContext,useSyncContext,LangContext,useLang};
