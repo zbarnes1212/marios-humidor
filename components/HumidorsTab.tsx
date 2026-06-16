@@ -912,7 +912,7 @@ export function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
               {/* Back header */}
               <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16,
                 paddingBottom:14,borderBottom:`1px solid rgba(196,154,40,0.1)`}}>
-                <button onClick={()=>{setHistoryDrillCigar(null);setHistoryAddingNote(false);setHistoryNoteForm({text:"",pairing:"",rating:0});}}
+                <button onClick={()=>{setHistoryDrillCigar(null);setHistoryAddingNote(false);setHistoryNoteForm({text:"",pairing:"",rating:0,photo:""});}}
                   style={{background:"none",border:"none",cursor:"pointer",padding:"4px 8px 4px 0"}}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
                     stroke={T.goldMid} strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
