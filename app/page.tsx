@@ -238,9 +238,6 @@ function AuthScreen() {
               colorPrimary:"#C49A28",
               colorBackground:"#111111",
               
-              colorTextSecondary:"rgba(237,224,204,0.6)",
-              colorInputBackground:"rgba(255,255,255,0.05)",
-              colorInputText:"#ede0cc",
               borderRadius:"12px",
               fontFamily:"Georgia, serif",
               colorDanger:"#e05050",
