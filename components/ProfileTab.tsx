@@ -24,7 +24,7 @@ export function AchievementsTab() {
         const optimal=readings.filter((r:any)=>r.humidity>=65&&r.humidity<=72);
         const days=new Set(optimal.map((r:any)=>new Date(r.created_at).toDateString())).size;
         setHumidorDays(days);
-      }).catch(()=>{});
+      })
     setMounted(true);
   },[]);
 
@@ -244,7 +244,7 @@ export function ProfileTab() {
     import("@/lib/supabase").then(({getSupabaseClient})=>{
       getSupabaseClient(null).from("profiles").select("membership_tier").eq("id",userId).single()
         .then(({data})=>{if(data?.membership_tier)setMembershipTier(data.membership_tier as any);})
-        .catch(()=>{});
+        
     });
     // Check for payment success in URL
     const params=new URLSearchParams(window.location.search);
