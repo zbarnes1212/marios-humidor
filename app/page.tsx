@@ -10,7 +10,7 @@ import {HumidorsTab} from "@/components/HumidorsTab";
 import {BandScannerModal} from "@/components/BandScannerModal";
 import {CollectionTab} from "@/components/CollectionTab";
 import {AskMarioTab,RecordTab,TastingNotesTab,TobaccoMap} from "@/components/MarioTab";
-import {ClubTab} from "@/components/ClubTab";
+import {ClubTab,ChallengesTab,LeaderboardTab} from "@/components/ClubTab";
 import {ProfileTab} from "@/components/ProfileTab";
 import {MoreScreen} from "@/components/MoreScreen";
 import {HomeTab} from "@/components/HomeTab";
