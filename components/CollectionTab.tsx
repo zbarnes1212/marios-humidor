@@ -1,7 +1,7 @@
 "use client";
 import {SvgIcon} from "@/lib/ui";
-import {T,getCigarImage,useLang,useSyncContext,CIGARS} from "@/lib/constants";
-import React,{useState,useEffect,useRef} from "react";
+import {T,getCigarImage,useLang,useSyncContext,CIGARS,NOTES_INIT} from "@/lib/constants";
+import React,{useState,useEffect,useRef,useCallback} from "react";
 import {upsertCigar as syncUpsertCigar,deleteCigar as syncDeleteCigar} from "@/lib/sync";
 import {BandScannerModal} from "@/components/BandScannerModal";
 

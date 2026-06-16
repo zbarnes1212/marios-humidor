@@ -1,6 +1,6 @@
 "use client";
 import {renderMarioText} from "@/lib/ui";
-import {T,r2,NOTES_INIT,useLang,useSyncContext} from "@/lib/constants";
+import {T,r2,NOTES_INIT,LANGS,useLang,useSyncContext} from "@/lib/constants";
 import React,{useState,useEffect,useRef,useCallback} from "react";
 import {BandScannerModal} from "@/components/BandScannerModal";
 import {upsertRecord as syncUpsertRecord,upsertNote as syncUpsertNote,deleteRecord as syncDeleteRecord} from "@/lib/sync";
