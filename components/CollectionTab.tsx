@@ -370,7 +370,7 @@ export function CollectionTab() {
           {cigars.slice(-3).reverse().map(c=>(
             <div key={c.id} style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
               <div style={{width:44,height:44,borderRadius:8,overflow:"hidden",flexShrink:0,background:"#000"}}>
-                <img src={(c.customPhoto||c.imageUri)?(c.customPhoto||c.imageUri):getCigarImage(c.vitola,c.wrapper,c.image_filename)} alt={c.line}
+                <img src={(c.customPhoto||c.imageUri)?(c.customPhoto||c.imageUri)!:getCigarImage(c.vitola,c.wrapper,c.image_filename)} alt={c.line}
                   style={{width:"100%",height:"100%",objectFit:"cover"}}
                   onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
               </div>
@@ -504,7 +504,7 @@ export function CollectionTab() {
                   display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",
                   borderRight:`1px solid rgba(196,154,40,0.1)`}}>
                   <img
-                    src={(c.customPhoto||c.imageUri)?(c.customPhoto||c.imageUri):getCigarImage(c.vitola,c.wrapper,c.image_filename)}
+                    src={(c.customPhoto||c.imageUri)?(c.customPhoto||c.imageUri)!:getCigarImage(c.vitola,c.wrapper,c.image_filename)}
                     alt={c.line}
                     style={{height:"100%",width:"100%",objectFit:"cover",objectPosition:"center center"}}
                     onError={e=>{
