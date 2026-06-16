@@ -1,5 +1,5 @@
 "use client";
-import {T,r2,getCigarImage,NOTES_INIT,polar,useLang,useSyncContext} from "@/lib/constants";
+import {T,r2,getCigarImage,NOTES_INIT,useLang,useSyncContext} from "@/lib/constants";
 import {LuxuryGauge,MMedallion,SvgIcon} from "@/lib/ui";
 import React,{useState,useEffect,useRef,useCallback} from "react";
 import {upsertHumidor as syncUpsertHumidor,deleteHumidor as syncDeleteHumidor,upsertCigar as syncUpsertCigar,upsertRecord as syncUpsertRecord,upsertNote as syncUpsertNote,deleteCigar as syncDeleteCigar,deleteRecord as syncDeleteRecord} from "@/lib/sync";
