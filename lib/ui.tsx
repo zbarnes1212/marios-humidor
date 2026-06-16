@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useId } from "react";
-import { T, r2, polar, LANGS, TRANSLATIONS, LangContext } from "@/lib/constants";
+import { T, r2, LANGS, TRANSLATIONS, LangContext } from "@/lib/constants";
 import type { LangCode } from "@/lib/constants";
 
 function LangProvider({children}:{children:React.ReactNode}){
