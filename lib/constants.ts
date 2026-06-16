@@ -222,6 +222,7 @@ const NOTES_INIT=[
 // ── HUMIDORS SCREEN ────────────────────────────────────────────────────────
 
 
+const polar=(cx:number,cy:number,r:number,deg:number)=>{const a=(deg-90)*Math.PI/180;return{x:Math.round((cx+r*Math.cos(a))*100)/100,y:Math.round((cy+r*Math.sin(a))*100)/100};};
 const HUMIDORS:any[]=[];
 type CigarEntry={id:number;brand:string;line:string;vitola:string;origin:string;wrapper:string;rating:number;count:number;purchaseDate:string;bandColor:string;humidorId:number|null;customPhoto?:string|null;imageUri?:string|null;image_filename?:string|null};
 const CIGARS:any[]=[];
