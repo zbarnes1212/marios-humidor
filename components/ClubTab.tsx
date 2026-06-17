@@ -1,5 +1,5 @@
 "use client";
-import {T,useLang,useSyncContext} from "@/lib/constants";
+import {T,useLang,useSyncContext,useMembership} from "@/lib/constants";
 import {AchievementsTab} from "@/components/ProfileTab";
 import {MMedallion} from "@/lib/ui";
 import React,{useState,useEffect} from "react";
@@ -426,6 +426,23 @@ function ClubSectionHeader({icon,title,badge,onViewAll}:{
 
 // ── CLUB TAB — main hub (single scroll, drill-down architecture) ───────────
 export function ClubTab() {
+  const {userId}=useSyncContext();
+  const {isPro,loading:tierLoading}=useMembership();
+  const [upgrading,setUpgrading]=useState(false);
+  const handleUpgrade=async()=>{
+    if(!userId) return;
+    setUpgrading(true);
+    try{
+      const res=await fetch("/api/stripe/checkout",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({priceId:process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID||"",userId,mode:"subscription"})
+      });
+      const data=await res.json();
+      if(data.url) window.location.href=data.url;
+    }catch(e){console.error("[stripe]",e);}
+    setUpgrading(false);
+  };
+
   const [view,setView]=useState<'home'|'challenges'|'achievements'|'group'|'create_group'|'group_detail'>('home');
   const [prevView,setPrevView]=useState<string>('home');
   const navigate=(v:string)=>{setPrevView(view);setView(v as any);};
@@ -453,6 +470,41 @@ export function ClubTab() {
 
   const totalCigars=mounted?cigars.reduce((a:number,c:any)=>a+(c.count||0),0):0;
   const uniqueBrands=mounted?new Set(cigars.map((c:any)=>c.brand)).size:0;
+
+  // ── PRO GATE ──────────────────────────────────────────────────────────────
+  if(!tierLoading&&!isPro){
+    return (
+      <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+        minHeight:"calc(100vh - 180px)",padding:"0 32px",textAlign:"center"}}>
+        <div style={{width:64,height:64,borderRadius:16,
+          background:"linear-gradient(135deg,#8B6914,#C49A28)",
+          display:"flex",alignItems:"center",justifyContent:"center",marginBottom:20}}>
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#0a0a0a" strokeWidth="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </div>
+        <div style={{fontSize:20,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",marginBottom:8}}>
+          Social Club is a Pro feature
+        </div>
+        <div style={{fontSize:14,color:T.textMuted,fontFamily:"Georgia,serif",lineHeight:1.5,marginBottom:24}}>
+          Unlock leaderboards, challenges, achievements, and group competitions with fellow enthusiasts.
+        </div>
+        <button
+          onClick={handleUpgrade}
+          disabled={upgrading}
+          style={{padding:"14px 28px",
+            background:"linear-gradient(135deg,#8B6914,#C49A28)",
+            border:"none",borderRadius:12,color:"#0a0a0a",
+            fontSize:15,fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif",
+            opacity:upgrading?0.7:1}}>
+          {upgrading?"Redirecting to checkout…":"Upgrade to Pro — $59.99/yr"}
+        </button>
+      </div>
+    );
+  }
 
   // ── DETAIL SCREENS ────────────────────────────────────────────────────────
   if(view==='challenges'){

@@ -5,13 +5,13 @@ import {T,r2,useLang,LANGS} from "@/lib/constants";
 import {MMedallion,renderMarioText} from "@/lib/ui";
 
 const HOME_QUICK_PROMPTS=[
-  {label:"What do you recommend tonight?",icon:"✦"},
   {label:"What pairs well with this cigar?",icon:"🥃"},
-  {label:"Recommend from my humidor",icon:"🗄"},
   {label:"What should I age longer?",icon:"⏳"},
-  {label:"Help me choose between two cigars",icon:"⚖️"},
   {label:"Find a cigar lounge near me",icon:"pin",isLounge:true},
   {label:"What events are coming up?",icon:"calendar"},
+  {label:"What do you recommend tonight?",icon:"✦"},
+  {label:"Recommend from my humidor",icon:"🗄"},
+  {label:"Help me choose between two cigars",icon:"⚖️"},
   {label:"Teach me something new",icon:"📖"},
 ];
 
@@ -430,8 +430,8 @@ export function HomeTab({liveData,liveStatus,lastUpdated,onRefresh,onNavigate}:{
           <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
             {[
               {icon:"🥃",label:"Pair this Cigar",prompt:"What pairs well with this cigar?"},
-              {icon:"📍",label:"Find a lounge near me",prompt:"lounge",isLounge:true},
               {icon:"⏳",label:"What's aging well?",prompt:"What's aging well in my humidor?"},
+              {icon:"📍",label:"Find a lounge near me",prompt:"lounge",isLounge:true},
               {icon:"📅",label:"Upcoming events",prompt:"What events are coming up?"},
             ].map((p,i)=>(
               <button key={i}

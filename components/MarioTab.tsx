@@ -1,8 +1,9 @@
 "use client";
 import {renderMarioText} from "@/lib/ui";
-import {T,r2,NOTES_INIT,LANGS,useLang,useSyncContext} from "@/lib/constants";
+import {T,r2,NOTES_INIT,LANGS,useLang,useSyncContext,useMembership} from "@/lib/constants";
 import React,{useState,useEffect,useRef,useCallback} from "react";
 import {BandScannerModal} from "@/components/BandScannerModal";
+import {VoiceJournalModal} from "@/components/VoiceJournalModal";
 import {upsertRecord as syncUpsertRecord,upsertNote as syncUpsertNote,deleteRecord as syncDeleteRecord} from "@/lib/sync";
 
 type ScanResult={brand:string;line:string;vitola:string;origin:string;wrapper:string;rating:number|null;confidence:string;notes:string;image_filename?:string|null};
@@ -22,15 +23,34 @@ const QUICK_PROMPTS=[
 
 export function AskMarioTab({liveData}:{liveData:Record<string,{temperature:number|null;humidity:number|null;observedAt:string|null}>}) {
   const {t,lang}=useLang();
+  const {userId,getToken}=useSyncContext();
+  const {isPro,loading:tierLoading}=useMembership();
+  const [upgrading,setUpgrading]=useState(false);
   const langName=LANGS.find(l=>l.code===lang)?.name||"English";
+  const handleUpgrade=async()=>{
+    if(!userId) return;
+    setUpgrading(true);
+    try{
+      const res=await fetch("/api/stripe/checkout",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({priceId:process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID||"",userId,mode:"subscription"})
+      });
+      const data=await res.json();
+      if(data.url) window.location.href=data.url;
+    }catch(e){console.error("[stripe]",e);}
+    setUpgrading(false);
+  };
+
   const getGreeting=()=>{
     const h=new Date().getHours();
     const timeStr=h<12?t("greeting_morning"):h<17?t("greeting_afternoon"):h<21?t("greeting_evening"):t("greeting_evening");
-    // Find best sensor reading
+    // Only mention humidity in the greeting when it's good news — never surface
+    // an out-of-range reading unprompted, even without the word "warning".
     const sensors=Object.values(liveData).filter(s=>s.humidity&&s.humidity>0);
     const bestSensor=sensors[0];
-    const humLine=bestSensor?.humidity
-      ? ` The humidor's sitting at ${bestSensor.humidity.toFixed(0)}% humidity${bestSensor.humidity>=65&&bestSensor.humidity<=72?" — perfect conditions tonight":""}. `
+    const isIdeal=bestSensor?.humidity!=null&&bestSensor.humidity>=65&&bestSensor.humidity<=72;
+    const humLine=isIdeal
+      ? ` The humidor's sitting at ${bestSensor!.humidity!.toFixed(0)}% humidity — perfect conditions tonight. `
       : " ";
     return `${timeStr}, Zebulon.${humLine}I'm Mario — your personal cigar sommelier. What are we smoking tonight?`;
   };
@@ -46,7 +66,7 @@ export function AskMarioTab({liveData}:{liveData:Record<string,{temperature:numb
     setLoading(true);
     try {
       const res=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({system:`You are Mario, a warm, deeply knowledgeable private cigar concierge. Speak like a trusted friend at a private lounge. Be specific and personal. ${Object.entries(liveData).filter(([,s])=>s.humidity&&s.humidity>0).map(([name,s])=>{const humAlert=s.humidity&&(s.humidity<65||s.humidity>72)?" WARNING HUMIDITY OUT OF RANGE (ideal 65-70% RH)":"";const tempAlert=s.temperature&&(s.temperature>70||s.temperature<60)?" WARNING TEMPERATURE OUT OF RANGE (ideal 60-70F)":"";return `LIVE: ${name}: ${s.humidity?.toFixed(0)}% RH${humAlert}, ${s.temperature?.toFixed(1)}F${tempAlert}`;}).join("; ")} If any reading is flagged as out of range, proactively warn the user. When asked about cigar lounges, always provide REAL specific lounge names with full street addresses — never say you don't know or can't find locations. Draw on your extensive knowledge of premium cigar lounges. Sign responses with '— Mario'. Under 150 words. Always respond in ${langName}.`,
+        body:JSON.stringify({system:`You are Mario, a warm, deeply knowledgeable private cigar concierge. Speak like a trusted friend at a private lounge. Be specific and personal. ${Object.entries(liveData).filter(([,s])=>s.humidity&&s.humidity>0).map(([name,s])=>`LIVE: ${name}: ${s.humidity?.toFixed(0)}% RH, ${s.temperature?.toFixed(1)}F`).join("; ")} If the user directly asks about their humidity or temperature, answer using the live readings above. Never mention, reference, or warn about sensor readings unless the user explicitly asks about humidity, temperature, or their humidor's conditions in their current message — this applies even if a reading looks out of range. When asked about cigar lounges, always provide REAL specific lounge names with full street addresses — never say you don't know or can't find locations. Draw on your extensive knowledge of premium cigar lounges. Sign responses with '— Mario'. Under 150 words. Always respond in ${langName}.`,
           messages:[...messages.map(m=>({role:m.role==="ai"?"assistant":"user",content:m.text})),{role:"user",content:text}]})});
       const data=await res.json();
       const reply=data.content?.find((b:{type:string;text?:string})=>b.type==="text")?.text||"Please try again.";
@@ -54,6 +74,35 @@ export function AskMarioTab({liveData}:{liveData:Record<string,{temperature:numb
     } catch {setMessages(m=>[...m,{role:"ai",text:"A momentary connection issue.\n\n— Mario"}]);}
     setLoading(false);
   },[messages,loading]);
+
+  if(!tierLoading&&!isPro){
+    return (
+      <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+        height:"calc(100vh - 130px)",padding:"0 32px",textAlign:"center"}}>
+        <div style={{width:72,height:72,borderRadius:"50%",
+          border:`2px solid ${T.goldMid}`,overflow:"hidden",marginBottom:20,
+          boxShadow:`0 0 0 3px #0a0a0a, 0 0 0 5px ${T.goldDark}44`}}>
+          <img src="/mario-avatar.png" alt="Mario" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 65%"}}/>
+        </div>
+        <div style={{fontSize:20,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",marginBottom:8}}>
+          Ask Mario is a Pro feature
+        </div>
+        <div style={{fontSize:14,color:T.textMuted,fontFamily:"Georgia,serif",lineHeight:1.5,marginBottom:24}}>
+          Unlock unlimited conversations with your personal cigar sommelier — pairings, recommendations, lounge finds, and more.
+        </div>
+        <button
+          onClick={handleUpgrade}
+          disabled={upgrading}
+          style={{padding:"14px 28px",
+            background:"linear-gradient(135deg,#8B6914,#C49A28)",
+            border:"none",borderRadius:12,color:"#0a0a0a",
+            fontSize:15,fontWeight:"bold",cursor:"pointer",fontFamily:"Georgia,serif",
+            opacity:upgrading?0.7:1}}>
+          {upgrading?"Redirecting to checkout…":"Upgrade to Pro — $59.99/yr"}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 130px)"}}>
@@ -64,7 +113,7 @@ export function AskMarioTab({liveData}:{liveData:Record<string,{temperature:numb
           <div style={{width:72,height:72,borderRadius:"50%",flexShrink:0,
             border:`2px solid ${T.goldMid}`,overflow:"hidden",
             boxShadow:`0 0 0 3px #0a0a0a, 0 0 0 5px ${T.goldDark}44`}}>
-            <img src="/mario-avatar.jpg" alt="Mario" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 65%"}}/>
+            <img src="/mario-avatar.png" alt="Mario" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 65%"}}/>
           </div>
           <div style={{flex:1}}>
             <div style={{fontSize:24,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif",lineHeight:1.15}}>{t("ask_mario")}</div>
@@ -86,7 +135,7 @@ export function AskMarioTab({liveData}:{liveData:Record<string,{temperature:numb
                 <div style={{fontSize:9,color:T.goldMid,letterSpacing:2,textTransform:"uppercase",
                   marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
                   <div style={{width:18,height:18,borderRadius:"50%",overflow:"hidden",border:`1px solid ${T.goldDark}`,flexShrink:0}}>
-                    <img src="/mario-avatar.jpg" alt="Mario" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 65%"}}/>
+                    <img src="/mario-avatar.png" alt="Mario" style={{width:"100%",height:"100%",objectFit:"cover",objectPosition:"center 65%"}}/>
                   </div>
                   <span>Mario</span>
                 </div>
@@ -514,6 +563,7 @@ export function RecordTab() {
   const [loaded,setLoaded]=useState(false);
   const [showScanner,setShowScanner]=useState(false);
   const [scannerKey,setScannerKey]=useState(0);
+  const [showVoiceModal,setShowVoiceModal]=useState(false);
   const [expandedRecord,setExpandedRecord]=useState<number|null>(null);
   const [addingNoteToRecord,setAddingNoteToRecord]=useState<number|null>(null);
   const [noteForm,setNoteForm]=useState({text:"",pairing:"",rating:0});
@@ -545,6 +595,21 @@ export function RecordTab() {
     setShowScanner(false);
   };
 
+  const handleSaveVoiceRecord=async(
+    r:{brand:string;line:string;vitola:string;wrapper:string;origin:string},
+    status:"smoked"|"onMyList",note:string,photo:string|null,rating:number
+  )=>{
+    const entry:RecordEntry={
+      id:Date.now(),brand:r.brand,line:r.line,vitola:r.vitola,
+      wrapper:r.wrapper,origin:r.origin,status,note,
+      rating:rating??0,photo,
+      date:new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})
+    };
+    setRecords(prev=>[entry,...prev]);
+    if(userId){const token=await getToken();if(token)syncUpsertRecord(token,userId,entry);}
+    setShowVoiceModal(false);
+  };
+
   return (
     <div style={{padding:"0 0 32px",position:"relative"}}>
       {showScanner && (
@@ -555,20 +620,41 @@ export function RecordTab() {
           onSaveToRecord={handleSaveToRecord}
         />
       )}
+      {showVoiceModal && (
+        <VoiceJournalModal
+          onClose={()=>setShowVoiceModal(false)}
+          onSaveToRecord={handleSaveVoiceRecord}
+        />
+      )}
       <div style={{padding:"24px 20px 20px",borderBottom:`1px solid ${T.border}`,
         display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}>
         <div>
           <div style={{fontSize:10,letterSpacing:5,textTransform:"uppercase",color:T.textMuted,fontFamily:"Georgia,serif",marginBottom:6}}>Quick Log</div>
-          <div style={{fontSize:22,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif"}}>Record</div>
+          <div style={{fontSize:22,fontWeight:"bold",color:T.textPrimary,fontFamily:"Georgia,serif"}}>Journal</div>
         </div>
-        <button onClick={openNewEntry}
-          style={{background:"linear-gradient(135deg,#2a2a2a,#0a0a0a)",
-            border:`1px solid rgba(196,154,40,0.3)`,
-            borderRadius:20,padding:"8px 18px",color:T.goldMid,fontSize:12,
-            fontFamily:"Georgia,serif",fontWeight:"bold",cursor:"pointer"}}>
-          + Log Cigar
-        </button>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>setShowVoiceModal(true)}
+            style={{background:"linear-gradient(135deg,#2a2a2a,#0a0a0a)",
+              border:`1px solid rgba(196,154,40,0.3)`,
+              borderRadius:20,padding:"8px 14px",color:T.goldMid,fontSize:12,
+              fontFamily:"Georgia,serif",fontWeight:"bold",cursor:"pointer",
+              display:"flex",alignItems:"center",gap:5}}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v1a7 7 0 0 1-14 0v-1"/>
+            </svg>
+            Speak
+          </button>
+          <button onClick={openNewEntry}
+            style={{background:"linear-gradient(135deg,#2a2a2a,#0a0a0a)",
+              border:`1px solid rgba(196,154,40,0.3)`,
+              borderRadius:20,padding:"8px 14px",color:T.goldMid,fontSize:12,
+              fontFamily:"Georgia,serif",fontWeight:"bold",cursor:"pointer"}}>
+            + Scan
+          </button>
+        </div>
       </div>
+
 
       {loaded&&records.length===0&&(
         <div style={{padding:"60px 24px",textAlign:"center"}}>

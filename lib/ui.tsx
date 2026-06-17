@@ -32,6 +32,7 @@ function MMedallion({size=32}:{size?:number}) {
 }
 
 // GAUGE — ivory face, gold bezel, red needle
+const polar=(cx:number,cy:number,r:number,deg:number)=>{const a=(deg-90)*Math.PI/180;return{x:cx+r*Math.cos(a),y:cy+r*Math.sin(a)};};
 function LuxuryGauge({value,size,label,subtitle,min=20,max=100}:{value:number;size:number;label:string;subtitle:string;min?:number;max?:number;}) {
   const uid=useId().replace(/:/g,"");
   const [m,setM]=useState(false);
@@ -161,4 +162,4 @@ export function SvgIcon({id,size=18,color}:{id:string;size?:number;color?:string
 }
 
 // ── EXPORTS ──────────────────────────────────────────────────────────────────
-export {LangProvider,CedarBg,MMedallion,LuxuryGauge,renderMarioText,SvgIcon};
+export {LangProvider,CedarBg,MMedallion,LuxuryGauge,renderMarioText};

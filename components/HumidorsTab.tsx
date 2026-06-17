@@ -202,8 +202,11 @@ export function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
     const file=e.target.files?.[0];
     if(!file) return;
     const reader=new FileReader();
-    reader.onload=ev=>{
-      setHumidors(prev=>prev.map(h=>h.id===id?{...h,photo:ev.target?.result as string}:h));
+    reader.onload=async ev=>{
+      const rawDataUrl=ev.target?.result as string;
+      let photoToSave=rawDataUrl;
+      try{photoToSave=await compressCigarPhoto(rawDataUrl,800);}catch{photoToSave=rawDataUrl;}
+      setHumidors(prev=>prev.map(h=>h.id===id?{...h,photo:photoToSave}:h));
     };
     reader.readAsDataURL(file);
   };
@@ -304,6 +307,22 @@ export function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
                 onError={e=>{(e.target as HTMLImageElement).style.display="none";}}/>
               <div style={{position:"absolute",inset:0,
                 background:"linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(0,0,0,0.85) 100%)"}}/>
+              {/* Photo upload */}
+              <div style={{position:"absolute",top:14,right:14,display:"flex",gap:8}}>
+                <label style={{display:"flex",alignItems:"center",gap:5,
+                  background:"rgba(0,0,0,0.6)",border:"1px solid rgba(196,154,40,0.35)",
+                  borderRadius:20,padding:"7px 12px",cursor:"pointer"}}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                    stroke="#C49A28" strokeWidth="2">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                  </svg>
+                  <span style={{fontSize:11,color:"#C49A28",fontFamily:"Georgia,serif"}}>Photo</span>
+                  <input type="file" accept="image/*"
+                    style={{display:"none"}}
+                    onChange={e=>handlePhotoUpload(h.id,e)}/>
+                </label>
+              </div>
               <div style={{position:"absolute",bottom:14,left:16}}>
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
                   <div style={{width:8,height:8,borderRadius:"50%",background:statusColor,
@@ -722,14 +741,16 @@ export function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
                         <textarea
                           placeholder="Describe the experience — flavors, draw, burn, finish..."
                           rows={3}
-                          id="editCigarNoteText"
+                          value={editCigar._noteText||""}
+                          onChange={e=>setEditCigar({...editCigar,_noteText:e.target.value})}
                           style={{width:"100%",background:"rgba(0,0,0,0.2)",border:`1px solid rgba(196,154,40,0.2)`,
                             borderRadius:8,padding:"10px 12px",color:T.textPrimary,fontSize:13,
                             outline:"none",boxSizing:"border-box",fontFamily:"Georgia,serif",
                             resize:"vertical",lineHeight:1.6,marginBottom:8}}/>
                         <input
                           placeholder="Pairing (e.g. Blanton's, espresso)"
-                          id="editCigarNotePairing"
+                          value={editCigar._notePairing||""}
+                          onChange={e=>setEditCigar({...editCigar,_notePairing:e.target.value})}
                           style={{width:"100%",background:"rgba(0,0,0,0.2)",border:`1px solid rgba(196,154,40,0.2)`,
                             borderRadius:8,padding:"9px 12px",color:T.textPrimary,fontSize:13,
                             outline:"none",boxSizing:"border-box",fontFamily:"Georgia,serif",marginBottom:8}}/>
@@ -743,26 +764,28 @@ export function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
                         </div>
                         <div style={{display:"flex",gap:8}}>
                           <button onClick={()=>{
-                            const noteEl=document.getElementById("editCigarNoteText") as HTMLTextAreaElement;
-                            const pairingEl=document.getElementById("editCigarNotePairing") as HTMLInputElement;
-                            const noteText=noteEl?.value||"";
-                            const pairing=pairingEl?.value||"";
+                            const noteText=editCigar._noteText||"";
+                            const pairing=editCigar._notePairing||"";
                             if(!noteText.trim()) return;
+                            const newNote={
+                              id:Date.now(),
+                              cigarId:editCigar.id,
+                              brand:editCigar.brand,line:editCigar.line,vitola:editCigar.vitola,
+                              date:new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"}),
+                              rating:editCigar._noteRating||0,
+                              notes:noteText,pairing
+                            };
                             try{
                               const existing=JSON.parse(localStorage.getItem("mh_notes")||"[]");
-                              const newNote={
-                                id:Date.now(),
-                                cigarId:editCigar.id,
-                                brand:editCigar.brand,line:editCigar.line,vitola:editCigar.vitola,
-                                date:new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"}),
-                                rating:editCigar._noteRating||0,
-                                notes:noteText,pairing
-                              };
                               localStorage.setItem("mh_notes",JSON.stringify([newNote,...existing]));
-                              setEditCigar({...editCigar,_addingNote:false,_noteRating:0});
                               // Sync to Supabase
                               if(userId){getToken().then(token=>{if(token)syncUpsertNote(token,userId,newNote);});}
-                            }catch(e){console.error(e);}
+                            }catch(e){
+                              console.error('[note save] localStorage write failed:',e);
+                              alert("Couldn't save note — storage may be full. Please try again.");
+                              return;
+                            }
+                            setEditCigar({...editCigar,_addingNote:false,_noteRating:0,_noteText:"",_notePairing:""});
                           }}
                             style={{flex:1,padding:"10px",background:"#111111",
                               border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,
@@ -770,7 +793,7 @@ export function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
                               fontFamily:"Georgia,serif"}}>
                             Save Note
                           </button>
-                          <button onClick={()=>setEditCigar({...editCigar,_addingNote:false,_noteRating:0})}
+                          <button onClick={()=>setEditCigar({...editCigar,_addingNote:false,_noteRating:0,_noteText:"",_notePairing:""})}
                             style={{padding:"10px 14px",background:"transparent",
                               border:`1px solid rgba(160,120,40,0.22)`,borderRadius:8,
                               color:T.textMuted,fontSize:13,cursor:"pointer"}}>
@@ -1501,19 +1524,6 @@ export function HumidorsTab({liveData,liveStatus,lastUpdated,onRefresh}:{
                   {/* Right fade into card */}
                   <div style={{position:"absolute",top:0,right:0,bottom:0,width:28,
                     background:"linear-gradient(90deg,rgba(0,0,0,0),rgba(17,17,17,0.95))"}}/>
-                  {/* Photo upload */}
-                  <label style={{position:"absolute",bottom:8,left:8,cursor:"pointer",
-                    background:"rgba(0,0,0,0.7)",border:`1px solid rgba(196,154,40,0.3)`,
-                    borderRadius:6,padding:"4px 8px",display:"flex",alignItems:"center",gap:4}}>
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
-                      stroke={T.goldMid} strokeWidth="2">
-                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                      <circle cx="12" cy="13" r="4"/>
-                    </svg>
-                    <span style={{fontSize:9,color:T.goldMid,fontFamily:"Georgia,serif"}}>Photo</span>
-                    <input type="file" accept="image/*" style={{display:"none"}}
-                      onChange={e=>handlePhotoUpload(h.id,e)}/>
-                  </label>
                 </div>
 
                 {/* RIGHT — name, status, readings, cigar count */}

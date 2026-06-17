@@ -1,5 +1,5 @@
 // lib/constants.ts — pure data, no JSX
-import { createContext, useContext } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 
 
 const T = {
@@ -23,7 +23,7 @@ const LANGS:{code:LangCode;flag:string;name:string}[]=[
 const TRANSLATIONS:{[K in LangCode]:Record<string,string>}={
   en:{
     // Nav
-    nav_home:"Home",nav_humidors:"Humidors",nav_record:"Record",nav_mario:"Mario",nav_club:"Club",nav_profile:"Profile",
+    nav_home:"Home",nav_humidors:"Humidors",nav_record:"Journal",nav_mario:"Mario",nav_club:"Club",nav_profile:"Profile",
     // Home
     greeting_morning:"Good morning",greeting_afternoon:"Good afternoon",greeting_evening:"Good evening",
     welcome_back:"Welcome back to the lounge.",
@@ -61,7 +61,7 @@ const TRANSLATIONS:{[K in LangCode]:Record<string,string>}={
     try_again:"Try Again",add_to_col_btn:"+ Add to Collection",
   },
   es:{
-    nav_home:"Inicio",nav_humidors:"Humidores",nav_record:"Registro",nav_mario:"Mario",nav_club:"Club",nav_profile:"Perfil",
+    nav_home:"Inicio",nav_humidors:"Humidores",nav_record:"Diario",nav_mario:"Mario",nav_club:"Club",nav_profile:"Perfil",
     greeting_morning:"Buenos días",greeting_afternoon:"Buenas tardes",greeting_evening:"Buenas noches",
     welcome_back:"Bienvenido al salón.",
     my_humidors:"Mis Humidores",sensor_offline:"Sensor desconectado",sensor_updating:"Actualizando…",
@@ -90,7 +90,7 @@ const TRANSLATIONS:{[K in LangCode]:Record<string,string>}={
     try_again:"Intentar de Nuevo",add_to_col_btn:"+ Añadir a Colección",
   },
   pt:{
-    nav_home:"Início",nav_humidors:"Humidores",nav_record:"Registro",nav_mario:"Mario",nav_club:"Clube",nav_profile:"Perfil",
+    nav_home:"Início",nav_humidors:"Humidores",nav_record:"Diário",nav_mario:"Mario",nav_club:"Clube",nav_profile:"Perfil",
     greeting_morning:"Bom dia",greeting_afternoon:"Boa tarde",greeting_evening:"Boa noite",
     welcome_back:"Bem-vindo ao salão.",
     my_humidors:"Meus Humidores",sensor_offline:"Sensor offline",sensor_updating:"Atualizando…",
@@ -148,7 +148,7 @@ const TRANSLATIONS:{[K in LangCode]:Record<string,string>}={
     try_again:"Réessayer",add_to_col_btn:"+ Ajouter à la Collection",
   },
   de:{
-    nav_home:"Start",nav_humidors:"Humidore",nav_record:"Aufzeichnung",nav_mario:"Mario",nav_club:"Club",nav_profile:"Profil",
+    nav_home:"Start",nav_humidors:"Humidore",nav_record:"Tagebuch",nav_mario:"Mario",nav_club:"Club",nav_profile:"Profil",
     greeting_morning:"Guten Morgen",greeting_afternoon:"Guten Tag",greeting_evening:"Guten Abend",
     welcome_back:"Willkommen in der Lounge.",
     my_humidors:"Meine Humidore",sensor_offline:"Sensor offline",sensor_updating:"Aktualisierung…",
@@ -183,6 +183,29 @@ const SyncContext=createContext<{userId:string;getToken:()=>Promise<string|null>
   userId:"",getToken:async()=>null
 });
 const useSyncContext=()=>useContext(SyncContext);
+
+// ── MEMBERSHIP HOOK ───────────────────────────────────────────────────────
+function useMembership(){
+  const {userId}=useSyncContext();
+  const [tier,setTier]=useState<"free"|"pro">("free");
+  const [loading,setLoading]=useState(true);
+  useEffect(()=>{
+    if(!userId){setLoading(false);return;}
+    import("@/lib/supabase").then(({getSupabaseClient})=>{
+      getSupabaseClient(null).from("profiles").select("membership_tier").eq("id",userId).single()
+        .then(({data}:{data:any})=>{
+          if(data?.membership_tier==="pro") setTier("pro");
+          setLoading(false);
+        });
+    });
+    // Check for payment success in URL — optimistic unlock before Supabase confirms
+    const params=new URLSearchParams(window.location.search);
+    if(params.get("payment")==="success"){
+      setTier("pro");
+    }
+  },[userId]);
+  return {tier,isPro:tier==="pro",loading};
+}
 
 // ── LANGUAGE CONTEXT ────────────────────────────────────────────────────────
 const LangContext=createContext<{lang:LangCode;t:(k:string)=>string;setLang:(l:LangCode)=>void}>({
@@ -222,13 +245,12 @@ const NOTES_INIT=[
 // ── HUMIDORS SCREEN ────────────────────────────────────────────────────────
 
 
-const polar=(cx:number,cy:number,r:number,deg:number)=>{const a=(deg-90)*Math.PI/180;return{x:Math.round((cx+r*Math.cos(a))*100)/100,y:Math.round((cy+r*Math.sin(a))*100)/100};};
 const HUMIDORS:any[]=[];
 type CigarEntry={id:number;brand:string;line:string;vitola:string;origin:string;wrapper:string;rating:number;count:number;purchaseDate:string;bandColor:string;humidorId:number|null;customPhoto?:string|null;imageUri?:string|null;image_filename?:string|null};
 const CIGARS:any[]=[];
 
 // ── EXPORTS ──────────────────────────────────────────────────────────────────
-export {T,r2,polar,LANGS,TRANSLATIONS,NOTES_INIT,HUMIDORS,CIGARS};
+export {T,r2,LANGS,TRANSLATIONS,NOTES_INIT,HUMIDORS,CIGARS};
 export type {LangCode,CigarEntry};
 export {getCigarImage};
-export {SyncContext,useSyncContext,LangContext,useLang};
+export {SyncContext,useSyncContext,LangContext,useLang,useMembership};

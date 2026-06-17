@@ -24,32 +24,7 @@ export function BandScannerModal({onClose,onAddToCollection,onAddToJournal,onSmo
   const [errMsg,setErrMsg]=useState("");
   const [recordStatus,setRecordStatus]=useState<"smoked"|"onMyList">("smoked");
   const [recordNote,setRecordNote]=useState("");
-  const [humidors,setHumidors]=useState<{id:number;name:string}[]>([]);
-  const [addToCollection,setAddToCollection]=useState(false);
-  const [selectedHumidor,setSelectedHumidor]=useState<number|null>(null);
   const {t}=useLang();
-
-  useEffect(()=>{
-    try{const s=localStorage.getItem('mh_humidors');if(s){const h=JSON.parse(s);setHumidors(h);if(h.length>0)setSelectedHumidor(h[0].id);}}catch{}
-  },[]);
-
-  const saveToCollectionAndRecord=(r:ScanResult,status:"smoked"|"onMyList",note:string,photo:string|null)=>{
-    if(addToCollection&&selectedHumidor!==null){
-      try{
-        const cigars=JSON.parse(localStorage.getItem('mh_cigars')||'[]');
-        // No photo stored in collection — avoids localStorage quota issues.
-        // Inventory card uses catalog image (getCigarImage) as fallback.
-        const entry={id:Date.now(),brand:r.brand,line:r.line,vitola:r.vitola,
-          origin:r.origin,wrapper:r.wrapper,rating:r.rating??0,count:1,
-          purchaseDate:new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}),
-          bandColor:"gold",humidorId:Number(selectedHumidor),
-          image_filename:r.image_filename||null};
-        const updated=[entry,...cigars];
-        localStorage.setItem('mh_cigars',JSON.stringify(updated));
-      }catch(e){console.error('[collection save] failed:',e);}
-    }
-    onSaveToRecord?.(r,status,note,photo);
-  };
 
   const scan=async(file:File)=>{
     setPhase("scanning");
@@ -339,44 +314,15 @@ export function BandScannerModal({onClose,onAddToCollection,onAddToJournal,onSmo
                   style={{width:"100%",background:"rgba(0,0,0,0.2)",border:`1px solid ${T.border}`,
                     borderRadius:10,padding:"12px 14px",color:T.textPrimary,fontSize:14,
                     outline:"none",boxSizing:"border-box",fontFamily:"Georgia,serif",resize:"vertical"}}/>
-                {/* Add to collection toggle */}
-                {humidors.length>0&&(
-                  <div style={{background:"rgba(196,154,40,0.06)",borderRadius:12,
-                    border:`1px solid rgba(196,154,40,0.15)`,padding:"12px 14px"}}>
-                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:addToCollection?10:0}}>
-                      <span style={{fontSize:14,color:T.textPrimary,fontFamily:"Georgia,serif"}}>
-                        Also add to collection
-                      </span>
-                      <button onClick={()=>setAddToCollection(v=>!v)}
-                        style={{width:44,height:26,borderRadius:13,border:"none",cursor:"pointer",
-                          background:addToCollection?T.goldMid:"rgba(255,255,255,0.15)",
-                          position:"relative",transition:"background 0.2s",flexShrink:0}}>
-                        <div style={{width:20,height:20,borderRadius:"50%",background:"white",
-                          position:"absolute",top:3,transition:"left 0.2s",
-                          left:addToCollection?21:3}}/>
-                      </button>
-                    </div>
-                    {addToCollection&&(
-                      <select value={selectedHumidor??""} onChange={e=>setSelectedHumidor(Number(e.target.value))}
-                        style={{width:"100%",background:"rgba(0,0,0,0.3)",border:`1px solid ${T.borderGold}`,
-                          borderRadius:8,padding:"8px 12px",color:T.textPrimary,fontSize:14,
-                          fontFamily:"Georgia,serif",outline:"none"}}>
-                        {humidors.map((h:any)=>(
-                          <option key={h.id} value={h.id}>{h.name}</option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-                )}
                 <button
                   disabled={!result.brand?.trim()}
-                  onClick={()=>saveToCollectionAndRecord(result,recordStatus,recordNote,preview)}
+                  onClick={()=>onSaveToRecord?.(result,recordStatus,recordNote,preview)}
                   style={{width:"100%",padding:"15px",
                     background:result.brand?.trim()?"linear-gradient(135deg,#2a2a2a,#0a0a0a)":"rgba(255,255,255,0.05)",
                     border:`1px solid ${result.brand?.trim()?"rgba(196,154,40,0.3)":T.border}`,borderRadius:12,
                     color:result.brand?.trim()?T.goldMid:T.textMuted,fontSize:17,
                     fontWeight:"bold",cursor:result.brand?.trim()?"pointer":"not-allowed",fontFamily:"Georgia,serif"}}>
-                  {addToCollection?"Save to Record & Collection":"Save to Record"}
+                  Save to Record
                 </button>
                 <button onClick={()=>{setPhase("idle");setPreview(null);setResult(null);setRecordNote("");}}
                   style={{width:"100%",padding:"12px",background:"none",

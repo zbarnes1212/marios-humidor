@@ -231,11 +231,12 @@ function AuthScreen() {
       <div style={{position:"relative",zIndex:1}}>
         <SignIn
           routing="hash"
+          fallbackRedirectUrl="/"
+          
           appearance={{
             variables:{
               colorPrimary:"#C49A28",
               colorBackground:"#111111",
-              
               borderRadius:"12px",
               fontFamily:"Georgia, serif",
               colorDanger:"#e05050",
@@ -494,7 +495,7 @@ function AppInner() {
             text:`${g.name} — ${top?`${top.name} leading at ${top.progress}%`:`${memberCount} members`} · ${daysLeft}d left`
           };
         });
-        const tickerItems=liveItems.length>0?liveItems:HOME_TICKER_ITEMS;
+        const tickerItems:any[]=liveItems.length>0?liveItems:HOME_TICKER_ITEMS;
         return(
           <div style={{position:"fixed",bottom:64,left:"50%",transform:"translateX(-50%)",
             width:"100%",maxWidth:480,zIndex:99}}>
@@ -508,7 +509,7 @@ function AppInner() {
                   <span key={i} style={{display:"inline-flex",alignItems:"center",gap:8,
                     padding:"0 28px",fontSize:13,color:"#ffffff",
                     fontFamily:"Georgia,serif"}}>
-                    <span style={{fontSize:14}}>{(item as any).icon||(item as any).label}</span>
+                    <span style={{fontSize:14}}>{item.icon}</span>
                     {item.text}
                     <span style={{color:"rgba(255,255,255,0.35)",marginLeft:20}}>•</span>
                   </span>

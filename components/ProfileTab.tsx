@@ -198,7 +198,7 @@ export function AchievementsTab() {
 export function ProfileTab() {
   const {userId}=useSyncContext();
   const {user}=useUser();
-  const [membershipTier,setMembershipTier]=useState<"free"|"pro"|"companion">("free");
+  const [membershipTier,setMembershipTier]=useState<"free"|"pro">("free");
   const [upgrading,setUpgrading]=useState(false);
   const [mounted,setMounted]=useState(false);
   const [cigars,setCigars]=useState<any[]>([]);
@@ -419,16 +419,6 @@ export function ProfileTab() {
                 fontSize:16,fontWeight:"bold",cursor:"pointer",
                 fontFamily:"Georgia,serif",opacity:upgrading?0.7:1}}>
               {upgrading?"Redirecting to checkout…":"Upgrade to Pro — $59.99/yr"}
-            </button>
-            <button
-              onClick={()=>handleUpgrade(process.env.NEXT_PUBLIC_STRIPE_COMPANION_PRICE_ID||"","payment")}
-              disabled={upgrading}
-              style={{width:"100%",padding:"11px",marginTop:8,
-                background:"transparent",
-                border:`1px solid rgba(196,154,40,0.3)`,borderRadius:12,color:T.goldMid,
-                fontSize:14,cursor:"pointer",
-                fontFamily:"Georgia,serif",opacity:upgrading?0.7:1}}>
-              Companion App only — $4.99
             </button>
           </div>
         )}
