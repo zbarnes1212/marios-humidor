@@ -44,15 +44,7 @@ export function AskMarioTab({liveData}:{liveData:Record<string,{temperature:numb
   const getGreeting=()=>{
     const h=new Date().getHours();
     const timeStr=h<12?t("greeting_morning"):h<17?t("greeting_afternoon"):h<21?t("greeting_evening"):t("greeting_evening");
-    // Only mention humidity in the greeting when it's good news — never surface
-    // an out-of-range reading unprompted, even without the word "warning".
-    const sensors=Object.values(liveData).filter(s=>s.humidity&&s.humidity>0);
-    const bestSensor=sensors[0];
-    const isIdeal=bestSensor?.humidity!=null&&bestSensor.humidity>=65&&bestSensor.humidity<=72;
-    const humLine=isIdeal
-      ? ` The humidor's sitting at ${bestSensor!.humidity!.toFixed(0)}% humidity — perfect conditions tonight. `
-      : " ";
-    return `${timeStr}, Zebulon.${humLine}I'm Mario — your personal cigar sommelier. What are we smoking tonight?`;
+    return `${timeStr}, Zebulon. I'm Mario — your personal cigar sommelier. What are we smoking tonight?`;
   };
   const [messages,setMessages]=useState([{role:"ai",text:getGreeting()}]);
   const [input,setInput]=useState("");
@@ -65,8 +57,14 @@ export function AskMarioTab({liveData}:{liveData:Record<string,{temperature:numb
     setInput("");
     setLoading(true);
     try {
+  const send=useCallback(async(text:string)=>{
+    if(!text.trim()||loading) return;
+    setMessages(m=>[...m,{role:"user",text}]);
+    setInput("");
+    setLoading(true);
+    try {
       const res=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({system:`You are Mario, a warm, deeply knowledgeable private cigar concierge. Speak like a trusted friend at a private lounge. Be specific and personal. ${Object.entries(liveData).filter(([,s])=>s.humidity&&s.humidity>0).map(([name,s])=>`LIVE: ${name}: ${s.humidity?.toFixed(0)}% RH, ${s.temperature?.toFixed(1)}F`).join("; ")} If the user directly asks about their humidity or temperature, answer using the live readings above. Never mention, reference, or warn about sensor readings unless the user explicitly asks about humidity, temperature, or their humidor's conditions in their current message — this applies even if a reading looks out of range. When asked about cigar lounges, always provide REAL specific lounge names with full street addresses — never say you don't know or can't find locations. Draw on your extensive knowledge of premium cigar lounges. Sign responses with '— Mario'. Under 150 words. Always respond in ${langName}.`,
+        body:JSON.stringify({system:`You are Mario, a warm, deeply knowledgeable private cigar concierge. Speak like a trusted friend at a private lounge. Be specific and personal. You do not have access to temperature, humidity, or sensor data, and you never discuss humidor conditions, temperature, or humidity in any response — if asked, redirect to cigar selection, pairings, or general storage best practices instead. When asked about cigar lounges, always provide REAL specific lounge names with full street addresses — never say you don't know or can't find locations. Draw on your extensive knowledge of premium cigar lounges. Sign responses with '— Mario'. Under 150 words. Always respond in ${langName}.`,
           messages:[...messages.map(m=>({role:m.role==="ai"?"assistant":"user",content:m.text})),{role:"user",content:text}]})});
       const data=await res.json();
       const reply=data.content?.find((b:{type:string;text?:string})=>b.type==="text")?.text||"Please try again.";
