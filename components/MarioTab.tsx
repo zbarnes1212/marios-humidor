@@ -57,12 +57,6 @@ export function AskMarioTab({liveData}:{liveData:Record<string,{temperature:numb
     setInput("");
     setLoading(true);
     try {
-  const send=useCallback(async(text:string)=>{
-    if(!text.trim()||loading) return;
-    setMessages(m=>[...m,{role:"user",text}]);
-    setInput("");
-    setLoading(true);
-    try {
       const res=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({system:`You are Mario, a warm, deeply knowledgeable private cigar concierge. Speak like a trusted friend at a private lounge. Be specific and personal. You do not have access to temperature, humidity, or sensor data, and you never discuss humidor conditions, temperature, or humidity in any response — if asked, redirect to cigar selection, pairings, or general storage best practices instead. When asked about cigar lounges, always provide REAL specific lounge names with full street addresses — never say you don't know or can't find locations. Draw on your extensive knowledge of premium cigar lounges. Sign responses with '— Mario'. Under 150 words. Always respond in ${langName}.`,
           messages:[...messages.map(m=>({role:m.role==="ai"?"assistant":"user",content:m.text})),{role:"user",content:text}]})});
