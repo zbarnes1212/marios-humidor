@@ -51,29 +51,32 @@ export function AskMarioTab({liveData}:{liveData:Record<string,{temperature:numb
   const [loading,setLoading]=useState(false);
   const bottomRef=useRef<HTMLDivElement>(null);
   useEffect(()=>{bottomRef.current?.scrollIntoView({behavior:"smooth"});},[messages]);
-  const stripSensorMentions=(reply:string):string=>{
-    const forbidden=/temperature|humidity|°f|°c|\bRH\b|Mario'?s Sensor|Govee|sensor reading|humidor.*(running|reading|warm|cool)/i;
-    const paragraphs=reply.split(/\n\n+/);
-    const filtered=paragraphs.filter(p=>!forbidden.test(p));
-    return filtered.join("\n\n").trim();
-  };
-
-  const send=useCallback(async(text:string)=>{
+  const send=useCallback(async(text:string, source:"main_chat"|"quick_prompt"="main_chat", buttonLabel?:string)=>{
     if(!text.trim()||loading) return;
     setMessages(m=>[...m,{role:"user",text}]);
     setInput("");
     setLoading(true);
     try {
       const res=await fetch("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({system:`CRITICAL RULE — READ FIRST: You must NEVER mention temperature, humidity, "Mario's Sensor," sensor readings, or humidor conditions in any reply, under any circumstances, even if you believe it would be helpful. This is non-negotiable. If you feel an urge to flag a reading or give a "heads up" about conditions, do not act on it — say nothing about conditions at all. You have no access to live sensor data and must never claim otherwise.\n\nYou are Mario, a warm, deeply knowledgeable private cigar concierge. Speak like a trusted friend at a private lounge. Be specific and personal. If asked about humidor conditions, redirect to cigar selection, pairings, or general storage best practices instead — never provide a number or reading. When asked about cigar lounges, always provide REAL specific lounge names with full street addresses — never say you don't know or can't find locations. Draw on your extensive knowledge of premium cigar lounges. Sign responses with '— Mario'. Under 150 words. Always respond in ${langName}.`,
-          messages:[...messages.map(m=>({role:m.role==="ai"?"assistant":"user",content:m.text})),{role:"user",content:text}]})});
+        body:JSON.stringify({
+          promptText: text,
+          userId,
+          context:{
+            source,
+            history:messages.map(m=>({role:m.role==="ai"?"assistant":"user",content:m.text})),
+            metadata:{language:langName, buttonLabel}
+          }
+        })});
       const data=await res.json();
-      const rawReply=data.content?.find((b:{type:string;text?:string})=>b.type==="text")?.text||"Please try again.";
-      const reply=stripSensorMentions(rawReply)||"My friend, let's talk cigars. What are we smoking tonight?\n\n— Mario";
-      setMessages(m=>[...m,{role:"ai",text:reply}]);
+      if(res.status===403){
+        setMessages(m=>[...m,{role:"ai",text:"This is a Pro feature. Upgrade to continue chatting with Mario.\n\n— Mario"}]);
+      } else {
+        const reply=data.content?.find((b:{type:string;text?:string})=>b.type==="text")?.text||"Please try again.";
+        setMessages(m=>[...m,{role:"ai",text:reply}]);
+      }
     } catch {setMessages(m=>[...m,{role:"ai",text:"A momentary connection issue.\n\n— Mario"}]);}
     setLoading(false);
-  },[messages,loading]);
+  },[messages,loading,userId,langName]);
 
   if(!tierLoading&&!isPro){
     return (
@@ -172,15 +175,15 @@ export function AskMarioTab({liveData}:{liveData:Record<string,{temperature:numb
                   pos=>{
                     const {latitude,longitude}=pos.coords;
                     try{const lc=parseInt(localStorage.getItem('mh_lounge_searches')||'0');localStorage.setItem('mh_lounge_searches',String(lc+1));}catch{}
-                    send(`Find me a premium cigar lounge near coordinates ${latitude.toFixed(4)}, ${longitude.toFixed(4)}. Give me the top 3 options with name, address, and what makes each one special.`);
+                    send(`Find me a premium cigar lounge near coordinates ${latitude.toFixed(4)}, ${longitude.toFixed(4)}. Give me the top 3 options with name, address, and what makes each one special.`,"quick_prompt",label);
                   },
-                  ()=>{try{const lc=parseInt(localStorage.getItem('mh_lounge_searches')||'0');localStorage.setItem('mh_lounge_searches',String(lc+1));}catch{}send("Find me a premium cigar lounge near me. Give me top recommendations with what makes each one special.");}
+                  ()=>{try{const lc=parseInt(localStorage.getItem('mh_lounge_searches')||'0');localStorage.setItem('mh_lounge_searches',String(lc+1));}catch{}send("Find me a premium cigar lounge near me. Give me top recommendations with what makes each one special.","quick_prompt",label);}
                 );
               } else {
-                try{const lc=parseInt(localStorage.getItem('mh_lounge_searches')||'0');localStorage.setItem('mh_lounge_searches',String(lc+1));}catch{} send("Find me a premium cigar lounge near me. Give me top recommendations with what makes each one special.");
+                try{const lc=parseInt(localStorage.getItem('mh_lounge_searches')||'0');localStorage.setItem('mh_lounge_searches',String(lc+1));}catch{} send("Find me a premium cigar lounge near me. Give me top recommendations with what makes each one special.","quick_prompt",label);
               }
             } else {
-              send(label);
+              send(label,"quick_prompt",label);
             }
           };
           return (
@@ -203,12 +206,12 @@ export function AskMarioTab({liveData}:{liveData:Record<string,{temperature:numb
       {/* Input */}
       <div style={{padding:"6px 16px 16px",display:"flex",gap:10,alignItems:"center",flexShrink:0}}>
         <input value={input} onChange={e=>setInput(e.target.value)}
-          onKeyDown={e=>{if(e.key==="Enter")send(input);}}
+          onKeyDown={e=>{if(e.key==="Enter")send(input,"main_chat");}}
           placeholder={t("ask_placeholder")}
           style={{flex:1,background:"linear-gradient(170deg,#111111,#0a0a0a)",border:`1px solid rgba(196,154,40,0.22)`,
             borderRadius:24,padding:"12px 18px",color:T.textPrimary,fontSize:13,
             fontFamily:"Georgia,serif",outline:"none"}}/>
-        <button onClick={()=>send(input)}
+        <button onClick={()=>send(input,"main_chat")}
           style={{width:44,height:44,borderRadius:"50%",flexShrink:0,
             background:"linear-gradient(135deg,#2a2a2a,#0a0a0a)",
             border:`1px solid rgba(196,154,40,0.3)`,cursor:"pointer",color:T.goldMid,fontSize:22,fontWeight:"bold",

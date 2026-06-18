@@ -3,14 +3,18 @@
 import { useEffect, useState } from 'react';
 
 export default function SplashScreen({ onDone }: { onDone: () => void }) {
+  const [fadingOut, setFadingOut] = useState(false);
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setVisible(false);
-      setTimeout(onDone, 800);
+    const fadeTimer = setTimeout(() => {
+      setFadingOut(true);
+      setTimeout(() => {
+        setVisible(false);
+        onDone();
+      }, 800);
     }, 3000);
-    return () => clearTimeout(timer);
+    return () => clearTimeout(fadeTimer);
   }, [onDone]);
 
   if (!visible) return null;
@@ -19,12 +23,14 @@ export default function SplashScreen({ onDone }: { onDone: () => void }) {
     <div style={{
       position: 'fixed',
       inset: 0,
-      background: '#0a0a0a',
+      background: '#120a02',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
       zIndex: 9999,
+      opacity: fadingOut ? 0 : 1,
+      transition: 'opacity 800ms ease-out',
     }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500&family=Cormorant+Garamond:wght@300;400&display=swap');

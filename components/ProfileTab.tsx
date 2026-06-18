@@ -1,6 +1,6 @@
 "use client";
 import React,{useState,useEffect} from "react";
-import {useUser} from "@clerk/nextjs";
+import {useUser,useAuth} from "@clerk/nextjs";
 import {T,getCigarImage,NOTES_INIT,useLang,useSyncContext} from "@/lib/constants";
 import {SvgIcon} from "@/lib/ui";
 import {MoreScreen} from "@/components/MoreScreen";
@@ -198,6 +198,7 @@ export function AchievementsTab() {
 export function ProfileTab() {
   const {userId}=useSyncContext();
   const {user}=useUser();
+  const {getToken}=useAuth();
   const [membershipTier,setMembershipTier]=useState<"free"|"pro">("free");
   const [upgrading,setUpgrading]=useState(false);
   const [mounted,setMounted]=useState(false);
@@ -241,18 +242,24 @@ export function ProfileTab() {
   // Fetch membership tier
   useEffect(()=>{
     if(!userId) return;
-    import("@/lib/supabase").then(({getSupabaseClient})=>{
-      getSupabaseClient(null).from("profiles").select("membership_tier").eq("id",userId).single()
-        .then(({data})=>{if(data?.membership_tier)setMembershipTier(data.membership_tier as any);})
-        
-    });
+    (async()=>{
+      try{
+        const token=await getToken({template:"supabase"});
+        const {getSupabaseClient}=await import("@/lib/supabase");
+        const {data,error}=await getSupabaseClient(token).from("profiles").select("membership_tier").eq("id",userId).single();
+        if(error) console.error("[membership] fetch failed:",error);
+        if(data?.membership_tier) setMembershipTier(data.membership_tier as any);
+      }catch(e){
+        console.error("[membership] error:",e);
+      }
+    })();
     // Check for payment success in URL
     const params=new URLSearchParams(window.location.search);
     if(params.get("payment")==="success"){
       setMembershipTier("pro");
       window.history.replaceState({},"","/");
     }
-  },[userId]);
+  },[userId,getToken]);
 
   const handleUpgrade=async(priceId:string,mode:"subscription"|"payment")=>{
     if(!userId) return;

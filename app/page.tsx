@@ -472,9 +472,9 @@ function AppInner() {
           width:"100%",maxWidth:480,height:"100vh",zIndex:0,overflow:"hidden",background:T.bg}}>
           <div style={{position:"absolute",top:0,left:0,right:0,height:340,overflow:"hidden",
             display:"flex",alignItems:"flex-end",justifyContent:"flex-end"}}>
-            <img src="/mario-avatar.jpg" alt=""
+            <img src="/mario-avatar.png" alt=""
               style={{width:"auto",height:"75%",maxWidth:"none",
-                objectFit:"contain",display:"block"}}/>
+                objectFit:"contain",display:"block",filter:"brightness(1.15)"}}/>
             <div style={{position:"absolute",inset:0,
               background:"linear-gradient(180deg, rgba(10,8,4,0.45) 0%, rgba(10,8,4,0.35) 40%, rgba(10,8,4,0.85) 85%, "+T.bg+" 100%)"}}/>
           </div>
