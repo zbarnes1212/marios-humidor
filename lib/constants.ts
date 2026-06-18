@@ -186,24 +186,34 @@ const useSyncContext=()=>useContext(SyncContext);
 
 // ── MEMBERSHIP HOOK ───────────────────────────────────────────────────────
 function useMembership(){
-  const {userId}=useSyncContext();
+  const {userId,getToken}=useSyncContext();
   const [tier,setTier]=useState<"free"|"pro">("free");
   const [loading,setLoading]=useState(true);
   useEffect(()=>{
     if(!userId){setLoading(false);return;}
-    import("@/lib/supabase").then(({getSupabaseClient})=>{
-      getSupabaseClient(null).from("profiles").select("membership_tier").eq("id",userId).single()
-        .then(({data}:{data:any})=>{
-          if(data?.membership_tier==="pro") setTier("pro");
-          setLoading(false);
-        });
-    });
+    (async()=>{
+      try{
+        const token=await getToken();
+        const {getSupabaseClient}=await import("@/lib/supabase");
+        const {data,error}=await getSupabaseClient(token).from("profiles").select("membership_tier").eq("id",userId).single();
+        if(error) console.error("[useMembership] fetch failed:",error);
+        if(data?.membership_tier==="pro") setTier("pro");
+      }catch(e){
+        console.error("[useMembership] error:",e);
+      }finally{
+        setLoading(false);
+      }
+    })();
     // Check for payment success in URL — optimistic unlock before Supabase confirms
+    // Strip immediately after reading so it cannot persist, be cached, or shared across sessions
     const params=new URLSearchParams(window.location.search);
     if(params.get("payment")==="success"){
       setTier("pro");
+      params.delete("payment");
+      const newUrl=window.location.pathname+(params.toString()?`?${params.toString()}`:"");
+      window.history.replaceState({},"",newUrl);
     }
-  },[userId]);
+  },[userId,getToken]);
   return {tier,isPro:tier==="pro",loading};
 }
 
