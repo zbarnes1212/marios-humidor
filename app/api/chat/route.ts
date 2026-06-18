@@ -1,7 +1,6 @@
 // /app/api/chat/route.ts
 // The single backend entry point for all Mario AI requests.
-// Every Mario interaction flows through here — no exceptions.
-// Pipeline: validate membership → build prompt → call Claude → filter response → stream to client
+// Pipeline: validate membership → build prompt → call Claude → filter response → return
 
 import { NextRequest } from "next/server";
 import { validateMarioAccess } from "@/lib/mario/validateMarioAccess";
@@ -30,7 +29,7 @@ export async function POST(req: NextRequest) {
 
   const { promptText, context, userId } = body;
 
-  // Step 1 — Membership validation (server-side, cannot be bypassed by frontend)
+  // Step 1 — Membership validation
   const access = await validateMarioAccess(userId);
   if (!access.allowed) {
     return new Response(JSON.stringify({ error: "Pro subscription required", reason: access.reason }), {
@@ -39,7 +38,7 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Step 2 — Build prompt using the correct builder for this source
+  // Step 2 — Build prompt
   const builder = getPromptBuilder(context.source);
   const { system, messages } = builder(promptText, context);
 
@@ -68,27 +67,37 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // Step 4 — Stream response through universal filter
-  // We collect the full response first so we can filter it before sending
+  // Step 4 — Collect full response with proper SSE buffering
+  // Anthropic SSE events can be split across network chunks so we buffer
+  // incomplete lines and only parse complete events
   const reader = upstream.body.getReader();
   const decoder = new TextDecoder();
   let fullText = "";
+  let buffer = "";
 
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
-    const chunk = decoder.decode(value, { stream: true });
-    // Extract text from SSE chunks
-    const lines = chunk.split("\n");
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+
+    // Keep the last (potentially incomplete) line in the buffer
+    buffer = lines.pop() ?? "";
+
     for (const line of lines) {
-      if (line.startsWith("data: ")) {
-        const data = line.slice(6);
-        if (data === "[DONE]") continue;
-        try {
-          const parsed = JSON.parse(data);
-          const delta = parsed?.delta?.text || parsed?.content?.[0]?.text || "";
-          fullText += delta;
-        } catch { /* skip malformed chunks */ }
+      if (!line.startsWith("data: ")) continue;
+      const data = line.slice(6).trim();
+      if (data === "[DONE]") continue;
+
+      try {
+        const parsed = JSON.parse(data);
+        // Only extract text from content_block_delta events
+        if (parsed.type === "content_block_delta") {
+          fullText += parsed.delta?.text ?? "";
+        }
+      } catch {
+        // Silently skip malformed lines
       }
     }
   }
