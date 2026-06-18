@@ -1,7 +1,4 @@
-// /app/api/chat/route.ts
-// The single backend entry point for all Mario AI requests.
-// Pipeline: validate membership → build prompt → call Claude → filter response → return
-
+// /app/api/chat/route.ts — DEBUG VERSION
 import { NextRequest } from "next/server";
 import { validateMarioAccess } from "@/lib/mario/validateMarioAccess";
 import { filterMarioResponse } from "@/lib/mario/filterMarioResponse";
@@ -11,6 +8,7 @@ import { MarioRequest } from "@/lib/mario/types";
 export async function POST(req: NextRequest) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
+    console.error("[mario] No API key");
     return new Response(JSON.stringify({ error: "No API key" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
@@ -21,6 +19,7 @@ export async function POST(req: NextRequest) {
   try {
     body = await req.json();
   } catch {
+    console.error("[mario] Invalid request body");
     return new Response(JSON.stringify({ error: "Invalid request body" }), {
       status: 400,
       headers: { "Content-Type": "application/json" },
@@ -28,9 +27,14 @@ export async function POST(req: NextRequest) {
   }
 
   const { promptText, context, userId } = body;
+  console.log("[mario] userId:", userId);
+  console.log("[mario] source:", context?.source);
+  console.log("[mario] promptText:", promptText?.slice(0, 50));
 
   // Step 1 — Membership validation
   const access = await validateMarioAccess(userId);
+  console.log("[mario] access:", JSON.stringify(access));
+
   if (!access.allowed) {
     return new Response(JSON.stringify({ error: "Pro subscription required", reason: access.reason }), {
       status: 403,
@@ -41,8 +45,10 @@ export async function POST(req: NextRequest) {
   // Step 2 — Build prompt
   const builder = getPromptBuilder(context.source);
   const { system, messages } = builder(promptText, context);
+  console.log("[mario] system prompt length:", system.length);
+  console.log("[mario] messages count:", messages.length);
 
-  // Step 3 — Call Claude API with streaming
+  // Step 3 — Call Claude API
   const upstream = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -59,17 +65,18 @@ export async function POST(req: NextRequest) {
     }),
   });
 
+  console.log("[mario] upstream status:", upstream.status);
+
   if (!upstream.ok || !upstream.body) {
     const text = await upstream.text();
+    console.error("[mario] upstream error:", text);
     return new Response(JSON.stringify({ error: text || "Upstream error" }), {
       status: upstream.status || 500,
       headers: { "Content-Type": "application/json" },
     });
   }
 
-  // Step 4 — Collect full response with proper SSE buffering
-  // Anthropic SSE events can be split across network chunks so we buffer
-  // incomplete lines and only parse complete events
+  // Step 4 — Collect full response with SSE buffering
   const reader = upstream.body.getReader();
   const decoder = new TextDecoder();
   let fullText = "";
@@ -81,8 +88,6 @@ export async function POST(req: NextRequest) {
 
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split("\n");
-
-    // Keep the last (potentially incomplete) line in the buffer
     buffer = lines.pop() ?? "";
 
     for (const line of lines) {
@@ -92,20 +97,23 @@ export async function POST(req: NextRequest) {
 
       try {
         const parsed = JSON.parse(data);
-        // Only extract text from content_block_delta events
         if (parsed.type === "content_block_delta") {
           fullText += parsed.delta?.text ?? "";
         }
       } catch {
-        // Silently skip malformed lines
+        // skip malformed
       }
     }
   }
 
-  // Step 5 — Apply universal content filter
-  const filtered = filterMarioResponse(fullText);
+  console.log("[mario] fullText length:", fullText.length);
+  console.log("[mario] fullText preview:", fullText.slice(0, 100));
 
-  // Step 6 — Return filtered response
+  // Step 5 — Filter
+  const filtered = filterMarioResponse(fullText);
+  console.log("[mario] filtered length:", filtered.length);
+
+  // Step 6 — Return
   return new Response(JSON.stringify({
     content: [{ type: "text", text: filtered }]
   }), {
